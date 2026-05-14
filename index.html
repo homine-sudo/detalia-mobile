@@ -279,17 +279,37 @@ a{color:var(--gold-light);text-decoration:none}
     <!-- ⚙️ 設定 -->
     <div class="page" id="page-settings">
       <div class="card">
-        <div class="card-title">Dropbox <span class="ja">クラウド同期</span></div>
-        <div class="form-row">
-          <label class="form-label">アクセストークン</label>
-          <input id="dbx-token" type="password" placeholder="sl.xxxxx..." autocomplete="off">
+        <div class="card-title">Dropbox <span class="ja">クラウド連携</span></div>
+        <!-- 未連携時 -->
+        <div id="dbx-not-connected">
+          <div style="font-size:12px;color:var(--text-dim);line-height:1.7;margin-bottom:12px">
+            Dropboxと連携して、PC版・他のスマホとデータを共有します。<br>
+            ボタンをタップ → Dropbox 画面で「許可」 → 自動で戻ってきます。
+          </div>
+          <button class="btn btn-primary btn-full" onclick="dbxAuthorize()">📦 Dropbox と連携する</button>
+          <details style="margin-top:10px">
+            <summary style="font-size:11px;color:var(--text-dim);cursor:pointer;padding:6px 0">🔑 手動トークン（複数端末・上級者向け）</summary>
+            <div style="margin-top:8px">
+              <input id="dbx-token-manual" type="password" placeholder="sl.xxxxx..." autocomplete="off" style="font-size:13px;margin-bottom:8px">
+              <button class="btn btn-secondary btn-full" style="font-size:13px" onclick="saveManualToken()">💾 手動トークン保存</button>
+              <div style="font-size:10px;color:var(--text-dim);line-height:1.5;margin-top:6px">
+                Dropbox App Console（fly154tcdbz09x9）で発行したアクセストークンを直接貼付できます。
+              </div>
+            </div>
+          </details>
         </div>
-        <div style="font-size:11px;color:var(--text-dim);line-height:1.7;margin-bottom:12px">
-          Dropbox 開発者コンソールで生成したトークンを貼り付け。<br>
-          スコープ: <code style="color:var(--gold-light)">files.content.read / files.content.write</code>
+        <!-- 連携済 -->
+        <div id="dbx-connected" style="display:none">
+          <div style="display:flex;align-items:center;gap:8px;padding:10px;background:var(--gold-dim);border:1px solid var(--gold-border);border-radius:8px;margin-bottom:10px">
+            <span style="font-size:20px">✅</span>
+            <div style="flex:1">
+              <div style="font-size:12px;color:var(--gold-light);font-weight:bold">Dropbox 連携中</div>
+              <div id="dbx-account" style="font-size:10px;color:var(--text-dim)">確認中...</div>
+            </div>
+          </div>
+          <button class="btn btn-secondary btn-full" onclick="testDbxConnection()">🧪 接続テスト</button>
+          <button class="btn btn-secondary btn-full" style="margin-top:8px;color:var(--red);border-color:var(--red)" onclick="dbxLogout()">🚪 連携を解除</button>
         </div>
-        <button class="btn btn-primary btn-full" onclick="saveDbxToken()">💾 トークン保存</button>
-        <button class="btn btn-secondary btn-full" style="margin-top:8px" onclick="testDbxConnection()">🧪 接続テスト</button>
         <div class="form-row" style="margin-top:14px">
           <label class="form-label">data.json のパス</label>
           <input id="dbx-path" type="text" placeholder="/ライム共有DB/ディテーリング/data.json" style="font-size:12px;font-family:Courier,monospace">
@@ -359,12 +379,16 @@ const PAINT_POSITIONS = [
 // ─────────────────────────────────────────────
 // 🗄️ ストレージ / モード
 // ─────────────────────────────────────────────
-const LS_KEY_CASES = 'detalia_mobile_cases_v1';
-const LS_KEY_TOKEN = 'detalia_mobile_dbx_token';
-const LS_KEY_DEMO  = 'detalia_mobile_demo';
-const LS_KEY_PATH  = 'detalia_mobile_dbx_path';
-const LS_KEY_LAST_SYNC = 'detalia_mobile_last_sync';
+const LS_KEY_CASES    = 'detalia_mobile_cases_v1';
+const LS_KEY_TOKEN    = 'detalia_mobile_dbx_token';
+const LS_KEY_REFRESH  = 'detalia_mobile_dbx_refresh';
+const LS_KEY_VERIFIER = 'detalia_mobile_dbx_verifier'; // sessionStorage
+const LS_KEY_DEMO     = 'detalia_mobile_demo';
+const LS_KEY_PATH     = 'detalia_mobile_dbx_path';
+const LS_KEY_LAST_SYNC= 'detalia_mobile_last_sync';
 
+// Dropbox App Key（PKCE 使用のため公開OK。LIME One と同じアプリを共有）
+const DBX_APP_KEY = 'fly154tcdbz09x9';
 const DBX_DEFAULT_PATH = '/ライム共有DB/ディテーリング/data.json';
 
 let cases = [];
@@ -1311,6 +1335,119 @@ function _dbxToken(){
   return localStorage.getItem(LS_KEY_TOKEN) || '';
 }
 
+function dbxIsConnected(){
+  return !!localStorage.getItem(LS_KEY_TOKEN);
+}
+
+// ─────────────────────────────────────────────
+// 🔐 Dropbox OAuth2 PKCE（LIME Oneパターン踏襲）
+// ─────────────────────────────────────────────
+function _generateCodeVerifier(){
+  const arr=new Uint8Array(48);
+  crypto.getRandomValues(arr);
+  return btoa(String.fromCharCode(...arr)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+async function _sha256base64url(s){
+  const buf=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+  return btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function _getRedirectUri(){ return location.origin + location.pathname; }
+
+async function dbxAuthorize(){
+  try{
+    const verifier = _generateCodeVerifier();
+    const challenge = await _sha256base64url(verifier);
+    sessionStorage.setItem(LS_KEY_VERIFIER, verifier);
+    const params = new URLSearchParams({
+      client_id: DBX_APP_KEY,
+      response_type: 'code',
+      code_challenge: challenge,
+      code_challenge_method: 'S256',
+      redirect_uri: _getRedirectUri(),
+      token_access_type: 'offline'
+    });
+    location.href = 'https://www.dropbox.com/oauth2/authorize?' + params;
+  }catch(e){
+    toast('認証開始に失敗: '+e.message, 'error');
+  }
+}
+
+async function dbxHandleCallback(){
+  const url = new URL(location.href);
+  const code = url.searchParams.get('code');
+  if(!code) return false;
+  const verifier = sessionStorage.getItem(LS_KEY_VERIFIER);
+  if(!verifier){ toast('認証エラー: verifier 紛失','error'); return false; }
+  toast('Dropbox 認証中...');
+  try{
+    const params = new URLSearchParams({
+      code,
+      grant_type: 'authorization_code',
+      client_id: DBX_APP_KEY,
+      code_verifier: verifier,
+      redirect_uri: _getRedirectUri()
+    });
+    const res = await fetch('https://api.dropboxapi.com/oauth2/token',{
+      method:'POST',
+      headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body: params.toString()
+    });
+    if(!res.ok) throw new Error('Token交換失敗: '+res.status);
+    const data = await res.json();
+    localStorage.setItem(LS_KEY_TOKEN, data.access_token);
+    if(data.refresh_token) localStorage.setItem(LS_KEY_REFRESH, data.refresh_token);
+    sessionStorage.removeItem(LS_KEY_VERIFIER);
+    history.replaceState({},'',_getRedirectUri());
+    toast('✅ Dropbox 連携完了');
+    return true;
+  }catch(e){
+    toast('認証エラー: '+e.message, 'error');
+    return false;
+  }
+}
+
+let _lastTokenRefresh = Date.now();
+async function dbxRefreshToken(){
+  const refresh = localStorage.getItem(LS_KEY_REFRESH);
+  if(!refresh) return false;
+  try{
+    const params = new URLSearchParams({
+      grant_type:'refresh_token',
+      refresh_token: refresh,
+      client_id: DBX_APP_KEY
+    });
+    const res = await fetch('https://api.dropboxapi.com/oauth2/token',{
+      method:'POST',
+      headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body: params.toString()
+    });
+    if(!res.ok) return false;
+    const data = await res.json();
+    localStorage.setItem(LS_KEY_TOKEN, data.access_token);
+    _lastTokenRefresh = Date.now();
+    return true;
+  }catch(e){ return false; }
+}
+
+function _startProactiveRefresh(){
+  if(!localStorage.getItem(LS_KEY_REFRESH)) return;
+  setInterval(()=>{ dbxRefreshToken(); }, 3*60*60*1000); // 3h
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.hidden) return;
+    if(Date.now() - _lastTokenRefresh < 2*60*60*1000) return;
+    if(!localStorage.getItem(LS_KEY_REFRESH)) return;
+    dbxRefreshToken();
+  });
+}
+
+function dbxLogout(){
+  if(!confirm('Dropbox 連携を解除しますか？\n（端末内データは消えません）')) return;
+  localStorage.removeItem(LS_KEY_TOKEN);
+  localStorage.removeItem(LS_KEY_REFRESH);
+  toast('連携を解除しました');
+  setTimeout(()=>location.reload(), 600);
+}
+
 async function dbxDownload(path){
   const t = _dbxToken();
   if(!t) throw new Error('トークン未設定');
@@ -1454,11 +1591,14 @@ function _updateSyncStatus(working){
   }
 }
 
-function saveDbxToken(){
-  const t=document.getElementById('dbx-token').value.trim();
+function saveManualToken(){
+  const t=document.getElementById('dbx-token-manual').value.trim();
   if(!t){ toast('トークンを入力してください','error'); return; }
   localStorage.setItem(LS_KEY_TOKEN, t);
-  toast('✅ トークンを保存しました');
+  // 手動トークンの場合は refresh は別途取得不可なので空にする
+  localStorage.removeItem(LS_KEY_REFRESH);
+  toast('✅ 手動トークンを保存');
+  setTimeout(()=>location.reload(), 500);
 }
 
 function saveDbxPath(){
@@ -1471,7 +1611,7 @@ function saveDbxPath(){
 
 async function testDbxConnection(){
   const t=_dbxToken();
-  if(!t){ toast('先にトークンを保存してください','error'); return; }
+  if(!t){ toast('Dropbox 未連携です','error'); return; }
   try{
     const r=await fetch('https://api.dropboxapi.com/2/users/get_current_account',{
       method:'POST',
@@ -1479,9 +1619,17 @@ async function testDbxConnection(){
     });
     if(r.ok){
       const data=await r.json();
-      toast(`✅ 接続OK: ${data.name?.display_name||data.email||''}`);
+      const name = data.name?.display_name || data.email || 'unknown';
+      toast(`✅ 接続OK: ${name}`);
+      const accEl = document.getElementById('dbx-account');
+      if(accEl) accEl.textContent = name;
+    }else if(r.status===401){
+      // トークン期限切れ → refresh を試す
+      const ok = await dbxRefreshToken();
+      if(ok){ toast('🔄 トークン更新成功、再試行を'); }
+      else  { toast('❌ トークン無効。連携をやり直してください','error'); }
     }else{
-      toast('❌ 接続失敗（トークン無効）','error');
+      toast('❌ 接続失敗 ('+r.status+')','error');
     }
   }catch(e){
     toast('❌ 通信エラー: '+e.message,'error');
@@ -1509,10 +1657,24 @@ function toast(msg, kind){
   toastTimer=setTimeout(()=>t.classList.remove('show'),2400);
 }
 
-// 設定ページの初期化（トークン・パスを localStorage から復元）
+// 設定ページの初期化（連携状態・パスを反映）
 function initSettingsUI(){
-  const tEl=document.getElementById('dbx-token');
-  if(tEl) tEl.value=localStorage.getItem(LS_KEY_TOKEN)||'';
+  const connected = dbxIsConnected();
+  const notC = document.getElementById('dbx-not-connected');
+  const yesC = document.getElementById('dbx-connected');
+  if(notC && yesC){
+    notC.style.display = connected ? 'none' : 'block';
+    yesC.style.display = connected ? 'block' : 'none';
+    if(connected){
+      // 連携中のアカウント名を裏で取得
+      fetch('https://api.dropboxapi.com/2/users/get_current_account',{
+        method:'POST', headers:{'Authorization':'Bearer '+_dbxToken()}
+      }).then(r=>r.ok?r.json():null).then(data=>{
+        const el=document.getElementById('dbx-account');
+        if(el && data) el.textContent = data.name?.display_name || data.email || '';
+      }).catch(()=>{});
+    }
+  }
   const pEl=document.getElementById('dbx-path');
   if(pEl) pEl.value=localStorage.getItem(LS_KEY_PATH)||DBX_DEFAULT_PATH;
   _updateSyncStatus();
@@ -1535,12 +1697,21 @@ savePaintGauge = function(){
   }
 };
 
-// 起動
-init();
-// 起動時：トークンがあれば自動 Pull（バックグラウンド）
-if(!isDemoMode && _dbxToken()){
-  setTimeout(()=>{ syncPull(); }, 800);
-}
+// ─────────────────────────────────────────────
+// 🚀 起動シーケンス
+// ─────────────────────────────────────────────
+(async ()=>{
+  // 1) OAuth コールバック処理（URLに ?code= があれば交換）
+  await dbxHandleCallback();
+  // 2) アプリ初期化
+  init();
+  // 3) トークン期限切れ前の自動リフレッシュ開始
+  _startProactiveRefresh();
+  // 4) 連携済なら起動時 Pull
+  if(!isDemoMode && _dbxToken()){
+    setTimeout(()=>{ syncPull(); }, 800);
+  }
+})();
 
 </script>
 </body>
