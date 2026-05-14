@@ -312,22 +312,14 @@ a{color:var(--gold-light);text-decoration:none}
       <div id="case-detail-body"></div>
     </div>
 
-    <!-- 📸 写真／SNS（Phase α-3 で実装） -->
-    <div class="page" id="page-photo">
-      <div class="empty">
-        <div class="icon">📸</div>
-        <div class="msg">
-          <strong>写真ワークフロー（Phase α-3）</strong><br>
-          ビフォー/アフター撮影機能は<br>次フェーズで実装予定です。
-        </div>
-        <div style="margin-top:20px;font-size:11px;color:var(--text-dim);line-height:1.7">
-          実装予定:<br>
-          • Before / After 撮影<br>
-          • 塗膜計測ゲージ写真<br>
-          • リール動画自動生成<br>
-          • Instagram キャプション生成
-        </div>
+    <!-- 🎨 SNSタブ（投稿待ち案件・写真ギャラリー） -->
+    <div class="page" id="page-sns">
+      <div class="card" style="background:linear-gradient(135deg,#0F0F1A 0%,#1A1A2A 60%,#0F0F1A 100%);border-color:var(--gold-border);text-align:center">
+        <div style="font-family:'Georgia',serif;font-size:22px;letter-spacing:8px;color:var(--gold-light);font-weight:300">SNS HUB</div>
+        <div style="font-size:10px;color:var(--gold-deep);letter-spacing:3px;margin-top:4px">投稿準備・履歴管理</div>
       </div>
+      <div id="sns-pending-list"></div>
+      <div id="sns-posted-list"></div>
     </div>
 
     <!-- ⚙️ 設定 -->
@@ -394,25 +386,33 @@ a{color:var(--gold-light);text-decoration:none}
         </label>
       </div>
 
+      <div class="card" style="border-left:3px solid var(--gold)">
+        <div class="card-title">App Update <span class="ja">🔄 アプリ更新</span></div>
+        <div style="font-size:11px;color:var(--text-dim);line-height:1.7;margin-bottom:10px">
+          画面が古いまま変わらないときは、ここをタップすると最新版に強制更新します。<br>
+          （ホーム画面からアプリを消す必要はありません）
+        </div>
+        <button class="btn btn-primary btn-full" onclick="forceUpdate()">🔄 アプリを最新版に更新</button>
+      </div>
+
       <div class="card">
         <div class="card-title">About <span class="ja">バージョン</span></div>
         <div style="font-size:12px;color:var(--text-dim);line-height:1.8">
-          DETALIA Mobile <span style="color:var(--gold-light)">v0.2.0-alpha</span><br>
-          Phase α-2（Dropbox 双方向同期 + 塗膜計測編集）<br>
-          Phase α-3以降で 写真 / リール / Instagram を実装
+          DETALIA Mobile <span style="color:var(--gold-light)">v0.4.0-alpha</span><br>
+          Phase α-5+ (Stage-guided UI / Canva workflow / SNS hub)<br>
+          ビルド: <span id="app-build" style="font-family:Courier,monospace;color:var(--gold-deep)">―</span>
         </div>
       </div>
     </div>
 
   </main>
 
-  <!-- ボトムナビ -->
+  <!-- ボトムナビ（4タブ：ホーム / 案件 / SNS / 設定）-->
   <nav class="m-bottomnav">
     <button class="m-tab active" data-page="home" onclick="showPage('home')"><div class="icon">🏠</div><div class="label">ホーム</div></button>
     <button class="m-tab" data-page="cases" onclick="showPage('cases')"><div class="icon">📋</div><div class="label">案件</div></button>
-    <button class="m-tab" data-page="photo" onclick="showPage('photo')"><div class="icon">📸</div><div class="label">写真</div></button>
+    <button class="m-tab" data-page="sns" onclick="showPage('sns')"><div class="icon">🎨</div><div class="label">SNS</div></button>
     <button class="m-tab" data-page="settings" onclick="showPage('settings')"><div class="icon">⚙️</div><div class="label">設定</div></button>
-    <button class="m-tab" data-page="more" onclick="toast('準備中','info')"><div class="icon">⋯</div><div class="label">他</div></button>
   </nav>
 
   <div id="toast"></div>
@@ -612,6 +612,50 @@ function caseCardHtml(c){
 // ─────────────────────────────────────────────
 // 📋 案件一覧
 // ─────────────────────────────────────────────
+function renderSnsHub(){
+  const pending = cases.filter(c=>!c.deleted && c.snsPermitted && (c.photos?.after||[]).length>0 && !c.reel?.instagramPosted);
+  const posted  = cases.filter(c=>!c.deleted && c.reel?.instagramPosted);
+  const noPermit= cases.filter(c=>!c.deleted && !c.snsPermitted && c.delivery);
+  const pendingEl = document.getElementById('sns-pending-list');
+  if(pendingEl){
+    pendingEl.innerHTML = `
+      <div class="card">
+        <div class="card-title">Ready to Post <span class="ja">📤 投稿待ち（${pending.length}件）</span></div>
+        ${pending.length===0
+          ? '<div style="padding:14px;text-align:center;color:var(--text-dim);font-size:12px">投稿待ちの案件はありません</div>'
+          : pending.map(c=>`<div class="case-card" onclick="openCase('${esc(c.id)}')" style="border-left-color:var(--gold)">
+              <div class="case-row">
+                <span class="case-id">${esc(c.id)}</span>
+                <span style="font-size:9px;padding:2px 6px;border-radius:10px;background:rgba(201,168,76,.18);color:var(--gold-light);font-weight:bold">📷 ${(c.photos?.before||[]).length}+${(c.photos?.after||[]).length}枚</span>
+              </div>
+              <div class="case-customer">${esc(c.customer||'―')}</div>
+              <div class="case-meta">${esc(c.carModel||'')}${c.carYear?' '+esc(c.carYear):''} · 納車 ${fmtDate(c.delivery)}</div>
+            </div>`).join('')}
+      </div>
+      ${noPermit.length>0?`<div class="card" style="border-left:3px solid var(--orange)">
+        <div class="card-title">SNS Not Permitted <span class="ja">⚠️ 掲載不可（${noPermit.length}件）</span></div>
+        <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px">これらは投稿できません</div>
+        ${noPermit.slice(0,5).map(c=>`<div style="padding:6px 0;font-size:12px;border-bottom:1px solid var(--border)"><b>${esc(c.id)}</b> ${esc(c.customer||'―')}</div>`).join('')}
+        ${noPermit.length>5?`<div style="font-size:11px;color:var(--text-dim);text-align:center;margin-top:6px">他 ${noPermit.length-5}件</div>`:''}
+      </div>`:''}
+      <div class="card">
+        <div class="card-title">Posted <span class="ja">✅ 投稿済（${posted.length}件）</span></div>
+        ${posted.length===0
+          ? '<div style="padding:14px;text-align:center;color:var(--text-dim);font-size:12px">まだ投稿はありません</div>'
+          : posted.slice(0,10).map(c=>`<div class="case-card" onclick="openCase('${esc(c.id)}')" style="border-left-color:var(--lime)">
+              <div class="case-row">
+                <span class="case-id">${esc(c.id)}</span>
+                ${c.reel?.instagramUrl?`<a href="${esc(c.reel.instagramUrl)}" target="_blank" onclick="event.stopPropagation()" style="font-size:10px;color:var(--lime-light)">🔗 開く</a>`:'<span style="font-size:10px;color:var(--lime)">✅</span>'}
+              </div>
+              <div class="case-customer">${esc(c.customer||'―')}</div>
+              <div class="case-meta">${esc(c.carModel||'')}${c.reel?.postedAt?' · '+fmtDate(c.reel.postedAt):''}</div>
+            </div>`).join('')}
+        ${posted.length>10?`<div style="text-align:center;font-size:11px;color:var(--text-dim);margin-top:8px">他 ${posted.length-10}件</div>`:''}
+      </div>
+    `;
+  }
+}
+
 function renderCaseList(){
   const q=(document.getElementById('case-search')?.value||'').toLowerCase().trim();
   const filtered=cases.filter(c=>{
@@ -1690,8 +1734,9 @@ function showPage(name){
   if(p) p.classList.add('active');
   document.querySelectorAll('.m-tab').forEach(t=>t.classList.toggle('active',t.dataset.page===name));
   // ヘッダ
-  const titles={home:'<b>DETALIA</b>',cases:'<b>案件一覧</b>',photo:'<b>写真／SNS</b>',settings:'<b>設定</b>'};
+  const titles={home:'<b>DETALIA</b>',cases:'<b>案件一覧</b>',sns:'<b>SNS Hub</b>',settings:'<b>設定</b>'};
   if(titles[name]) document.getElementById('header-title').innerHTML=titles[name];
+  if(name==='sns') renderSnsHub();
   document.getElementById('btn-back').style.display=(name==='detail'||name==='edit')?'flex':'none';
   // 履歴
   if(pageHistory[pageHistory.length-1]!==name) pageHistory.push(name);
@@ -1828,6 +1873,30 @@ function _startProactiveRefresh(){
     if(!localStorage.getItem(LS_KEY_REFRESH)) return;
     dbxRefreshToken();
   });
+}
+
+// ─────────────────────────────────────────────
+// 🔄 強制更新（キャッシュをバイパスして最新版ロード）
+// ─────────────────────────────────────────────
+const APP_BUILD = '2026-05-14T17:00';
+
+async function forceUpdate(){
+  toast('🔄 最新版を取得中...');
+  try{
+    // Service Worker キャッシュをクリア
+    if('serviceWorker' in navigator){
+      const regs = await navigator.serviceWorker.getRegistrations();
+      for(const reg of regs){ await reg.unregister(); }
+    }
+    if('caches' in window){
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+  }catch(e){}
+  // ハードリロード
+  const u = new URL(location.href);
+  u.searchParams.set('v', Date.now());
+  location.replace(u.toString());
 }
 
 function dbxLogout(){
@@ -2047,8 +2116,18 @@ function toast(msg, kind){
   toastTimer=setTimeout(()=>t.classList.remove('show'),2400);
 }
 
+// Service Worker 登録（network-first で HTML を取得）
+function _registerSW(){
+  if(!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.register('sw.js').then(reg=>{
+    reg.update();
+  }).catch(()=>{});
+}
+
 // 設定ページの初期化（連携状態・パスを反映）
 function initSettingsUI(){
+  const buildEl=document.getElementById('app-build');
+  if(buildEl) buildEl.textContent = APP_BUILD;
   const connected = dbxIsConnected();
   const notC = document.getElementById('dbx-not-connected');
   const yesC = document.getElementById('dbx-connected');
@@ -2125,6 +2204,8 @@ function _showOnboardOrApp(){
 }
 
 (async ()=>{
+  // 0) Service Worker 登録（次回起動から最新版チェック）
+  _registerSW();
   // 1) OAuth コールバック処理（URLに ?code= があれば交換）
   const authed = await dbxHandleCallback();
   // 2) アプリ初期化
