@@ -1753,14 +1753,50 @@ savePaintGauge = function(){
 // ─────────────────────────────────────────────
 // 🚀 起動シーケンス
 // ─────────────────────────────────────────────
+function onboardEnterDemo(){
+  isDemoMode = true;
+  localStorage.setItem(LS_KEY_DEMO, 'true');
+  loadCases();
+  renderHome();
+  renderCaseList();
+  showPage('home');
+  document.querySelector('.m-bottomnav').style.display='';
+  toast('🎮 デモモードで開始');
+}
+function onboardSaveManualToken(){
+  const t=document.getElementById('onb-token-manual').value.trim();
+  if(!t){ toast('トークンを入力してください','error'); return; }
+  localStorage.setItem(LS_KEY_TOKEN, t);
+  toast('✅ トークン保存');
+  setTimeout(()=>location.reload(), 500);
+}
+function _showOnboardOrApp(){
+  // 連携済 or デモモードなら本体、それ以外はオンボーディング
+  const needOnboard = !isDemoMode && !_dbxToken();
+  const nav = document.querySelector('.m-bottomnav');
+  if(needOnboard){
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    document.getElementById('page-onboard').classList.add('active');
+    if(nav) nav.style.display='none';
+    // ヘッダ調整
+    document.getElementById('header-title').innerHTML='<b>DETALIA</b> <span style="opacity:.6;font-size:11px">セットアップ</span>';
+    document.getElementById('btn-back').style.display='none';
+  }else{
+    if(nav) nav.style.display='';
+    showPage('home');
+  }
+}
+
 (async ()=>{
   // 1) OAuth コールバック処理（URLに ?code= があれば交換）
-  await dbxHandleCallback();
+  const authed = await dbxHandleCallback();
   // 2) アプリ初期化
   init();
   // 3) トークン期限切れ前の自動リフレッシュ開始
   _startProactiveRefresh();
-  // 4) 連携済なら起動時 Pull
+  // 4) 初期表示判定（オンボーディング or 本体）
+  _showOnboardOrApp();
+  // 5) 連携済なら起動時 Pull
   if(!isDemoMode && _dbxToken()){
     setTimeout(()=>{ syncPull(); }, 800);
   }
