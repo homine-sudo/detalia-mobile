@@ -1,0 +1,50 @@
+{
+  "name": "DETALIA — Coating & Detailing OS",
+  "short_name": "DETALIA",
+  "description": "ディテーリング・コーティング現場用モバイルアプリ。ビフォー/アフター写真・塗膜計測・リール生成・Instagram投稿支援。",
+  "start_url": "./index.html?utm_source=pwa",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0A0A0F",
+  "theme_color": "#0F0F1A",
+  "categories": ["business", "productivity"],
+  "lang": "ja",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "logo.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "案件一覧",
+      "short_name": "案件",
+      "description": "今日の施工案件を見る",
+      "url": "./index.html?tab=cases",
+      "icons": [{"src": "logo.png", "sizes": "192x192"}]
+    },
+    {
+      "name": "写真撮影",
+      "short_name": "撮影",
+      "description": "ビフォー/アフター写真を撮る",
+      "url": "./index.html?tab=photo",
+      "icons": [{"src": "logo.png", "sizes": "192x192"}]
+    }
+  ]
+}

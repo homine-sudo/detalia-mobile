@@ -1,0 +1,1547 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="DETALIA">
+<meta name="format-detection" content="telephone=yes">
+<meta name="theme-color" content="#0F0F1A">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>DETALIA Mobile — 現場用</title>
+<!-- PWA manifest（GitHub Pages 配信時に有効化）-->
+<link rel="manifest" href="manifest.json">
+<!-- iOSホーム画面アイコン（DETALIA ロゴ画像を同フォルダに配置） -->
+<link rel="apple-touch-icon" sizes="180x180" href="logo.png">
+<link rel="apple-touch-icon" sizes="167x167" href="logo.png">
+<link rel="apple-touch-icon" sizes="152x152" href="logo.png">
+<link rel="apple-touch-icon" sizes="120x120" href="logo.png">
+<link rel="icon" type="image/png" href="logo.png">
+<link rel="apple-touch-startup-image" href="logo.png">
+<style>
+/* ───── DETALIA カラーパレット（PC版と統一） ───── */
+:root{
+  --bg:#0A0A0F;
+  --bg2:#10101A;
+  --card:#1A1A2A;
+  --card2:#22223A;
+  --gold:#C9A84C;
+  --gold-light:#E8C96A;
+  --gold-deep:#A38A36;
+  --gold-dim:rgba(201,168,76,0.15);
+  --gold-border:rgba(201,168,76,0.28);
+  --lime:#B8E986;
+  --lime-deep:#86C04C;
+  --text:#F4E9C6;
+  --text-dim:#A89D7B;
+  --muted:#6B6B5A;
+  --red:#F87171;
+  --green:#86C04C;
+  --orange:#FBBF24;
+  --cyan:#22D3EE;
+  --border:rgba(201,168,76,0.18);
+  --shadow-md:0 4px 14px rgba(0,0,0,.35);
+  --shadow-lg:0 10px 30px rgba(0,0,0,.45);
+  --safe-top:env(safe-area-inset-top,0px);
+  --safe-bottom:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+html,body{height:100%;overflow:hidden;overscroll-behavior:none}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Yu Gothic',sans-serif;
+  font-size:15px;color:var(--text);
+  background:linear-gradient(180deg,#0A0A0F 0%,#10101A 100%);
+  -webkit-text-size-adjust:100%;
+  -webkit-font-smoothing:antialiased;
+}
+button,input,select,textarea{font:inherit;color:inherit}
+button{background:none;border:none;cursor:pointer;padding:0;user-select:none}
+input,select,textarea{
+  width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:10px;
+  background:var(--bg2);font-size:16px;color:var(--text);
+}
+input:focus,select:focus,textarea:focus{
+  outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,168,76,.18);
+}
+a{color:var(--gold-light);text-decoration:none}
+
+/* ───── APP SHELL ───── */
+#app{display:flex;flex-direction:column;height:100%;padding-top:var(--safe-top);padding-bottom:var(--safe-bottom)}
+
+.m-header{
+  background:linear-gradient(135deg,#0F0F1A 0%,#1A1A2A 60%,#0F0F1A 100%);
+  border-bottom:1px solid var(--gold-border);
+  color:var(--text);height:54px;display:flex;align-items:center;
+  padding:0 14px;gap:10px;flex-shrink:0;position:relative;z-index:10;
+}
+.m-header::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent 0%,var(--gold) 50%,transparent 100%);opacity:.5}
+.m-title{font-family:'Georgia',serif;font-size:16px;letter-spacing:3px;color:var(--gold-light);font-weight:300;flex:1}
+.m-title b{font-weight:600;color:var(--text)}
+.m-header-btn{
+  width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:18px;color:var(--gold-light);background:rgba(201,168,76,.08);border:1px solid var(--gold-border);
+}
+.m-header-btn:active{background:rgba(201,168,76,.18)}
+
+.m-main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 12px 88px}
+.page{display:none;animation:fadeIn .25s}
+.page.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+/* ───── ボトムナビ ───── */
+.m-bottomnav{
+  position:fixed;bottom:0;left:0;right:0;
+  background:rgba(15,15,26,0.92);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-top:1px solid var(--gold-border);
+  display:grid;grid-template-columns:repeat(5,1fr);
+  padding:4px 0 calc(var(--safe-bottom) + 4px);
+  z-index:20;
+}
+.m-tab{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  padding:8px 4px;font-size:10px;color:var(--text-dim);
+  transition:color .15s;
+}
+.m-tab.active{color:var(--gold-light)}
+.m-tab .icon{font-size:22px;line-height:1}
+.m-tab .label{font-size:10px;letter-spacing:.5px}
+
+/* ───── カード ───── */
+.card{
+  background:var(--card);border:1px solid var(--border);border-radius:12px;
+  padding:14px 16px;margin-bottom:10px;box-shadow:var(--shadow-md);
+}
+.card-title{font-size:11px;letter-spacing:3px;color:var(--gold-deep);text-transform:uppercase;margin-bottom:8px}
+.card-title .ja{font-size:13px;color:var(--text);margin-left:8px;letter-spacing:2px}
+
+/* ───── KPI ───── */
+.kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.kpi{
+  background:var(--card);border:1px solid var(--border);border-radius:10px;
+  padding:10px 12px;
+}
+.kpi-lbl{font-size:10px;color:var(--text-dim);letter-spacing:2px}
+.kpi-val{font-family:'Georgia',serif;font-size:22px;color:var(--gold-light);margin-top:2px}
+.kpi-sub{font-size:10px;color:var(--muted);margin-top:1px}
+
+/* ───── 案件カード ───── */
+.case-card{
+  background:var(--card);border:1px solid var(--border);border-left:3px solid var(--gold);
+  border-radius:8px;padding:12px 14px;margin-bottom:8px;
+}
+.case-card:active{background:var(--card2)}
+.case-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px}
+.case-id{font-family:'Georgia',serif;font-size:11px;color:var(--gold);letter-spacing:1px}
+.case-status{font-size:10px;padding:2px 8px;border-radius:10px;background:var(--gold-dim);color:var(--gold-light)}
+.case-customer{font-size:15px;color:var(--text);font-weight:500}
+.case-meta{font-size:11px;color:var(--text-dim);margin-top:3px}
+.case-size{display:inline-block;background:#0F0F1A;color:var(--gold-light);padding:1px 6px;border-radius:3px;font-size:9px;letter-spacing:1px;font-weight:bold;margin-right:6px}
+
+/* ───── ボタン ───── */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  padding:11px 18px;border-radius:10px;font-size:14px;font-weight:600;
+  transition:transform .1s;
+}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:linear-gradient(135deg,var(--gold) 0%,var(--gold-light) 100%);color:#0F0F1A}
+.btn-secondary{background:var(--card2);color:var(--text);border:1px solid var(--border)}
+.btn-danger{background:var(--red);color:#fff}
+.btn-full{width:100%}
+
+/* ───── 入力フォーム ───── */
+.form-row{margin-bottom:14px}
+.form-label{display:block;font-size:11px;letter-spacing:2px;color:var(--gold-deep);text-transform:uppercase;margin-bottom:5px}
+
+/* ───── 塗膜計測 ───── */
+.paint-grid{display:flex;flex-direction:column;gap:6px}
+.paint-row{
+  display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;
+  padding:8px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;
+}
+.paint-row .pos{font-size:13px;color:var(--text)}
+.paint-row input.val{
+  width:70px;padding:6px 8px;font-size:15px;text-align:right;
+  background:var(--card);border-color:var(--border);
+}
+.paint-row .unit{font-size:11px;color:var(--text-dim)}
+.paint-row.abnormal input.val{border-color:var(--red);color:var(--red)}
+
+/* ───── 写真ギャラリー（プレースホルダ） ───── */
+.photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}
+.photo-cell{
+  aspect-ratio:1;background:var(--bg2);border:1px dashed var(--border);
+  border-radius:8px;display:flex;align-items:center;justify-content:center;
+  color:var(--text-dim);font-size:11px;
+}
+.photo-add{
+  background:var(--gold-dim);border:1px dashed var(--gold);color:var(--gold-light);
+  font-size:24px;
+}
+
+/* ───── トースト ───── */
+#toast{
+  position:fixed;left:50%;bottom:90px;transform:translateX(-50%);
+  background:var(--card);color:var(--text);border:1px solid var(--gold-border);
+  padding:10px 18px;border-radius:24px;font-size:13px;
+  box-shadow:var(--shadow-lg);z-index:1000;
+  opacity:0;pointer-events:none;transition:opacity .25s;
+}
+#toast.show{opacity:1}
+#toast.error{border-color:var(--red);color:var(--red)}
+
+/* ───── 空状態 ───── */
+.empty{padding:48px 24px;text-align:center;color:var(--text-dim)}
+.empty .icon{font-size:48px;margin-bottom:10px;opacity:.5}
+.empty .msg{font-size:13px}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- ヘッダ -->
+  <header class="m-header">
+    <button class="m-header-btn" onclick="goBack()" id="btn-back" style="display:none">←</button>
+    <div class="m-title" id="header-title"><b>DETALIA</b> <span style="opacity:.6;font-size:11px">Mobile</span></div>
+    <button class="m-header-btn" onclick="reloadData()" title="再読込">⟳</button>
+  </header>
+
+  <!-- メイン -->
+  <main class="m-main">
+
+    <!-- 🏠 ホーム -->
+    <div class="page active" id="page-home">
+      <div class="card" style="background:linear-gradient(135deg,#0F0F1A 0%,#1A1A2A 60%,#0F0F1A 100%);border-color:var(--gold-border)">
+        <div style="font-family:'Georgia',serif;font-size:28px;letter-spacing:8px;color:var(--gold-light);font-weight:300">DETALIA</div>
+        <div style="font-size:10px;color:var(--gold-deep);letter-spacing:4px;margin-top:2px">COATING & DETAILING OS</div>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi"><div class="kpi-lbl">本日の入庫</div><div class="kpi-val" id="kpi-today-in">―</div><div class="kpi-sub">件</div></div>
+        <div class="kpi"><div class="kpi-lbl">納車待ち</div><div class="kpi-val" id="kpi-wait-dlv">―</div><div class="kpi-sub">件</div></div>
+        <div class="kpi"><div class="kpi-lbl">当月納車</div><div class="kpi-val" id="kpi-month-dlv">―</div><div class="kpi-sub">件</div></div>
+        <div class="kpi"><div class="kpi-lbl">当月売上</div><div class="kpi-val" id="kpi-month-rev" style="font-size:16px">―</div><div class="kpi-sub">税抜</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Quick Actions <span class="ja">クイック操作</span></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <button class="btn btn-secondary" onclick="showPage('cases')">📋 案件一覧</button>
+          <button class="btn btn-secondary" onclick="showPage('photo')">📸 写真撮影</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Recent <span class="ja">最近の案件</span></div>
+        <div id="recent-cases"></div>
+      </div>
+    </div>
+
+    <!-- 📋 案件一覧 -->
+    <div class="page" id="page-cases">
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <input id="case-search" placeholder="🔍 顧客名・車名・受付No" oninput="renderCaseList()" style="font-size:14px;flex:1">
+        <button class="btn btn-primary" style="flex-shrink:0;padding:11px 14px" onclick="newCase()">＋ 新規</button>
+      </div>
+      <div id="case-list"></div>
+    </div>
+
+    <!-- ✏️ 案件編集 -->
+    <div class="page" id="page-edit">
+      <div id="case-edit-body"></div>
+    </div>
+
+    <!-- 🚗 案件詳細 -->
+    <div class="page" id="page-detail">
+      <div id="case-detail-body"></div>
+    </div>
+
+    <!-- 📸 写真／SNS（Phase α-3 で実装） -->
+    <div class="page" id="page-photo">
+      <div class="empty">
+        <div class="icon">📸</div>
+        <div class="msg">
+          <strong>写真ワークフロー（Phase α-3）</strong><br>
+          ビフォー/アフター撮影機能は<br>次フェーズで実装予定です。
+        </div>
+        <div style="margin-top:20px;font-size:11px;color:var(--text-dim);line-height:1.7">
+          実装予定:<br>
+          • Before / After 撮影<br>
+          • 塗膜計測ゲージ写真<br>
+          • リール動画自動生成<br>
+          • Instagram キャプション生成
+        </div>
+      </div>
+    </div>
+
+    <!-- ⚙️ 設定 -->
+    <div class="page" id="page-settings">
+      <div class="card">
+        <div class="card-title">Dropbox <span class="ja">クラウド同期</span></div>
+        <div class="form-row">
+          <label class="form-label">アクセストークン</label>
+          <input id="dbx-token" type="password" placeholder="sl.xxxxx..." autocomplete="off">
+        </div>
+        <div style="font-size:11px;color:var(--text-dim);line-height:1.7;margin-bottom:12px">
+          Dropbox 開発者コンソールで生成したトークンを貼り付け。<br>
+          スコープ: <code style="color:var(--gold-light)">files.content.read / files.content.write</code>
+        </div>
+        <button class="btn btn-primary btn-full" onclick="saveDbxToken()">💾 トークン保存</button>
+        <button class="btn btn-secondary btn-full" style="margin-top:8px" onclick="testDbxConnection()">🧪 接続テスト</button>
+        <div class="form-row" style="margin-top:14px">
+          <label class="form-label">data.json のパス</label>
+          <input id="dbx-path" type="text" placeholder="/ライム共有DB/ディテーリング/data.json" style="font-size:12px;font-family:Courier,monospace">
+        </div>
+        <button class="btn btn-secondary btn-full" onclick="saveDbxPath()">💾 パス保存</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Sync <span class="ja">同期操作</span></div>
+        <div id="sync-status" style="font-size:11px;color:var(--text-dim);margin-bottom:10px;text-align:center;padding:6px;background:var(--bg2);border-radius:6px">未同期</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <button class="btn btn-secondary" onclick="syncPull()" style="font-size:13px">⬇️ Pull</button>
+          <button class="btn btn-secondary" onclick="syncPush()" style="font-size:13px">⬆️ Push</button>
+        </div>
+        <button class="btn btn-primary btn-full" onclick="syncBoth()">🔄 完全同期（Pull→Push）</button>
+        <div style="font-size:10px;color:var(--text-dim);line-height:1.6;margin-top:10px">
+          ・<b>Pull</b>: Dropbox→端末（PCで作った案件を取得）<br>
+          ・<b>Push</b>: 端末→Dropbox（編集を反映）<br>
+          ・<b>完全同期</b>: 両方やる。マージはid+updatedAt基準
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Mode <span class="ja">動作モード</span></div>
+        <label style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--bg2);border-radius:8px">
+          <input type="checkbox" id="demo-toggle" onchange="toggleDemoMode()" style="width:18px;height:18px;flex-shrink:0">
+          <span style="font-size:13px">デモモード（外部通信なし・サンプルデータ使用）</span>
+        </label>
+      </div>
+
+      <div class="card">
+        <div class="card-title">About <span class="ja">バージョン</span></div>
+        <div style="font-size:12px;color:var(--text-dim);line-height:1.8">
+          DETALIA Mobile <span style="color:var(--gold-light)">v0.2.0-alpha</span><br>
+          Phase α-2（Dropbox 双方向同期 + 塗膜計測編集）<br>
+          Phase α-3以降で 写真 / リール / Instagram を実装
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ボトムナビ -->
+  <nav class="m-bottomnav">
+    <button class="m-tab active" data-page="home" onclick="showPage('home')"><div class="icon">🏠</div><div class="label">ホーム</div></button>
+    <button class="m-tab" data-page="cases" onclick="showPage('cases')"><div class="icon">📋</div><div class="label">案件</div></button>
+    <button class="m-tab" data-page="photo" onclick="showPage('photo')"><div class="icon">📸</div><div class="label">写真</div></button>
+    <button class="m-tab" data-page="settings" onclick="showPage('settings')"><div class="icon">⚙️</div><div class="label">設定</div></button>
+    <button class="m-tab" data-page="more" onclick="toast('準備中','info')"><div class="icon">⋯</div><div class="label">他</div></button>
+  </nav>
+
+  <div id="toast"></div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// 🎨 塗膜計測 位置プリセット（PC版と同期）
+// ─────────────────────────────────────────────
+const PAINT_POSITIONS = [
+  'ボンネット中央','ボンネット左','ボンネット右',
+  'ルーフ前','ルーフ後',
+  'ドア(運転席)','ドア(助手席)','ドア(後左)','ドア(後右)',
+  'フェンダー前左','フェンダー前右',
+  'リアバンパー','トランク/リアゲート'
+];
+
+// ─────────────────────────────────────────────
+// 🗄️ ストレージ / モード
+// ─────────────────────────────────────────────
+const LS_KEY_CASES = 'detalia_mobile_cases_v1';
+const LS_KEY_TOKEN = 'detalia_mobile_dbx_token';
+const LS_KEY_DEMO  = 'detalia_mobile_demo';
+const LS_KEY_PATH  = 'detalia_mobile_dbx_path';
+const LS_KEY_LAST_SYNC = 'detalia_mobile_last_sync';
+
+const DBX_DEFAULT_PATH = '/ライム共有DB/ディテーリング/data.json';
+
+let cases = [];
+let currentCaseId = null;
+let pageHistory = ['home'];
+let isDemoMode = localStorage.getItem(LS_KEY_DEMO) === 'true' || new URLSearchParams(location.search).has('demo');
+let isSyncing = false;
+
+// デモデータ（Phase α-1 では Dropbox 接続前でも動くように）
+const DEMO_CASES = [
+  {id:'-0126',customer:'安里 昌悟',carModel:'デリカD:5',carYear:'H28',size:'LL',
+    arrival:'2026-05-10',deliveryPlan:'2026-05-15',delivery:'2026-05-12',
+    chassis:'CV5W-0011482',colorCode:'',workStaff:'川武',
+    optExt:130000,optInt:0,optOther:0,discount:0,
+    workDetail:'鉄粉除去（ホワイト系）・ボディ磨き（ホワイト系）・ディテール洗車・樹脂パーツコーティング（全面）・アルミくすみ除去・タイヤ洗浄・ホイール洗浄・ガラスコーティング クリスタルプロ8500',
+    paymentMethod:'振込',paymentDeadline:'2026-05-31',
+    photos:{before:[],after:[],paint:[],other:[]},
+    paintGauge:{measured:false,deviceModel:'',measurements:[],notes:''},
+    reel:{generated:false,videoPath:'',captionDraft:'',hashtags:[],instagramPosted:false,instagramUrl:'',postedAt:''}
+  },
+  {id:'-0127',customer:'琉球飼料㈱',carModel:'RX350',carYear:'R5',size:'L',
+    arrival:'2026-05-11',deliveryPlan:'2026-05-13',delivery:'',
+    chassis:'AALH10-1001500',colorCode:'1J7',workStaff:'金城',
+    optExt:0,optInt:35000,optOther:0,discount:0,
+    workDetail:'車内クリーニング',
+    paymentMethod:'',paymentDeadline:'',
+    photos:{before:[],after:[],paint:[],other:[]},
+    paintGauge:{measured:false,deviceModel:'',measurements:[],notes:''},
+    reel:{generated:false,videoPath:'',captionDraft:'',hashtags:[],instagramPosted:false,instagramUrl:'',postedAt:''}
+  }
+];
+
+// ─────────────────────────────────────────────
+// 🚀 起動
+// ─────────────────────────────────────────────
+function init(){
+  document.getElementById('demo-toggle').checked = isDemoMode;
+  loadCases();
+  renderHome();
+  renderCaseList();
+}
+
+function loadCases(){
+  if(isDemoMode){
+    cases = JSON.parse(JSON.stringify(DEMO_CASES));
+    return;
+  }
+  try{
+    const raw = localStorage.getItem(LS_KEY_CASES);
+    if(raw){ cases = JSON.parse(raw); return; }
+  }catch(e){}
+  // 未接続なら空配列
+  cases = [];
+}
+
+function saveCases(){
+  if(isDemoMode) return; // デモは保存しない
+  localStorage.setItem(LS_KEY_CASES, JSON.stringify(cases));
+  // TODO: Phase α-2 で Dropbox に書き戻す
+}
+
+function reloadData(){
+  loadCases();
+  renderHome();
+  renderCaseList();
+  toast(isDemoMode?'デモデータを再読込':'再読込しました');
+}
+
+// ─────────────────────────────────────────────
+// 📐 ヘルパ
+// ─────────────────────────────────────────────
+function totalAmount(c){
+  return (Number(c.optExt)||0)+(Number(c.optInt)||0)+(Number(c.optOther)||0)-(Number(c.discount)||0);
+}
+function fmt(n){
+  if(n==null||isNaN(n)) return '―';
+  return '¥'+Number(n).toLocaleString('ja-JP');
+}
+function fmtDate(d){
+  if(!d) return '―';
+  const m=d.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m?`${m[1].slice(2)}/${m[2]}/${m[3]}`:d;
+}
+function caseStatus(c){
+  if(c.paidDate) return '入金済';
+  if(c.delivery) return '納車済';
+  if(c.deliveryPlan) return '作業中';
+  if(c.arrival) return '入庫済';
+  return '予約';
+}
+function esc(s){
+  if(s==null) return '';
+  return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ─────────────────────────────────────────────
+// 🏠 ホーム描画
+// ─────────────────────────────────────────────
+function renderHome(){
+  const today=new Date().toISOString().slice(0,10);
+  const todayIn=cases.filter(c=>!c.deleted&&(c.arrival||'').slice(0,10)===today).length;
+  const waitDlv=cases.filter(c=>!c.deleted&&c.deliveryPlan&&!c.delivery).length;
+  const monthDlv=cases.filter(c=>!c.deleted&&c.delivery&&c.delivery.slice(0,7)===today.slice(0,7)).length;
+  const monthRev=cases.filter(c=>!c.deleted&&c.delivery&&c.delivery.slice(0,7)===today.slice(0,7))
+                       .reduce((s,c)=>s+totalAmount(c),0);
+  document.getElementById('kpi-today-in').textContent=todayIn;
+  document.getElementById('kpi-wait-dlv').textContent=waitDlv;
+  document.getElementById('kpi-month-dlv').textContent=monthDlv;
+  document.getElementById('kpi-month-rev').textContent=fmt(monthRev);
+
+  // 最近の案件 5件
+  const recent=cases.filter(c=>!c.deleted)
+                    .sort((a,b)=>(b.arrival||b.receptionDate||'').localeCompare(a.arrival||a.receptionDate||''))
+                    .slice(0,5);
+  document.getElementById('recent-cases').innerHTML=recent.length
+    ? recent.map(c=>caseCardHtml(c)).join('')
+    : '<div class="empty"><div class="icon">📭</div><div class="msg">案件がまだありません</div></div>';
+}
+
+function caseCardHtml(c){
+  return `<div class="case-card" onclick="openCase('${esc(c.id)}')">
+    <div class="case-row">
+      <span class="case-id">${esc(c.id)}</span>
+      <span class="case-status">${caseStatus(c)}</span>
+    </div>
+    <div class="case-customer">${esc(c.customer||'―')}</div>
+    <div class="case-meta">
+      <span class="case-size">${esc(c.size||'?')}</span>
+      ${esc(c.carModel||'')}${c.carYear?' '+esc(c.carYear):''}
+      ${c.delivery?' · 納車 '+fmtDate(c.delivery):c.deliveryPlan?' · 予定 '+fmtDate(c.deliveryPlan):''}
+    </div>
+  </div>`;
+}
+
+// ─────────────────────────────────────────────
+// 📋 案件一覧
+// ─────────────────────────────────────────────
+function renderCaseList(){
+  const q=(document.getElementById('case-search')?.value||'').toLowerCase().trim();
+  const filtered=cases.filter(c=>{
+    if(c.deleted) return false;
+    if(!q) return true;
+    return (c.customer||'').toLowerCase().includes(q)
+        || (c.carModel||'').toLowerCase().includes(q)
+        || (c.id||'').toLowerCase().includes(q);
+  }).sort((a,b)=>(b.arrival||b.receptionDate||'').localeCompare(a.arrival||a.receptionDate||''));
+  const list=document.getElementById('case-list');
+  list.innerHTML=filtered.length
+    ? filtered.map(c=>caseCardHtml(c)).join('')
+    : '<div class="empty"><div class="icon">🔍</div><div class="msg">該当する案件はありません</div></div>';
+}
+
+// ─────────────────────────────────────────────
+// 🚗 案件詳細
+// ─────────────────────────────────────────────
+function openCase(id){
+  currentCaseId=id;
+  const c=cases.find(c=>c.id===id);
+  if(!c){ toast('案件が見つかりません','error'); return; }
+  renderCaseDetail(c);
+  showPage('detail');
+}
+
+function renderCaseDetail(c){
+  const total=totalAmount(c);
+  const status=caseStatus(c);
+  // 塗膜計測のマージ（13箇所デフォ + 自由入力位置）
+  const saved=Array.isArray(c.paintGauge?.measurements)?c.paintGauge.measurements:[];
+  const expanded=PAINT_POSITIONS.map(pos=>{
+    const f=saved.find(m=>m&&m.position===pos);
+    return f||{position:pos,value:'',note:''};
+  });
+  saved.forEach(m=>{ if(m&&m.position&&PAINT_POSITIONS.indexOf(m.position)<0) expanded.push(m); });
+
+  document.getElementById('header-title').innerHTML=`<b>${esc(c.id)}</b> <span style="opacity:.6;font-size:11px">${esc(c.customer||'')}</span>`;
+  document.getElementById('btn-back').style.display='flex';
+
+  document.getElementById('case-detail-body').innerHTML=`
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <button class="btn btn-secondary" style="flex:1;font-size:13px" onclick="editCase('${esc(c.id)}')">✏️ 編集</button>
+      <button class="btn btn-secondary" style="flex:1;font-size:13px;color:var(--red);border-color:var(--red)" onclick="deleteCaseMobile('${esc(c.id)}')">🗑️ 削除</button>
+    </div>
+    <div class="card">
+      <div class="card-title">Basic <span class="ja">基本情報</span></div>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13px">
+        <span style="color:var(--text-dim)">顧客</span><span>${esc(c.customer||'―')}</span>
+        <span style="color:var(--text-dim)">車種</span><span>${esc(c.carModel||'―')} ${c.carYear?esc(c.carYear):''}</span>
+        <span style="color:var(--text-dim)">サイズ</span><span><span class="case-size">${esc(c.size||'?')}</span></span>
+        <span style="color:var(--text-dim)">車台</span><span style="font-family:Courier,monospace;font-size:11px">${esc(c.chassis||'―')}</span>
+        <span style="color:var(--text-dim)">入庫</span><span>${fmtDate(c.arrival)}</span>
+        <span style="color:var(--text-dim)">納車予定</span><span>${fmtDate(c.deliveryPlan)}</span>
+        <span style="color:var(--text-dim)">納車</span><span style="color:${c.delivery?'var(--lime)':'var(--text-dim)'}">${fmtDate(c.delivery)}</span>
+        <span style="color:var(--text-dim)">担当</span><span>${esc(c.workStaff||'―')}</span>
+        <span style="color:var(--text-dim)">ステータス</span><span style="color:var(--gold-light)">${status}</span>
+        <span style="color:var(--text-dim)">金額（税抜）</span><span style="color:var(--gold-light);font-weight:bold">${fmt(total)}</span>
+      </div>
+    </div>
+
+    ${c.workDetail?`<div class="card">
+      <div class="card-title">Service <span class="ja">作業内容</span></div>
+      <div style="font-size:13px;line-height:1.8;color:var(--text)">
+        ${c.workDetail.split(/[・\n]/).filter(Boolean).map(w=>`<span style="display:inline-block;margin-right:10px">・${esc(w.trim())}</span>`).join('')}
+      </div>
+    </div>`:''}
+
+    <div class="card">
+      <div class="card-title">Paint Gauge <span class="ja">🎨 塗膜計測</span></div>
+      <div class="form-row" style="margin-bottom:10px">
+        <label class="form-label">計測器</label>
+        <input id="d-paint-device" type="text" value="${esc(c.paintGauge?.deviceModel||'')}" placeholder="例: Defelsko PosiTector 6000" style="font-size:13px">
+      </div>
+      <div class="paint-grid" id="d-paint-rows">
+        ${expanded.map((m,i)=>paintRowHtmlMobile(m,i)).join('')}
+      </div>
+      <button class="btn btn-secondary" style="margin-top:10px;width:100%;font-size:13px" onclick="addPaintRowMobile()">＋ 計測位置を追加</button>
+      <div class="form-row" style="margin-top:14px">
+        <label class="form-label">所見</label>
+        <textarea id="d-paint-notes" rows="2" placeholder="例: ボンネットに補修痕（240μm）" style="font-size:13px">${esc(c.paintGauge?.notes||'')}</textarea>
+      </div>
+      <button class="btn btn-primary btn-full" style="margin-top:8px" onclick="savePaintGauge()">💾 塗膜データを保存</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Photos <span class="ja">📸 写真</span></div>
+      ${['before','after','paint','other'].map(kind=>{
+        const labelMap={before:'Before（施工前）',after:'After（施工後）',paint:'塗膜ゲージ',other:'その他'};
+        return `<div style="margin-bottom:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--text-dim);margin-bottom:6px">
+            <span>${labelMap[kind]}</span>
+            <span id="photo-count-${kind}" style="font-size:10px;color:var(--gold-deep)">${(c.photos?.[kind]||[]).length}枚</span>
+          </div>
+          <div class="photo-grid" id="photo-grid-${kind}"></div>
+          <input type="file" id="photo-input-${kind}" accept="image/*" capture="environment" multiple style="display:none" onchange="_onPhotoSelected('${kind}', this)">
+        </div>`;
+      }).join('')}
+    </div>
+
+    <div class="card">
+      <div class="card-title">Reel <span class="ja">🎬 リール / SNS</span></div>
+      <div style="font-size:11px;color:var(--text-dim);line-height:1.6;margin-bottom:10px">
+        Before/After 写真から縦動画（WebM）を生成。<br>
+        CapCut/InShot に取り込んで MP4 化→ Instagram投稿の流れ。
+      </div>
+      <button class="btn btn-primary btn-full" id="btn-gen-reel" onclick="generateReel()">🎬 リール動画を生成</button>
+      <div id="reel-progress" style="display:none;font-size:11px;color:var(--gold-light);margin-top:6px;text-align:center"></div>
+      ${c.reel?.videoPath?`<div style="font-size:11px;color:var(--lime);margin-top:8px">✅ 生成済: ${esc((c.reel.videoPath||'').split('/').pop())}</div>`:''}
+      <div style="border-top:1px solid var(--border);margin-top:14px;padding-top:14px">
+        <button class="btn btn-secondary btn-full" onclick="copyInstaCaption()">📋 Instagram キャプションをコピー</button>
+        <button class="btn btn-secondary btn-full" style="margin-top:8px" onclick="markInstaPosted()">${c.reel?.instagramPosted?'✅ 投稿済み（更新）':'📱 投稿しました（記録）'}</button>
+        ${c.reel?.captionDraft?`<details style="margin-top:10px"><summary style="font-size:11px;color:var(--text-dim);cursor:pointer">キャプション原稿を見る</summary><div style="font-size:11px;line-height:1.7;color:var(--text);white-space:pre-wrap;padding:8px;background:var(--bg2);border-radius:6px;margin-top:6px">${esc(c.reel.captionDraft)}</div></details>`:''}
+      </div>
+    </div>
+  `;
+  // 写真グリッドを描画
+  ['before','after','paint','other'].forEach(kind=>_renderPhotoGrid(c,kind));
+}
+
+function paintRowHtmlMobile(m,i){
+  const v=Number(m.value);
+  const abnormal=(!isNaN(v)&&v>0&&(v<30||v>200));
+  return `<div class="paint-row ${abnormal?'abnormal':''}" data-idx="${i}">
+    <span class="pos">${esc(m.position||'―')}</span>
+    <input class="val" type="number" inputmode="numeric" min="0" step="1" value="${m.value||''}" placeholder="―" oninput="onPaintValChange(this)">
+    <span class="unit">μm</span>
+  </div>`;
+}
+
+function onPaintValChange(input){
+  const row=input.closest('.paint-row');
+  const v=Number(input.value);
+  if(!isNaN(v)&&v>0&&(v<30||v>200)) row.classList.add('abnormal');
+  else row.classList.remove('abnormal');
+}
+
+function addPaintRowMobile(){
+  const custom=prompt('計測位置を入力');
+  if(!custom||!custom.trim()) return;
+  const wrap=document.getElementById('d-paint-rows');
+  const i=wrap.children.length;
+  const m={position:custom.trim(),value:'',note:''};
+  wrap.insertAdjacentHTML('beforeend', paintRowHtmlMobile(m,i));
+}
+
+function savePaintGauge(){
+  const c=cases.find(c=>c.id===currentCaseId);
+  if(!c){ toast('案件が見つかりません','error'); return; }
+  const rows=Array.from(document.querySelectorAll('#d-paint-rows .paint-row'));
+  const measurements=rows.map(r=>({
+    position: r.querySelector('.pos').textContent.trim(),
+    value: r.querySelector('.val').value,
+    note: ''
+  })).filter(m=>m.position&&m.position!=='―'&&(m.value||m.note));
+  if(!c.paintGauge) c.paintGauge={measured:false,deviceModel:'',measurements:[],notes:''};
+  c.paintGauge.deviceModel = document.getElementById('d-paint-device').value.trim();
+  c.paintGauge.notes       = document.getElementById('d-paint-notes').value.trim();
+  c.paintGauge.measurements= measurements;
+  c.paintGauge.measured    = measurements.some(m=>m.value);
+  c.updatedAt = new Date().toISOString();
+  saveCases();
+  toast(`✅ 塗膜データ保存（${measurements.length}箇所）`);
+}
+
+// ─────────────────────────────────────────────
+// ✏️ 案件編集 / 新規作成
+// ─────────────────────────────────────────────
+const SIZE_OPTIONS = ['SS','S','M','L','LL','3L'];
+const STATUS_OPTIONS = ['予約','入庫済','作業中','作業完了','納車済','入金済','キャンセル'];
+const STAFF_DEFAULTS = ['川武','金城','大嶺'];
+
+function _nextCaseId(){
+  // -NNNN 形式で連番
+  const nums = cases.map(c=>{
+    const m=(c.id||'').match(/^-(\d{4})$/);
+    return m?parseInt(m[1]):0;
+  });
+  const max = nums.length>0?Math.max(...nums):0;
+  return '-'+String(max+1).padStart(4,'0');
+}
+
+function newCase(){
+  currentCaseId = null;
+  _renderEditForm(null);
+  showPage('edit');
+}
+
+function editCase(id){
+  const c = cases.find(c=>c.id===id);
+  if(!c){ toast('案件が見つかりません','error'); return; }
+  currentCaseId = id;
+  _renderEditForm(c);
+  showPage('edit');
+}
+
+function _renderEditForm(c){
+  const isNew = !c;
+  const data = c || {id:_nextCaseId(),customer:'',carModel:'',carYear:'',size:'',chassis:'',colorCode:'',
+                    arrival:'',deliveryPlan:'',delivery:'',workStaff:'',
+                    optExt:0,optInt:0,optOther:0,discount:0,
+                    paymentMethod:'',paymentDeadline:'',workDetail:''};
+  document.getElementById('header-title').innerHTML = isNew
+    ? `<b>新規案件</b>`
+    : `<b>編集: ${esc(data.id)}</b>`;
+  document.getElementById('btn-back').style.display='flex';
+
+  document.getElementById('case-edit-body').innerHTML=`
+    <div class="card">
+      <div class="card-title">${isNew?'New Case':'Edit'} <span class="ja">基本情報</span></div>
+      <div class="form-row">
+        <label class="form-label">受付No</label>
+        <input id="e-id" type="text" value="${esc(data.id)}" ${isNew?'':'readonly style="opacity:.6"'}>
+      </div>
+      <div class="form-row">
+        <label class="form-label">顧客名 <span style="color:var(--red)">*</span></label>
+        <input id="e-customer" type="text" value="${esc(data.customer||'')}" placeholder="例: 安里 昌悟">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 80px;gap:8px">
+        <div class="form-row">
+          <label class="form-label">車種</label>
+          <input id="e-carModel" type="text" value="${esc(data.carModel||'')}" placeholder="例: デリカD:5">
+        </div>
+        <div class="form-row">
+          <label class="form-label">年式</label>
+          <input id="e-carYear" type="text" value="${esc(data.carYear||'')}" placeholder="R5">
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">サイズ</label>
+        <select id="e-size">
+          <option value="">―</option>
+          ${SIZE_OPTIONS.map(s=>`<option value="${s}"${s===data.size?' selected':''}>${s}</option>`).join('')}
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="form-row">
+          <label class="form-label">車台番号</label>
+          <input id="e-chassis" type="text" value="${esc(data.chassis||'')}" style="font-family:Courier,monospace;font-size:13px">
+        </div>
+        <div class="form-row">
+          <label class="form-label">カラーコード</label>
+          <input id="e-colorCode" type="text" value="${esc(data.colorCode||'')}">
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">担当スタッフ</label>
+        <select id="e-workStaff">
+          <option value="">―</option>
+          ${STAFF_DEFAULTS.concat(data.workStaff&&!STAFF_DEFAULTS.includes(data.workStaff)?[data.workStaff]:[]).map(s=>`<option value="${esc(s)}"${s===data.workStaff?' selected':''}>${esc(s)}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Schedule <span class="ja">日程</span></div>
+      <div class="form-row">
+        <label class="form-label">入庫日</label>
+        <input id="e-arrival" type="date" value="${esc((data.arrival||'').substring(0,10))}">
+      </div>
+      <div class="form-row">
+        <label class="form-label">納車予定日</label>
+        <input id="e-deliveryPlan" type="date" value="${esc((data.deliveryPlan||'').substring(0,10))}">
+      </div>
+      <div class="form-row">
+        <label class="form-label">✅ 納車日（実際）</label>
+        <input id="e-delivery" type="date" value="${esc((data.delivery||'').substring(0,10))}">
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Service <span class="ja">作業内容</span></div>
+      <div class="form-row">
+        <label class="form-label">作業項目（・区切り or 改行）</label>
+        <textarea id="e-workDetail" rows="4" placeholder="例: 鉄粉除去・ボディ磨き・ガラスコーティング">${esc(data.workDetail||'')}</textarea>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Amount <span class="ja">金額</span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="form-row"><label class="form-label">外装（税抜）</label><input id="e-optExt" type="number" inputmode="numeric" value="${Number(data.optExt)||0}"></div>
+        <div class="form-row"><label class="form-label">内装（税抜）</label><input id="e-optInt" type="number" inputmode="numeric" value="${Number(data.optInt)||0}"></div>
+        <div class="form-row"><label class="form-label">その他</label><input id="e-optOther" type="number" inputmode="numeric" value="${Number(data.optOther)||0}"></div>
+        <div class="form-row"><label class="form-label" style="color:var(--red)">値引き</label><input id="e-discount" type="number" inputmode="numeric" value="${Number(data.discount)||0}"></div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">支払方法</label>
+        <select id="e-paymentMethod">
+          <option value="">―</option>
+          ${['振込','現金','クレジット'].map(o=>`<option value="${o}"${o===data.paymentMethod?' selected':''}>${o}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-row">
+        <label class="form-label">支払期限</label>
+        <input id="e-paymentDeadline" type="date" value="${esc((data.paymentDeadline||'').substring(0,10))}">
+      </div>
+    </div>
+
+    <button class="btn btn-primary btn-full" style="margin-bottom:8px" onclick="saveCaseEdit()">💾 ${isNew?'登録':'保存'}</button>
+    <button class="btn btn-secondary btn-full" onclick="goBack()">キャンセル</button>
+  `;
+}
+
+function saveCaseEdit(){
+  const isNew = currentCaseId===null;
+  const id = document.getElementById('e-id').value.trim();
+  if(!id){ toast('受付Noを入力してください','error'); return; }
+  if(!document.getElementById('e-customer').value.trim()){ toast('顧客名は必須です','error'); return; }
+  if(isNew && cases.some(c=>c.id===id)){ toast('受付Noが重複しています','error'); return; }
+  const g=(k,n)=>{const v=document.getElementById('e-'+k)?.value||'';return n?(Number(v)||0):v.trim();};
+  const existing = isNew ? null : cases.find(c=>c.id===currentCaseId);
+  const c = Object.assign({}, existing||{}, {
+    id,
+    customer: g('customer'),
+    carModel: g('carModel'),
+    carYear:  g('carYear'),
+    size:     g('size'),
+    chassis:  g('chassis'),
+    colorCode: g('colorCode'),
+    workStaff: g('workStaff'),
+    arrival:   g('arrival'),
+    deliveryPlan: g('deliveryPlan'),
+    delivery:  g('delivery'),
+    workDetail: g('workDetail'),
+    optExt:   g('optExt',true),
+    optInt:   g('optInt',true),
+    optOther: g('optOther',true),
+    discount: g('discount',true),
+    paymentMethod: g('paymentMethod'),
+    paymentDeadline: g('paymentDeadline'),
+    updatedAt: new Date().toISOString(),
+    org_id: existing?.org_id || 'self'
+  });
+  // 新規ならα-0フィールドも初期化
+  if(isNew){
+    c.photos = {before:[],after:[],paint:[],other:[]};
+    c.paintGauge = {measured:false,deviceModel:'',measurements:[],notes:''};
+    c.reel = {generated:false,videoPath:'',captionDraft:'',hashtags:[],instagramPosted:false,instagramUrl:'',postedAt:''};
+    cases.push(c);
+  }else{
+    const idx = cases.findIndex(x=>x.id===currentCaseId);
+    if(idx>=0) cases[idx] = c;
+  }
+  saveCases();
+  renderHome();
+  renderCaseList();
+  setTimeout(()=>syncPush(true), 500);
+  toast(isNew?'✅ 新規案件を登録':'✅ 保存しました');
+  currentCaseId = c.id;
+  renderCaseDetail(c);
+  showPage('detail');
+}
+
+function deleteCaseMobile(id){
+  if(!confirm('この案件を削除しますか？（ソフト削除）')) return;
+  const idx = cases.findIndex(c=>c.id===id);
+  if(idx<0){ toast('案件が見つかりません','error'); return; }
+  cases[idx].deleted = true;
+  cases[idx].updatedAt = new Date().toISOString();
+  saveCases();
+  renderHome();
+  renderCaseList();
+  setTimeout(()=>syncPush(true), 500);
+  toast('🗑️ 削除しました');
+  showPage('cases');
+}
+
+// ─────────────────────────────────────────────
+// 📸 写真ワークフロー（Phase α-3）
+// ─────────────────────────────────────────────
+// 画像を Canvas で圧縮（最大長辺1920px、JPEG quality 0.8）
+function _compressImage(file, maxLong=1920, quality=0.82){
+  return new Promise((resolve, reject)=>{
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = ()=>{
+      URL.revokeObjectURL(url);
+      const w0=img.naturalWidth, h0=img.naturalHeight;
+      const long = Math.max(w0,h0);
+      const scale = long>maxLong ? maxLong/long : 1;
+      const w = Math.round(w0*scale), h = Math.round(h0*scale);
+      const canvas = document.createElement('canvas');
+      canvas.width=w; canvas.height=h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0,0, w,h);
+      canvas.toBlob(blob=>{
+        if(!blob) reject(new Error('toBlob失敗')); else resolve(blob);
+      }, 'image/jpeg', quality);
+    };
+    img.onerror = ()=>{ URL.revokeObjectURL(url); reject(new Error('画像読込失敗')); };
+    img.src = url;
+  });
+}
+
+// Dropbox 写真フォルダ取得（caseId/kind ベース）
+function _photoFolderPath(caseId, kind){
+  // /ライム共有DB/ディテーリング/photos/{caseId}/{kind}/
+  const baseFolder = (localStorage.getItem(LS_KEY_PATH)||DBX_DEFAULT_PATH).replace(/\/data\.json$/, '');
+  return `${baseFolder}/photos/${caseId}/${kind}`;
+}
+
+// 写真をDropboxにアップロード（Blob → API）
+async function _uploadPhotoBlob(caseId, kind, blob){
+  if(!_dbxToken()) throw new Error('Dropbox 未接続');
+  const ts = new Date().toISOString().replace(/[:.]/g,'').replace('T','-').substring(0,15);
+  const path = `${_photoFolderPath(caseId, kind)}/${ts}.jpg`;
+  await dbxUpload(path, blob);
+  return path;
+}
+
+// 写真を追加（ファイル選択ハンドラ）
+async function _onPhotoSelected(kind, input){
+  const files = Array.from(input.files||[]);
+  input.value = ''; // 同じファイル再選択対応
+  if(files.length===0) return;
+  const c = cases.find(c=>c.id===currentCaseId);
+  if(!c){ toast('案件が見つかりません','error'); return; }
+  if(isDemoMode){ toast('デモモードでは写真をアップできません','error'); return; }
+  if(!_dbxToken()){ toast('先に Dropbox トークンを設定してください','error'); return; }
+  if(!c.photos) c.photos={before:[],after:[],paint:[],other:[]};
+  if(!Array.isArray(c.photos[kind])) c.photos[kind]=[];
+  toast(`📤 ${files.length}枚アップロード中...`);
+  let success=0;
+  for(const f of files){
+    try{
+      const blob = await _compressImage(f);
+      const path = await _uploadPhotoBlob(c.id, kind, blob);
+      c.photos[kind].push({path, size:blob.size, ts:new Date().toISOString()});
+      success++;
+    }catch(e){
+      console.error('photo upload failed', e);
+      toast('❌ アップ失敗: '+e.message, 'error');
+    }
+  }
+  if(success>0){
+    c.updatedAt = new Date().toISOString();
+    saveCases();
+    _renderPhotoGrid(c, kind);
+    document.getElementById('photo-count-'+kind).textContent=c.photos[kind].length+'枚';
+    toast(`✅ ${success}枚アップ完了`);
+    setTimeout(()=>syncPush(true), 500);
+  }
+}
+
+// サムネイルキャッシュ（Object URL を保持して再利用）
+const _thumbCache = new Map();
+
+// 写真のサムネイル取得（Dropbox Thumbnail API）→ Object URL を返す
+async function _loadPhotoThumb(path){
+  if(_thumbCache.has(path)) return _thumbCache.get(path);
+  if(!_dbxToken()) return null;
+  try{
+    const r = await fetch('https://content.dropboxapi.com/2/files/get_thumbnail_v2', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer '+_dbxToken(),
+        'Dropbox-API-Arg': _asciiSafeJson({
+          resource: {'.tag':'path', path},
+          format: 'jpeg',
+          size: 'w256h256',
+          mode: 'fitone_bestfit'
+        })
+      }
+    });
+    if(!r.ok) return null;
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    _thumbCache.set(path, url);
+    return url;
+  }catch(e){ return null; }
+}
+
+// 写真グリッドを描画（プレースホルダ→サムネ非同期ロード）
+function _renderPhotoGrid(c, kind){
+  const grid = document.getElementById('photo-grid-'+kind);
+  if(!grid) return;
+  const photos = (c.photos&&c.photos[kind])||[];
+  const cells = photos.map((p,i)=>`<div class="photo-cell" id="ph-${kind}-${i}" onclick="_openPhoto('${esc(p.path)}')"><span style="color:var(--text-dim);font-size:10px">読込中…</span></div>`).join('');
+  const addBtn = `<div class="photo-cell photo-add" onclick="document.getElementById('photo-input-${kind}').click()">+</div>`;
+  grid.innerHTML = cells + addBtn;
+  // サムネ非同期ロード
+  photos.forEach(async (p,i)=>{
+    const cell = document.getElementById(`ph-${kind}-${i}`);
+    if(!cell) return;
+    const url = await _loadPhotoThumb(p.path);
+    if(url && cell){
+      cell.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:8px" alt="">`;
+    }else if(cell){
+      cell.innerHTML = `<span style="color:var(--text-dim);font-size:10px">📷</span>`;
+    }
+  });
+}
+
+// 写真をタップ → 全画面プレビュー（簡易）
+function _openPhoto(path){
+  if(!_dbxToken()){ toast('Dropbox未接続','error'); return; }
+  // Thumbnailよりも大きい w1024 を取得
+  toast('読込中...');
+  fetch('https://content.dropboxapi.com/2/files/get_thumbnail_v2', {
+    method:'POST',
+    headers:{
+      'Authorization':'Bearer '+_dbxToken(),
+      'Dropbox-API-Arg':_asciiSafeJson({resource:{'.tag':'path',path},format:'jpeg',size:'w1024h768',mode:'fitone_bestfit'})
+    }
+  }).then(r=>r.blob()).then(blob=>{
+    const url=URL.createObjectURL(blob);
+    const overlay=document.createElement('div');
+    overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:2000;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px';
+    overlay.innerHTML=`<img src="${url}" style="max-width:95%;max-height:80%;object-fit:contain"><div style="color:#888;font-size:10px;font-family:Courier,monospace">${esc(path.split('/').pop())}</div><button class="btn btn-secondary" onclick="this.parentElement.remove()">✕ 閉じる</button>`;
+    overlay.onclick=e=>{ if(e.target===overlay) overlay.remove(); };
+    document.body.appendChild(overlay);
+  }).catch(e=>toast('❌ '+e.message,'error'));
+}
+
+// ─────────────────────────────────────────────
+// 🎬 リール動画生成（Phase α-4）
+// ─────────────────────────────────────────────
+const DEFAULT_HASHTAGS = ['#沖縄ディテーリング','#セラミックコーティング','#ガラスコーティング','#洗車','#沖縄市','#コーティング専門店','#LIME','#LIMEDETAILINGSTUDIO'];
+
+async function _loadImageFromDropbox(path){
+  if(!_dbxToken()) return null;
+  try{
+    const r=await fetch('https://content.dropboxapi.com/2/files/download',{
+      method:'POST',
+      headers:{
+        'Authorization':'Bearer '+_dbxToken(),
+        'Dropbox-API-Arg': _asciiSafeJson({path})
+      }
+    });
+    if(!r.ok) return null;
+    const blob = await r.blob();
+    return await new Promise((resolve,reject)=>{
+      const img=new Image();
+      img.onload=()=>resolve(img);
+      img.onerror=reject;
+      img.src=URL.createObjectURL(blob);
+    });
+  }catch(e){ return null; }
+}
+
+function _drawReelFrame(ctx, img, t, brand){
+  const W=1080, H=1920;
+  // 背景
+  const grad = ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0,'#0F0F1A'); grad.addColorStop(1,'#000');
+  ctx.fillStyle=grad; ctx.fillRect(0,0,W,H);
+  // 画像（Ken Burns: 1.0→1.1 ズーム、わずかにパン）
+  if(img){
+    const scale = 1 + 0.1*t;
+    const ratio = img.naturalWidth/img.naturalHeight;
+    let dw, dh;
+    if(ratio > W/H){ dh = H*scale; dw = dh*ratio; }
+    else            { dw = W*scale; dh = dw/ratio; }
+    const dx = (W-dw)/2;
+    const dy = (H-dh)/2;
+    ctx.drawImage(img, dx, dy, dw, dh);
+  }
+  // 上部グラデーション帯（ロゴ用）
+  const topG = ctx.createLinearGradient(0,0,0,260);
+  topG.addColorStop(0,'rgba(15,15,26,0.85)'); topG.addColorStop(1,'rgba(15,15,26,0)');
+  ctx.fillStyle=topG; ctx.fillRect(0,0,W,260);
+  // 下部グラデーション帯
+  const bottomG = ctx.createLinearGradient(0,H-300,0,H);
+  bottomG.addColorStop(0,'rgba(15,15,26,0)'); bottomG.addColorStop(1,'rgba(15,15,26,0.92)');
+  ctx.fillStyle=bottomG; ctx.fillRect(0,H-300,W,300);
+  // 上部ブランドテキスト
+  ctx.fillStyle='#E8C96A';
+  ctx.font='300 56px Georgia, serif';
+  ctx.textAlign='center';
+  ctx.fillText('LIME', W/2, 100);
+  ctx.fillStyle='#C9A84C';
+  ctx.font='400 18px sans-serif';
+  ctx.fillText('DETAILING STUDIO', W/2, 140);
+  // ゴールドライン
+  ctx.strokeStyle='#C9A84C';
+  ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(W/2-150, 170); ctx.lineTo(W/2+150, 170); ctx.stroke();
+  // 下部キャプション
+  ctx.fillStyle='#F4E9C6';
+  ctx.font='600 44px sans-serif';
+  ctx.textAlign='center';
+  ctx.fillText(brand.label, W/2, H-180);
+  ctx.fillStyle='#A38A36';
+  ctx.font='400 28px sans-serif';
+  ctx.fillText(brand.sub, W/2, H-130);
+}
+
+async function generateReel(){
+  const c = cases.find(c=>c.id===currentCaseId);
+  if(!c){ toast('案件が見つかりません','error'); return; }
+  if(isDemoMode){ toast('デモモードでは生成できません','error'); return; }
+  if(!_dbxToken()){ toast('先に Dropbox トークンを設定してください','error'); return; }
+  const before = (c.photos&&c.photos.before)||[];
+  const after  = (c.photos&&c.photos.after)||[];
+  if(before.length===0 && after.length===0){
+    toast('Before / After 写真がありません','error'); return;
+  }
+  const btn = document.getElementById('btn-gen-reel');
+  const prog = document.getElementById('reel-progress');
+  btn.disabled=true; btn.style.opacity='.5';
+  prog.style.display='block'; prog.textContent='画像ダウンロード中...';
+
+  try{
+    // 1) 全画像をダウンロード
+    const beforeImgs=[], afterImgs=[];
+    for(const p of before){ const img=await _loadImageFromDropbox(p.path); if(img) beforeImgs.push(img); }
+    for(const p of after){ const img=await _loadImageFromDropbox(p.path); if(img) afterImgs.push(img); }
+    if(beforeImgs.length===0 && afterImgs.length===0) throw new Error('画像取得失敗');
+    prog.textContent='動画レンダリング中...';
+
+    // 2) Canvas + MediaRecorder
+    const canvas = document.createElement('canvas');
+    canvas.width=1080; canvas.height=1920;
+    const ctx = canvas.getContext('2d');
+    const stream = canvas.captureStream(30);
+    // ブラウザに応じた codec を試す
+    let mimeType = 'video/webm;codecs=vp9';
+    if(!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm;codecs=vp8';
+    if(!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
+    const recorder = new MediaRecorder(stream, {mimeType, videoBitsPerSecond:2_500_000});
+    const chunks=[];
+    recorder.ondataavailable = e=>{ if(e.data.size>0) chunks.push(e.data); };
+
+    const stopped = new Promise(r=>recorder.onstop=r);
+    recorder.start();
+
+    // 3) フレーム描画（最初の1秒タイトル、各画像1.5秒、最後にロゴ1秒）
+    const frameDelay = ms => new Promise(r=>setTimeout(r,ms));
+    // タイトル
+    for(let f=0;f<30;f++){
+      _drawReelFrame(ctx, null, f/30, {label:'BEFORE & AFTER', sub:c.customer||''});
+      await frameDelay(33);
+    }
+    // Before セクション
+    for(let i=0;i<beforeImgs.length;i++){
+      const img = beforeImgs[i];
+      for(let f=0;f<45;f++){
+        _drawReelFrame(ctx, img, f/45, {label:'BEFORE', sub:`${i+1} / ${beforeImgs.length}`});
+        await frameDelay(33);
+      }
+      prog.textContent=`Before ${i+1}/${beforeImgs.length}...`;
+    }
+    // After セクション
+    for(let i=0;i<afterImgs.length;i++){
+      const img = afterImgs[i];
+      for(let f=0;f<45;f++){
+        _drawReelFrame(ctx, img, f/45, {label:'AFTER', sub:`${i+1} / ${afterImgs.length}`});
+        await frameDelay(33);
+      }
+      prog.textContent=`After ${i+1}/${afterImgs.length}...`;
+    }
+    // エンディング
+    for(let f=0;f<30;f++){
+      _drawReelFrame(ctx, null, f/30, {label:'THANK YOU', sub:'LIME DETAILING STUDIO'});
+      await frameDelay(33);
+    }
+    recorder.stop();
+    await stopped;
+
+    // 4) Blob 化 → ダウンロード
+    const blob = new Blob(chunks, {type:'video/webm'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href=url; a.download=`${c.id}_reel.webm`;
+    document.body.appendChild(a); a.click(); a.remove();
+    // Dropbox にもアップロード
+    prog.textContent='Dropboxに保存中...';
+    try{
+      const remotePath = `${_photoFolderPath(c.id,'reel').replace(/\/reel$/,'')}/reel_${Date.now()}.webm`;
+      await dbxUpload(remotePath, blob);
+      if(!c.reel) c.reel={generated:false,videoPath:'',captionDraft:'',hashtags:[],instagramPosted:false,instagramUrl:'',postedAt:''};
+      c.reel.videoPath = remotePath;
+    }catch(e){ console.warn('reel upload failed', e); }
+    // キャプション原稿生成
+    c.reel.generated = true;
+    c.reel.captionDraft = _generateCaption(c);
+    c.reel.hashtags = DEFAULT_HASHTAGS.slice();
+    c.updatedAt = new Date().toISOString();
+    saveCases();
+    setTimeout(()=>syncPush(true), 500);
+
+    prog.textContent='';
+    prog.style.display='none';
+    btn.disabled=false; btn.style.opacity='1';
+    toast(`✅ リール生成完了（${(blob.size/1024/1024).toFixed(1)}MB）`);
+    // 案件詳細を再描画してキャプション表示
+    renderCaseDetail(c);
+  }catch(e){
+    prog.style.display='none';
+    btn.disabled=false; btn.style.opacity='1';
+    toast('❌ リール生成失敗: '+e.message, 'error');
+  }
+}
+
+// キャプション原稿を生成（テンプレート）
+function _generateCaption(c){
+  const items = (c.workDetail||'').split(/[・\n]/).map(s=>s.trim()).filter(Boolean).slice(0,5);
+  const paintLine = (c.paintGauge&&c.paintGauge.measured&&c.paintGauge.measurements.length>0)
+    ? `📊 塗膜計測 ${c.paintGauge.measurements.length}箇所実施\n` : '';
+  return [
+    `✨ 施工事例 ✨`,
+    ``,
+    `🚗 ${c.carModel||''} ${c.carYear||''}`.trim(),
+    `📏 サイズ: ${c.size||'―'}`,
+    ``,
+    `［施工内容］`,
+    ...items.map(i=>`・${i}`),
+    ``,
+    paintLine,
+    `ご依頼ありがとうございました🙏`,
+    ``,
+    `📍 LIME DETAILING STUDIO`,
+    `📞 ご予約・お問い合わせはプロフィールから`,
+    ``,
+    DEFAULT_HASHTAGS.join(' ')
+  ].filter(s=>s!=='').join('\n').replace(/\n\n\n+/g,'\n\n');
+}
+
+// ─────────────────────────────────────────────
+// 📱 Instagram 投稿支援（Phase α-5）
+// ─────────────────────────────────────────────
+async function copyInstaCaption(){
+  const c = cases.find(c=>c.id===currentCaseId);
+  if(!c){ return; }
+  if(!c.reel) c.reel={generated:false,videoPath:'',captionDraft:'',hashtags:[],instagramPosted:false,instagramUrl:'',postedAt:''};
+  // キャプションがなければ生成
+  if(!c.reel.captionDraft){
+    c.reel.captionDraft = _generateCaption(c);
+    c.reel.hashtags = DEFAULT_HASHTAGS.slice();
+    saveCases();
+  }
+  try{
+    await navigator.clipboard.writeText(c.reel.captionDraft);
+    toast('📋 キャプションをコピーしました');
+    // インスタアプリへのShare（対応端末のみ）
+    if(navigator.share){
+      setTimeout(()=>{
+        if(confirm('Instagramアプリで共有しますか？\n（キャプションは既にコピー済み）')){
+          navigator.share({text:c.reel.captionDraft}).catch(()=>{});
+        }
+      }, 500);
+    }
+  }catch(e){
+    // フォールバック：プロンプトで表示
+    prompt('長押しでコピー：', c.reel.captionDraft);
+  }
+}
+
+function markInstaPosted(){
+  const c = cases.find(c=>c.id===currentCaseId);
+  if(!c){ return; }
+  if(!c.reel) c.reel={generated:false,videoPath:'',captionDraft:'',hashtags:[],instagramPosted:false,instagramUrl:'',postedAt:''};
+  const url = prompt('投稿URL（任意）', c.reel.instagramUrl||'');
+  if(url===null) return; // キャンセル
+  c.reel.instagramPosted = true;
+  c.reel.instagramUrl = url.trim();
+  c.reel.postedAt = new Date().toISOString();
+  c.updatedAt = new Date().toISOString();
+  saveCases();
+  setTimeout(()=>syncPush(true), 500);
+  toast('✅ 投稿済みとして記録');
+  renderCaseDetail(c);
+}
+
+// ─────────────────────────────────────────────
+// 🧭 ページ遷移
+// ─────────────────────────────────────────────
+function showPage(name){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  const p=document.getElementById('page-'+name);
+  if(p) p.classList.add('active');
+  document.querySelectorAll('.m-tab').forEach(t=>t.classList.toggle('active',t.dataset.page===name));
+  // ヘッダ
+  const titles={home:'<b>DETALIA</b>',cases:'<b>案件一覧</b>',photo:'<b>写真／SNS</b>',settings:'<b>設定</b>'};
+  if(titles[name]) document.getElementById('header-title').innerHTML=titles[name];
+  document.getElementById('btn-back').style.display=(name==='detail'||name==='edit')?'flex':'none';
+  // 履歴
+  if(pageHistory[pageHistory.length-1]!==name) pageHistory.push(name);
+  window.scrollTo(0,0);
+}
+
+function goBack(){
+  if(pageHistory.length>1){
+    pageHistory.pop();
+    const prev=pageHistory[pageHistory.length-1];
+    pageHistory.pop(); // showPageで再追加されるので
+    showPage(prev);
+  }else{
+    showPage('home');
+  }
+}
+
+// ─────────────────────────────────────────────
+// 🔌 Dropbox 接続 + 双方向同期（Phase α-2）
+// ─────────────────────────────────────────────
+// 日本語パスを ASCII-safe にエスケープ（Dropbox-API-Arg ヘッダ必須）
+function _asciiSafeJson(obj){
+  return JSON.stringify(obj).replace(/[-￿]/g, c => '\\u'+('0000'+c.charCodeAt(0).toString(16)).slice(-4));
+}
+
+function _dbxPath(){
+  return localStorage.getItem(LS_KEY_PATH) || DBX_DEFAULT_PATH;
+}
+
+function _dbxToken(){
+  return localStorage.getItem(LS_KEY_TOKEN) || '';
+}
+
+async function dbxDownload(path){
+  const t = _dbxToken();
+  if(!t) throw new Error('トークン未設定');
+  const r = await fetch('https://content.dropboxapi.com/2/files/download', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer '+t,
+      'Dropbox-API-Arg': _asciiSafeJson({path: path})
+    }
+  });
+  if(r.status === 409){ return null; } // ファイル未作成（初回）
+  if(!r.ok){
+    const txt = await r.text();
+    throw new Error('download '+r.status+' '+txt.slice(0,80));
+  }
+  return await r.text();
+}
+
+async function dbxUpload(path, content){
+  const t = _dbxToken();
+  if(!t) throw new Error('トークン未設定');
+  const r = await fetch('https://content.dropboxapi.com/2/files/upload', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer '+t,
+      'Content-Type': 'application/octet-stream',
+      'Dropbox-API-Arg': _asciiSafeJson({
+        path: path,
+        mode: 'overwrite',
+        autorename: false,
+        mute: true
+      })
+    },
+    body: content
+  });
+  if(!r.ok){
+    const txt = await r.text();
+    throw new Error('upload '+r.status+' '+txt.slice(0,80));
+  }
+  return await r.json();
+}
+
+// id 単位の3-wayマージ（updatedAt 新しい方を採用）
+function mergeById(local, remote){
+  const map = new Map();
+  (remote||[]).forEach(r => { if(r && r.id) map.set(r.id, r); });
+  (local||[]).forEach(l => {
+    if(!l || !l.id) return;
+    const r = map.get(l.id);
+    if(!r){ map.set(l.id, l); return; }
+    const lt = l.updatedAt || '';
+    const rt = r.updatedAt || '';
+    if(lt > rt) map.set(l.id, l);
+  });
+  return Array.from(map.values());
+}
+
+// Pull（Dropbox→ローカル）
+async function syncPull(){
+  if(isDemoMode){ toast('デモモードでは同期しません'); return; }
+  if(isSyncing){ return; }
+  isSyncing = true;
+  _updateSyncStatus('⬇️ Pull中...');
+  try{
+    const text = await dbxDownload(_dbxPath());
+    if(!text){
+      toast('Dropbox にデータがありません（初回）','info');
+      return;
+    }
+    const data = JSON.parse(text);
+    const remoteCases = Array.isArray(data.cases) ? data.cases : [];
+    const before = cases.length;
+    cases = mergeById(cases, remoteCases);
+    localStorage.setItem(LS_KEY_CASES, JSON.stringify(cases));
+    localStorage.setItem(LS_KEY_LAST_SYNC, new Date().toISOString());
+    renderHome();
+    renderCaseList();
+    toast(`⬇️ ${remoteCases.length}件 取得（ローカル ${before}→${cases.length}）`);
+  }catch(e){
+    toast('❌ Pull失敗: '+e.message, 'error');
+  }finally{
+    isSyncing = false;
+    _updateSyncStatus();
+  }
+}
+
+// Push（先にPullしてマージ→Dropboxへ書き戻し）
+async function syncPush(silent){
+  if(isDemoMode){ if(!silent) toast('デモモードでは同期しません'); return; }
+  if(isSyncing){ return; }
+  isSyncing = true;
+  _updateSyncStatus('⬆️ Push中...');
+  try{
+    // 既存ファイル取得（あれば他キーを保持）
+    let remoteData = {};
+    let remoteCases = [];
+    try{
+      const text = await dbxDownload(_dbxPath());
+      if(text){
+        remoteData = JSON.parse(text);
+        if(Array.isArray(remoteData.cases)) remoteCases = remoteData.cases;
+      }
+    }catch(_){}
+    const merged = mergeById(cases, remoteCases);
+    const out = Object.assign({}, remoteData, {
+      cases: merged,
+      updatedAt: new Date().toISOString(),
+      _source: 'detalia_mobile'
+    });
+    await dbxUpload(_dbxPath(), JSON.stringify(out, null, 2));
+    cases = merged;
+    localStorage.setItem(LS_KEY_CASES, JSON.stringify(cases));
+    localStorage.setItem(LS_KEY_LAST_SYNC, new Date().toISOString());
+    if(!silent) toast(`⬆️ ${merged.length}件 送信`);
+  }catch(e){
+    toast('❌ Push失敗: '+e.message, 'error');
+  }finally{
+    isSyncing = false;
+    _updateSyncStatus();
+  }
+}
+
+async function syncBoth(){
+  await syncPull();
+  await syncPush();
+  toast('🔄 同期完了');
+}
+
+function _updateSyncStatus(working){
+  const el=document.getElementById('sync-status');
+  if(!el) return;
+  if(working){ el.textContent=working; el.style.color='var(--gold-light)'; return; }
+  const ts=localStorage.getItem(LS_KEY_LAST_SYNC);
+  if(ts){
+    const d=new Date(ts);
+    el.textContent=`最終同期: ${d.toLocaleString('ja-JP',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}`;
+    el.style.color='var(--text-dim)';
+  }else{
+    el.textContent='未同期';
+    el.style.color='var(--text-dim)';
+  }
+}
+
+function saveDbxToken(){
+  const t=document.getElementById('dbx-token').value.trim();
+  if(!t){ toast('トークンを入力してください','error'); return; }
+  localStorage.setItem(LS_KEY_TOKEN, t);
+  toast('✅ トークンを保存しました');
+}
+
+function saveDbxPath(){
+  const p=document.getElementById('dbx-path').value.trim();
+  if(!p){ toast('パスを入力してください','error'); return; }
+  if(!p.startsWith('/')){ toast('パスは / で始めてください','error'); return; }
+  localStorage.setItem(LS_KEY_PATH, p);
+  toast('✅ パスを保存しました');
+}
+
+async function testDbxConnection(){
+  const t=_dbxToken();
+  if(!t){ toast('先にトークンを保存してください','error'); return; }
+  try{
+    const r=await fetch('https://api.dropboxapi.com/2/users/get_current_account',{
+      method:'POST',
+      headers:{'Authorization':'Bearer '+t}
+    });
+    if(r.ok){
+      const data=await r.json();
+      toast(`✅ 接続OK: ${data.name?.display_name||data.email||''}`);
+    }else{
+      toast('❌ 接続失敗（トークン無効）','error');
+    }
+  }catch(e){
+    toast('❌ 通信エラー: '+e.message,'error');
+  }
+}
+
+function toggleDemoMode(){
+  isDemoMode=document.getElementById('demo-toggle').checked;
+  localStorage.setItem(LS_KEY_DEMO, isDemoMode);
+  loadCases();
+  renderHome();
+  renderCaseList();
+  toast(isDemoMode?'デモモードON':'デモモードOFF');
+}
+
+// ─────────────────────────────────────────────
+// 🔔 トースト
+// ─────────────────────────────────────────────
+let toastTimer=null;
+function toast(msg, kind){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.className=kind==='error'?'show error':'show';
+  if(toastTimer) clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),2400);
+}
+
+// 設定ページの初期化（トークン・パスを localStorage から復元）
+function initSettingsUI(){
+  const tEl=document.getElementById('dbx-token');
+  if(tEl) tEl.value=localStorage.getItem(LS_KEY_TOKEN)||'';
+  const pEl=document.getElementById('dbx-path');
+  if(pEl) pEl.value=localStorage.getItem(LS_KEY_PATH)||DBX_DEFAULT_PATH;
+  _updateSyncStatus();
+}
+
+// showPage 時に settings なら UI 初期化
+const _origShowPage = showPage;
+showPage = function(name){
+  _origShowPage(name);
+  if(name==='settings') initSettingsUI();
+};
+
+// 保存時の自動 Push（バックグラウンド）
+const _origSavePaintGauge = savePaintGauge;
+savePaintGauge = function(){
+  _origSavePaintGauge();
+  // デモ・トークン未設定なら何もしない、それ以外は非同期 Push
+  if(!isDemoMode && _dbxToken()){
+    setTimeout(()=>{ syncPush(true); }, 500);
+  }
+};
+
+// 起動
+init();
+// 起動時：トークンがあれば自動 Pull（バックグラウンド）
+if(!isDemoMode && _dbxToken()){
+  setTimeout(()=>{ syncPull(); }, 800);
+}
+
+</script>
+</body>
+</html>
