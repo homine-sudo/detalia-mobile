@@ -211,6 +211,59 @@ a{color:var(--gold-light);text-decoration:none}
   <!-- メイン -->
   <main class="m-main">
 
+    <!-- 🚀 オンボーディング（初回起動時 / Dropbox 未連携時） -->
+    <div class="page" id="page-onboard">
+      <div style="padding:20px 14px 30px;text-align:center">
+        <!-- ブランドヒーロー -->
+        <div style="margin:20px 0 30px">
+          <div style="font-family:'Georgia',serif;font-size:48px;letter-spacing:14px;color:var(--gold-light);font-weight:300;line-height:1">DETALIA</div>
+          <div style="font-size:11px;color:var(--gold-deep);letter-spacing:5px;margin-top:6px">COATING & DETAILING OS</div>
+          <div style="width:60px;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);margin:14px auto"></div>
+        </div>
+        <!-- ようこそメッセージ -->
+        <div style="margin-bottom:24px;line-height:1.8">
+          <div style="font-size:18px;color:var(--text);margin-bottom:10px">ようこそ 🌟</div>
+          <div style="font-size:13px;color:var(--text-dim);padding:0 14px">
+            DETALIA はディテーリング現場のための<br>モバイル業務アプリです。<br><br>
+            開始するには、Dropbox と連携してください。<br>PC版・他のスマホとデータを共有します。
+          </div>
+        </div>
+        <!-- 連携ステップカード -->
+        <div class="card" style="text-align:left;background:var(--card);border-left:3px solid var(--gold)">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+            <div style="width:32px;height:32px;border-radius:50%;background:var(--gold);color:#0F0F1A;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;flex-shrink:0">1</div>
+            <div style="font-size:15px;color:var(--text);font-weight:600">Dropbox と連携</div>
+          </div>
+          <div style="font-size:12px;color:var(--text-dim);line-height:1.7;margin-bottom:14px;padding-left:44px">
+            ボタンをタップ → Dropbox 画面で「許可」 → 自動で戻ってきます。<br>
+            <span style="color:var(--gold-deep)">⚠️ 事前に Dropbox 開発者コンソールで Redirect URI 追加が必要</span>
+          </div>
+          <button class="btn btn-primary btn-full" onclick="dbxAuthorize()" style="font-size:15px;padding:14px">📦 Dropbox と連携する</button>
+        </div>
+        <!-- 代替手段 -->
+        <details style="margin-top:14px;padding:0 4px">
+          <summary style="font-size:11px;color:var(--text-dim);cursor:pointer;padding:8px;text-align:center">代替手段（タップで開く）</summary>
+          <div style="margin-top:10px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px">
+            <div style="font-size:11px;color:var(--text-dim);margin-bottom:10px;line-height:1.6">
+              うまく連携できない場合：
+            </div>
+            <button class="btn btn-secondary btn-full" style="font-size:13px;margin-bottom:10px" onclick="onboardEnterDemo()">🎮 デモモードで試す</button>
+            <details style="margin-top:6px">
+              <summary style="font-size:11px;color:var(--text-dim);cursor:pointer;padding:4px 0">🔑 手動トークン入力</summary>
+              <div style="margin-top:6px">
+                <input id="onb-token-manual" type="password" placeholder="sl.xxxxx..." autocomplete="off" style="font-size:13px;margin-bottom:8px">
+                <button class="btn btn-secondary btn-full" style="font-size:12px" onclick="onboardSaveManualToken()">💾 保存して開始</button>
+              </div>
+            </details>
+          </div>
+        </details>
+        <div style="margin-top:24px;font-size:10px;color:var(--muted)">
+          DETALIA Mobile v0.3.0-alpha<br>
+          © LIME DETAILING STUDIO
+        </div>
+      </div>
+    </div>
+
     <!-- 🏠 ホーム -->
     <div class="page active" id="page-home">
       <div class="card" style="background:linear-gradient(135deg,#0F0F1A 0%,#1A1A2A 60%,#0F0F1A 100%);border-color:var(--gold-border)">
