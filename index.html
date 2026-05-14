@@ -484,16 +484,33 @@ function init(){
   renderCaseList();
 }
 
+// 既存案件にα-1モバイル特化フィールドを補完（マイグレーション）
+function _migrateMobileCase(c){
+  if(!c.photos || typeof c.photos!=='object') c.photos={before:[],after:[],paint:[],other:[]};
+  ['before','after','paint','other'].forEach(k=>{ if(!Array.isArray(c.photos[k])) c.photos[k]=[]; });
+  if(!c.paintGauge||typeof c.paintGauge!=='object') c.paintGauge={measured:false,deviceModel:'',measurements:[],notes:''};
+  if(!Array.isArray(c.paintGauge.measurements)) c.paintGauge.measurements=[];
+  if(!c.reel||typeof c.reel!=='object') c.reel={generated:false,videoPath:'',captionDraft:'',hashtags:[],instagramPosted:false,instagramUrl:'',postedAt:''};
+  if(!Array.isArray(c.reel.hashtags)) c.reel.hashtags=[];
+  if(typeof c.snsPermitted!=='boolean') c.snsPermitted=false;
+  if(typeof c.snsNote!=='string') c.snsNote='';
+  return c;
+}
+
 function loadCases(){
   if(isDemoMode){
     cases = JSON.parse(JSON.stringify(DEMO_CASES));
+    cases.forEach(_migrateMobileCase);
     return;
   }
   try{
     const raw = localStorage.getItem(LS_KEY_CASES);
-    if(raw){ cases = JSON.parse(raw); return; }
+    if(raw){
+      cases = JSON.parse(raw);
+      cases.forEach(_migrateMobileCase);
+      return;
+    }
   }catch(e){}
-  // 未接続なら空配列
   cases = [];
 }
 
@@ -605,6 +622,73 @@ function openCase(id){
   showPage('detail');
 }
 
+// ─────────────────────────────────────────────
+// 🎯 案件ステージ判定（次にやるべき操作の決定）
+// ─────────────────────────────────────────────
+function detectStage(c){
+  if(!c.customer || !c.tel) return {n:1, key:'reception', label:'受付情報', next:'車種・サイズを入力'};
+  if(!c.carModel || !c.size) return {n:2, key:'vehicle', label:'車両情報', next:'作業内容を選ぶ'};
+  if(!c.workDetail) return {n:3, key:'work', label:'作業内容', next:'Before写真を撮影'};
+  if(!c.arrival) return {n:3, key:'work', label:'入庫記録', next:'入庫してBefore撮影'};
+  if((c.photos?.before||[]).length === 0) return {n:4, key:'before', label:'Before写真', next:'施工開始 → 進捗保存'};
+  if(!c.delivery && (c.photos?.after||[]).length === 0) return {n:5, key:'progress', label:'作業進捗', next:'After写真を撮影'};
+  if(!c.delivery) return {n:6, key:'after', label:'After写真完了', next:'納車を記録'};
+  if(!c.snsPermitted) return {n:7, key:'sns', label:'SNS許可確認', next:'お客様にSNS掲載許可を確認'};
+  if(!c.reel?.captionDraft) return {n:8, key:'canva', label:'SNS投稿準備', next:'Canva→Instagram投稿'};
+  if(!c.reel?.instagramPosted) return {n:8, key:'canva', label:'SNS投稿準備', next:'投稿完了を記録'};
+  return {n:9, key:'done', label:'すべて完了', next:'お疲れさまでした 🎉'};
+}
+
+// ステージ別「次にやること」のクイックアクション
+function _stageQuickActionHtml(c, stage){
+  const cid = esc(c.id);
+  const cards = {
+    reception: {icon:'📞', title:'お客様情報を完成', body:'氏名・連絡先を入れてください', btn:`<button class="btn btn-primary btn-full" onclick="editCase('${cid}')">✏️ 受付情報を編集</button>`},
+    vehicle:   {icon:'🚗', title:'車両情報を入力', body:'車種・年式・サイズ・車台番号', btn:`<button class="btn btn-primary btn-full" onclick="editCase('${cid}')">✏️ 車両情報を編集</button>`},
+    work:      {icon:'🔧', title:'作業内容を選ぶ', body:'施工メニュー＋入庫日記録', btn:`<button class="btn btn-primary btn-full" onclick="editCase('${cid}')">✏️ 作業内容・入庫日を編集</button>`},
+    before:    {icon:'📸', title:'Before 写真を撮影', body:'施工前の状態を残します', btn:`<button class="btn btn-primary btn-full" onclick="document.getElementById('photo-input-before').click()">📷 Before を撮影</button>`},
+    progress:  {icon:'⚙️', title:'作業進捗を保存', body:'塗膜計測も入力できます', btn:`<button class="btn btn-primary btn-full" onclick="savePaintGauge()">💾 進捗を保存</button>`},
+    after:     {icon:'✨', title:'After 写真を撮影', body:'納車前の仕上がりを記録', btn:`<button class="btn btn-primary btn-full" onclick="document.getElementById('photo-input-after').click()">📷 After を撮影</button>`},
+    sns:       {icon:'📋', title:'SNS掲載の許可確認', body:'お客様に投稿OKか確認してから操作', btn:`<button class="btn btn-primary btn-full" onclick="toggleSnsPermit('${cid}', true)">✅ 掲載許可を記録</button>`},
+    canva:     {icon:'🎨', title:'Canvaへ素材を引き渡し', body:'写真URL+キャプションで投稿', btn:`<button class="btn btn-primary btn-full" onclick="openCanvaWorkflow('${cid}')">🎨 Canvaワークフロー</button>`},
+    done:      {icon:'🎉', title:'すべて完了', body:'お疲れさまでした', btn:''}
+  };
+  const def = cards[stage.key] || cards.reception;
+  return `<div style="background:linear-gradient(135deg,rgba(201,168,76,.12) 0%,rgba(232,201,106,.06) 100%);border:1px solid var(--gold-border);border-left:4px solid var(--gold);border-radius:10px;padding:12px 14px;margin-bottom:12px">
+    <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px">
+      <span style="font-size:24px">${def.icon}</span>
+      <div style="flex:1">
+        <div style="font-size:13px;color:var(--gold-light);font-weight:bold;letter-spacing:1px">${def.title}</div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:2px">${def.body}</div>
+      </div>
+    </div>
+    ${def.btn}
+  </div>`;
+}
+
+// ステージ進捗バーHTML
+function stageProgressHtml(c){
+  const stage = detectStage(c);
+  const stages = ['受付','車両','作業','Before','進捗','After','SNS確認','投稿','完了'];
+  return `<div style="background:var(--card);border:1px solid var(--gold-border);border-radius:10px;padding:10px 12px;margin-bottom:10px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+      <span style="font-size:10px;letter-spacing:2px;color:var(--gold-deep)">PROGRESS</span>
+      <span style="font-size:11px;color:var(--gold-light);font-weight:bold">${stage.n}/9 · ${stage.label}</span>
+    </div>
+    <div style="display:flex;gap:3px;margin-bottom:8px">
+      ${stages.map((s,i)=>{
+        const done=(i+1)<stage.n;
+        const cur=(i+1)===stage.n;
+        return `<div style="flex:1;height:5px;border-radius:3px;background:${done?'var(--gold)':cur?'var(--gold-light)':'rgba(255,255,255,0.08)'};${cur?'box-shadow:0 0 8px var(--gold-glow);':''}"></div>`;
+      }).join('')}
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;padding:8px;background:var(--gold-dim);border-radius:6px">
+      <span style="font-size:14px">👉</span>
+      <div style="flex:1;font-size:12px;color:var(--text)"><b>次にやること</b>：${stage.next}</div>
+    </div>
+  </div>`;
+}
+
 function renderCaseDetail(c){
   const total=totalAmount(c);
   const status=caseStatus(c);
@@ -619,7 +703,11 @@ function renderCaseDetail(c){
   document.getElementById('header-title').innerHTML=`<b>${esc(c.id)}</b> <span style="opacity:.6;font-size:11px">${esc(c.customer||'')}</span>`;
   document.getElementById('btn-back').style.display='flex';
 
+  const stage = detectStage(c);
   document.getElementById('case-detail-body').innerHTML=`
+    ${stageProgressHtml(c)}
+    <!-- ステージ別 クイックアクション -->
+    ${_stageQuickActionHtml(c, stage)}
     <div style="display:flex;gap:8px;margin-bottom:10px">
       <button class="btn btn-secondary" style="flex:1;font-size:13px" onclick="editCase('${esc(c.id)}')">✏️ 編集</button>
       <button class="btn btn-secondary" style="flex:1;font-size:13px;color:var(--red);border-color:var(--red)" onclick="deleteCaseMobile('${esc(c.id)}')">🗑️ 削除</button>
@@ -679,19 +767,42 @@ function renderCaseDetail(c){
       }).join('')}
     </div>
 
-    <div class="card">
-      <div class="card-title">Reel <span class="ja">🎬 リール / SNS</span></div>
-      <div style="font-size:11px;color:var(--text-dim);line-height:1.6;margin-bottom:10px">
-        Before/After 写真から縦動画（WebM）を生成。<br>
-        CapCut/InShot に取り込んで MP4 化→ Instagram投稿の流れ。
+    <!-- SNS 掲載許可カード -->
+    <div class="card" style="border-left:3px solid ${c.snsPermitted?'var(--lime)':'var(--orange)'}">
+      <div class="card-title">SNS Permission <span class="ja">📋 SNS掲載許可</span></div>
+      <label style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--bg2);border-radius:8px;cursor:pointer;margin-bottom:10px">
+        <input type="checkbox" id="sns-permit-toggle" ${c.snsPermitted?'checked':''} onchange="toggleSnsPermit('${esc(c.id)}', this.checked)" style="width:18px;height:18px;flex-shrink:0">
+        <span style="font-size:13px;flex:1">
+          <b style="color:${c.snsPermitted?'var(--lime)':'var(--text)'}">${c.snsPermitted?'✅ お客様の掲載許可OK':'⚠️ まずお客様に確認'}</b>
+          <span style="display:block;font-size:11px;color:var(--text-dim);margin-top:2px">「Before/After写真をSNSに掲載してもよろしいですか？」</span>
+        </span>
+      </label>
+      <div class="form-row" style="margin-bottom:0">
+        <label class="form-label">メモ（顧客名公開可否・タグNG等）</label>
+        <input id="sns-note" type="text" value="${esc(c.snsNote||'')}" placeholder="例: 顔出しNG / 車種名のみOK" style="font-size:12px" onchange="saveSnsNote('${esc(c.id)}', this.value)">
       </div>
-      <button class="btn btn-primary btn-full" id="btn-gen-reel" onclick="generateReel()">🎬 リール動画を生成</button>
-      <div id="reel-progress" style="display:none;font-size:11px;color:var(--gold-light);margin-top:6px;text-align:center"></div>
-      ${c.reel?.videoPath?`<div style="font-size:11px;color:var(--lime);margin-top:8px">✅ 生成済: ${esc((c.reel.videoPath||'').split('/').pop())}</div>`:''}
+    </div>
+
+    <!-- Canva → Instagram ワークフローカード（許可済 + 写真あり時のみ強調） -->
+    <div class="card" style="${c.snsPermitted?'border-left:3px solid var(--gold)':'opacity:.6'}">
+      <div class="card-title">Canva Workflow <span class="ja">🎨 SNS投稿準備</span></div>
+      ${!c.snsPermitted ? '<div style="font-size:11px;color:var(--orange);padding:8px;background:rgba(251,191,36,.1);border-radius:6px;margin-bottom:10px">⚠️ 先にお客様の掲載許可を取ってください</div>' : ''}
+      <div style="font-size:11px;color:var(--text-dim);line-height:1.7;margin-bottom:10px">
+        ① 写真と素材を Canva へ持っていく<br>
+        ② Canva で動画/画像を仕上げる<br>
+        ③ キャプションをコピー → Instagram 投稿
+      </div>
+      <button class="btn btn-primary btn-full" onclick="openCanvaWorkflow('${esc(c.id)}')" ${c.snsPermitted?'':'disabled'} style="${c.snsPermitted?'':'opacity:.5'}">🎨 Canvaワークフローを開く</button>
       <div style="border-top:1px solid var(--border);margin-top:14px;padding-top:14px">
-        <button class="btn btn-secondary btn-full" onclick="copyInstaCaption()">📋 Instagram キャプションをコピー</button>
-        <button class="btn btn-secondary btn-full" style="margin-top:8px" onclick="markInstaPosted()">${c.reel?.instagramPosted?'✅ 投稿済み（更新）':'📱 投稿しました（記録）'}</button>
-        ${c.reel?.captionDraft?`<details style="margin-top:10px"><summary style="font-size:11px;color:var(--text-dim);cursor:pointer">キャプション原稿を見る</summary><div style="font-size:11px;line-height:1.7;color:var(--text);white-space:pre-wrap;padding:8px;background:var(--bg2);border-radius:6px;margin-top:6px">${esc(c.reel.captionDraft)}</div></details>`:''}
+        <button class="btn btn-secondary btn-full" onclick="copyInstaCaption()" ${c.snsPermitted?'':'disabled'} style="${c.snsPermitted?'':'opacity:.5'}">📋 Instagramキャプションをコピー</button>
+        <button class="btn btn-secondary btn-full" style="margin-top:8px" onclick="markInstaPosted()" ${c.snsPermitted?'':'disabled'}>${c.reel?.instagramPosted?'✅ 投稿済み（更新）':'📱 投稿しました（記録）'}</button>
+        <details style="margin-top:10px">
+          <summary style="font-size:11px;color:var(--text-dim);cursor:pointer">🎬 リール動画自動生成（旧機能）</summary>
+          <button class="btn btn-secondary btn-full" id="btn-gen-reel" onclick="generateReel()" style="font-size:12px;margin-top:6px">🎬 リール動画を生成（WebM出力）</button>
+          <div id="reel-progress" style="display:none;font-size:11px;color:var(--gold-light);margin-top:6px;text-align:center"></div>
+          ${c.reel?.videoPath?`<div style="font-size:11px;color:var(--lime);margin-top:8px">✅ 生成済: ${esc((c.reel.videoPath||'').split('/').pop())}</div>`:''}
+        </details>
+        ${c.reel?.captionDraft?`<details style="margin-top:6px"><summary style="font-size:11px;color:var(--text-dim);cursor:pointer">キャプション原稿を見る</summary><div style="font-size:11px;line-height:1.7;color:var(--text);white-space:pre-wrap;padding:8px;background:var(--bg2);border-radius:6px;margin-top:6px">${esc(c.reel.captionDraft)}</div></details>`:''}
       </div>
     </div>
   `;
@@ -1301,6 +1412,164 @@ function _generateCaption(c){
 // ─────────────────────────────────────────────
 // 📱 Instagram 投稿支援（Phase α-5）
 // ─────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// 📋 SNS掲載許可 + 🎨 Canva ワークフロー
+// ─────────────────────────────────────────────
+function toggleSnsPermit(caseId, permitted){
+  const c = cases.find(c=>c.id===caseId);
+  if(!c){ return; }
+  c.snsPermitted = !!permitted;
+  c.updatedAt = new Date().toISOString();
+  saveCases();
+  setTimeout(()=>syncPush(true), 300);
+  toast(permitted ? '✅ SNS掲載 許可済み' : '⚠️ SNS掲載 不可');
+  renderCaseDetail(c);
+}
+
+function saveSnsNote(caseId, note){
+  const c = cases.find(c=>c.id===caseId);
+  if(!c) return;
+  c.snsNote = (note||'').trim();
+  c.updatedAt = new Date().toISOString();
+  saveCases();
+  setTimeout(()=>syncPush(true), 500);
+}
+
+// Dropbox 共有リンクを取得（写真をCanvaに渡すため）
+async function _getDropboxSharedLink(path){
+  if(!_dbxToken()) return null;
+  try{
+    // 既存の共有リンクをチェック
+    const r1 = await fetch('https://api.dropboxapi.com/2/sharing/list_shared_links',{
+      method:'POST',
+      headers:{'Authorization':'Bearer '+_dbxToken(),'Content-Type':'application/json'},
+      body: _asciiSafeJson({path, direct_only:true})
+    });
+    if(r1.ok){
+      const d=await r1.json();
+      if(d.links && d.links.length>0) return d.links[0].url.replace('?dl=0','?raw=1');
+    }
+    // 無ければ新規作成
+    const r2 = await fetch('https://api.dropboxapi.com/2/sharing/create_shared_link_with_settings',{
+      method:'POST',
+      headers:{'Authorization':'Bearer '+_dbxToken(),'Content-Type':'application/json'},
+      body: _asciiSafeJson({path})
+    });
+    if(r2.ok){
+      const d=await r2.json();
+      return (d.url||'').replace('?dl=0','?raw=1');
+    }
+    return null;
+  }catch(e){ return null; }
+}
+
+// Canvaワークフロー画面を開く（オーバーレイで素材一覧＋指示）
+async function openCanvaWorkflow(caseId){
+  const c = cases.find(c=>c.id===caseId);
+  if(!c){ toast('案件が見つかりません','error'); return; }
+  if(!c.snsPermitted){ toast('お客様の掲載許可が未確認です','error'); return; }
+  // オーバーレイ準備
+  const overlay = document.createElement('div');
+  overlay.id = 'canva-workflow-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,15,26,.97);z-index:2000;overflow-y:auto;padding:14px 14px 30px';
+  overlay.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-top:env(safe-area-inset-top,0)">
+      <div style="font-family:Georgia,serif;font-size:18px;letter-spacing:3px;color:var(--gold-light)">🎨 Canva Workflow</div>
+      <button class="btn btn-secondary" style="padding:8px 14px;font-size:13px" onclick="this.closest('#canva-workflow-overlay').remove()">✕ 閉じる</button>
+    </div>
+    <div style="font-size:11px;color:var(--text-dim);margin-bottom:10px">案件: <b style="color:var(--gold-light)">${esc(c.id)}</b> · ${esc(c.customer||'')} · ${esc(c.carModel||'')}</div>
+    <!-- Step 1: 共有リンク -->
+    <div class="card" style="border-left:3px solid var(--gold)">
+      <div style="font-size:11px;color:var(--gold-deep);letter-spacing:2px;margin-bottom:6px">STEP 1</div>
+      <div style="font-size:14px;color:var(--text);margin-bottom:10px">📷 写真をCanvaへ転送</div>
+      <div id="cv-photo-links" style="font-size:11px;color:var(--text-dim);padding:8px;background:var(--bg2);border-radius:6px;margin-bottom:10px;max-height:200px;overflow-y:auto">リンク取得中...</div>
+      <button class="btn btn-secondary btn-full" onclick="_copyAllPhotoLinks()" id="btn-copy-links" disabled>📋 全URLをコピー</button>
+    </div>
+    <!-- Step 2: キャプション -->
+    <div class="card" style="border-left:3px solid var(--gold)">
+      <div style="font-size:11px;color:var(--gold-deep);letter-spacing:2px;margin-bottom:6px">STEP 2</div>
+      <div style="font-size:14px;color:var(--text);margin-bottom:10px">📝 投稿キャプションを生成</div>
+      <div id="cv-caption" style="font-size:11px;line-height:1.8;color:var(--text);white-space:pre-wrap;padding:10px;background:var(--bg2);border-radius:6px;margin-bottom:10px;max-height:240px;overflow-y:auto">${esc(_generateCaption(c))}</div>
+      <button class="btn btn-secondary btn-full" onclick="_copyCaption()">📋 キャプションをコピー</button>
+    </div>
+    <!-- Step 3: Canva 起動 -->
+    <div class="card" style="border-left:3px solid var(--gold)">
+      <div style="font-size:11px;color:var(--gold-deep);letter-spacing:2px;margin-bottom:6px">STEP 3</div>
+      <div style="font-size:14px;color:var(--text);margin-bottom:10px">🎨 Canva で素材を仕上げ</div>
+      <div style="font-size:11px;color:var(--text-dim);line-height:1.7;margin-bottom:10px">
+        Instagram リール／ストーリーズ テンプレを開いて、コピーしたURLから写真をペースト
+      </div>
+      <button class="btn btn-primary btn-full" style="margin-bottom:8px" onclick="window.open('https://www.canva.com/design?category=instagram_reel','_blank')">🎬 Canva リール</button>
+      <button class="btn btn-primary btn-full" style="margin-bottom:8px" onclick="window.open('https://www.canva.com/design?category=instagram_story','_blank')">📱 Canva ストーリーズ</button>
+      <button class="btn btn-secondary btn-full" onclick="window.open('https://www.canva.com/','_blank')">🌐 Canva ホーム</button>
+    </div>
+    <!-- Step 4: Instagram -->
+    <div class="card" style="border-left:3px solid var(--gold)">
+      <div style="font-size:11px;color:var(--gold-deep);letter-spacing:2px;margin-bottom:6px">STEP 4</div>
+      <div style="font-size:14px;color:var(--text);margin-bottom:10px">📱 Instagram に投稿</div>
+      <div style="font-size:11px;color:var(--text-dim);line-height:1.7;margin-bottom:10px">
+        Canvaで保存した画像/動画を Instagram アプリで投稿。コピー済のキャプションをペースト。
+      </div>
+      <button class="btn btn-secondary btn-full" onclick="window.open('instagram://camera','_blank')" style="margin-bottom:8px">📷 Instagramアプリを起動</button>
+      <button class="btn btn-primary btn-full" onclick="markInstaPosted(); document.getElementById('canva-workflow-overlay').remove();">✅ 投稿しました（記録）</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  // 写真リンクを非同期取得
+  _loadPhotoLinksForCanva(c);
+}
+
+// 全写真の共有リンクを取得（Canvaワークフロー用）
+let _currentCanvaLinks = [];
+async function _loadPhotoLinksForCanva(c){
+  const linksEl = document.getElementById('cv-photo-links');
+  const btnEl = document.getElementById('btn-copy-links');
+  if(!linksEl) return;
+  const all = [
+    ...((c.photos?.before||[]).map(p=>({...p, kind:'Before'}))),
+    ...((c.photos?.after||[]).map(p=>({...p, kind:'After'}))),
+    ...((c.photos?.paint||[]).map(p=>({...p, kind:'塗膜'})))
+  ];
+  if(all.length===0){
+    linksEl.innerHTML = '<span style="color:var(--orange)">⚠️ 写真がありません。先に撮影してください。</span>';
+    return;
+  }
+  linksEl.innerHTML = '<span style="color:var(--gold-deep)">共有リンク取得中... ' + all.length + '枚</span>';
+  _currentCanvaLinks = [];
+  const rows = [];
+  for(const p of all){
+    const url = await _getDropboxSharedLink(p.path);
+    if(url){
+      _currentCanvaLinks.push({kind:p.kind, url});
+      rows.push(`<div style="margin-bottom:6px;padding:6px;background:var(--card);border-radius:4px"><div style="color:var(--gold-light);font-size:10px">${p.kind}</div><div style="font-family:Courier,monospace;font-size:10px;word-break:break-all;color:var(--text)">${esc(url)}</div></div>`);
+    }
+  }
+  linksEl.innerHTML = rows.join('') || '<span style="color:var(--red)">リンク取得失敗</span>';
+  if(btnEl) btnEl.disabled = _currentCanvaLinks.length===0;
+}
+
+async function _copyAllPhotoLinks(){
+  if(_currentCanvaLinks.length===0){ toast('リンクがありません','error'); return; }
+  const text = _currentCanvaLinks.map(l=>`[${l.kind}] ${l.url}`).join('\n');
+  try{
+    await navigator.clipboard.writeText(text);
+    toast(`📋 ${_currentCanvaLinks.length}枚分のURLをコピー`);
+  }catch(e){
+    prompt('長押しでコピー:', text);
+  }
+}
+
+async function _copyCaption(){
+  const el = document.getElementById('cv-caption');
+  if(!el) return;
+  try{
+    await navigator.clipboard.writeText(el.textContent);
+    toast('📋 キャプションをコピー');
+  }catch(e){
+    prompt('長押しでコピー:', el.textContent);
+  }
+}
+
 async function copyInstaCaption(){
   const c = cases.find(c=>c.id===currentCaseId);
   if(!c){ return; }
