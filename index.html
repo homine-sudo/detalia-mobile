@@ -280,9 +280,10 @@ a{color:var(--gold-light);text-decoration:none}
 
       <div class="card">
         <div class="card-title">Quick Actions <span class="ja">クイック操作</span></div>
+        <button class="btn btn-primary btn-full" style="margin-bottom:8px;padding:14px;font-size:15px" onclick="newQuoteCase()">📄 見積受付（新規）</button>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <button class="btn btn-secondary" onclick="newCase()">＋ 案件登録</button>
           <button class="btn btn-secondary" onclick="showPage('cases')">📋 案件一覧</button>
-          <button class="btn btn-secondary" onclick="showPage('photo')">📸 写真撮影</button>
         </div>
       </div>
 
@@ -422,11 +423,13 @@ a{color:var(--gold-light);text-decoration:none}
 // 🎨 塗膜計測 位置プリセット（PC版と同期）
 // ─────────────────────────────────────────────
 const PAINT_POSITIONS = [
-  'ボンネット中央','ボンネット左','ボンネット右',
-  'ルーフ前','ルーフ後',
-  'ドア(運転席)','ドア(助手席)','ドア(後左)','ドア(後右)',
-  'フェンダー前左','フェンダー前右',
-  'リアバンパー','トランク/リアゲート'
+  'ボンネット',
+  'ルーフ',
+  'ドア(運転席)',
+  'ドア(助手席)',
+  'フェンダー',
+  'リアバンパー',
+  'トランク/リアゲート'
 ];
 
 // ─────────────────────────────────────────────
@@ -490,6 +493,18 @@ function _migrateMobileCase(c){
   ['before','after','paint','other'].forEach(k=>{ if(!Array.isArray(c.photos[k])) c.photos[k]=[]; });
   if(!c.paintGauge||typeof c.paintGauge!=='object') c.paintGauge={measured:false,deviceModel:'',measurements:[],notes:''};
   if(!Array.isArray(c.paintGauge.measurements)) c.paintGauge.measurements=[];
+  // Before/After 構造へのマイグレーション（旧 value → valueBefore）
+  c.paintGauge.measurements.forEach(m=>{
+    if(m && typeof m==='object'){
+      if(m.value!==undefined && m.valueBefore===undefined){
+        m.valueBefore = m.value;
+        delete m.value;
+      }
+      if(m.valueBefore===undefined) m.valueBefore='';
+      if(m.valueAfter===undefined) m.valueAfter='';
+      if(!m.note) m.note='';
+    }
+  });
   if(!c.reel||typeof c.reel!=='object') c.reel={generated:false,videoPath:'',captionDraft:'',hashtags:[],instagramPosted:false,instagramUrl:'',postedAt:''};
   if(!Array.isArray(c.reel.hashtags)) c.reel.hashtags=[];
   if(typeof c.snsPermitted!=='boolean') c.snsPermitted=false;
@@ -579,10 +594,11 @@ function renderHome(){
 }
 
 function caseCardHtml(c){
-  return `<div class="case-card" onclick="openCase('${esc(c.id)}')">
+  const isQuote = c.category==='見積';
+  return `<div class="case-card" onclick="openCase('${esc(c.id)}')" style="${isQuote?'border-left-color:var(--cyan)':''}">
     <div class="case-row">
       <span class="case-id">${esc(c.id)}</span>
-      <span class="case-status">${caseStatus(c)}</span>
+      ${isQuote?'<span style="font-size:9px;padding:2px 6px;border-radius:10px;background:rgba(34,211,238,.15);color:var(--cyan);font-weight:bold">📄 見積</span>':`<span class="case-status">${caseStatus(c)}</span>`}
     </div>
     <div class="case-customer">${esc(c.customer||'―')}</div>
     <div class="case-meta">
@@ -628,29 +644,28 @@ function openCase(id){
 function detectStage(c){
   if(!c.customer || !c.tel) return {n:1, key:'reception', label:'受付情報', next:'車種・サイズを入力'};
   if(!c.carModel || !c.size) return {n:2, key:'vehicle', label:'車両情報', next:'作業内容を選ぶ'};
-  if(!c.workDetail) return {n:3, key:'work', label:'作業内容', next:'Before写真を撮影'};
-  if(!c.arrival) return {n:3, key:'work', label:'入庫記録', next:'入庫してBefore撮影'};
-  if((c.photos?.before||[]).length === 0) return {n:4, key:'before', label:'Before写真', next:'施工開始 → 進捗保存'};
-  if(!c.delivery && (c.photos?.after||[]).length === 0) return {n:5, key:'progress', label:'作業進捗', next:'After写真を撮影'};
-  if(!c.delivery) return {n:6, key:'after', label:'After写真完了', next:'納車を記録'};
-  if(!c.snsPermitted) return {n:7, key:'sns', label:'SNS許可確認', next:'お客様にSNS掲載許可を確認'};
-  if(!c.reel?.captionDraft) return {n:8, key:'canva', label:'SNS投稿準備', next:'Canva→Instagram投稿'};
-  if(!c.reel?.instagramPosted) return {n:8, key:'canva', label:'SNS投稿準備', next:'投稿完了を記録'};
-  return {n:9, key:'done', label:'すべて完了', next:'お疲れさまでした 🎉'};
+  if(!c.workDetail) return {n:3, key:'work', label:'作業内容', next:'入庫日とSNS許可を確認'};
+  if(!c.arrival) return {n:4, key:'intake', label:'入庫記録', next:'入庫時にSNS掲載許可も確認'};
+  if((c.photos?.before||[]).length === 0) return {n:5, key:'before', label:'Before写真', next:'施工開始 → 進捗保存'};
+  if(!c.delivery && (c.photos?.after||[]).length === 0) return {n:6, key:'progress', label:'作業進捗', next:'塗膜After計測 / After写真'};
+  if(!c.delivery) return {n:7, key:'after', label:'After写真完了', next:'納車を記録'};
+  if(!c.reel?.captionDraft && c.snsPermitted) return {n:8, key:'canva', label:'SNS投稿準備', next:'Canva→Instagram投稿'};
+  if(!c.reel?.instagramPosted && c.snsPermitted) return {n:8, key:'canva', label:'SNS投稿準備', next:'投稿完了を記録'};
+  return {n:9, key:'done', label:'すべて完了', next:c.snsPermitted?'お疲れさまでした 🎉':'SNS掲載なし・完了 🎉'};
 }
 
 // ステージ別「次にやること」のクイックアクション
 function _stageQuickActionHtml(c, stage){
   const cid = esc(c.id);
   const cards = {
-    reception: {icon:'📞', title:'お客様情報を完成', body:'氏名・連絡先を入れてください', btn:`<button class="btn btn-primary btn-full" onclick="editCase('${cid}')">✏️ 受付情報を編集</button>`},
+    reception: {icon:'📞', title:'お客様情報を完成', body:'氏名・電話番号を入れてください', btn:`<button class="btn btn-primary btn-full" onclick="editCase('${cid}')">✏️ 受付情報を編集</button>`},
     vehicle:   {icon:'🚗', title:'車両情報を入力', body:'車種・年式・サイズ・車台番号', btn:`<button class="btn btn-primary btn-full" onclick="editCase('${cid}')">✏️ 車両情報を編集</button>`},
-    work:      {icon:'🔧', title:'作業内容を選ぶ', body:'施工メニュー＋入庫日記録', btn:`<button class="btn btn-primary btn-full" onclick="editCase('${cid}')">✏️ 作業内容・入庫日を編集</button>`},
-    before:    {icon:'📸', title:'Before 写真を撮影', body:'施工前の状態を残します', btn:`<button class="btn btn-primary btn-full" onclick="document.getElementById('photo-input-before').click()">📷 Before を撮影</button>`},
-    progress:  {icon:'⚙️', title:'作業進捗を保存', body:'塗膜計測も入力できます', btn:`<button class="btn btn-primary btn-full" onclick="savePaintGauge()">💾 進捗を保存</button>`},
-    after:     {icon:'✨', title:'After 写真を撮影', body:'納車前の仕上がりを記録', btn:`<button class="btn btn-primary btn-full" onclick="document.getElementById('photo-input-after').click()">📷 After を撮影</button>`},
-    sns:       {icon:'📋', title:'SNS掲載の許可確認', body:'お客様に投稿OKか確認してから操作', btn:`<button class="btn btn-primary btn-full" onclick="toggleSnsPermit('${cid}', true)">✅ 掲載許可を記録</button>`},
-    canva:     {icon:'🎨', title:'Canvaへ素材を引き渡し', body:'写真URL+キャプションで投稿', btn:`<button class="btn btn-primary btn-full" onclick="openCanvaWorkflow('${cid}')">🎨 Canvaワークフロー</button>`},
+    work:      {icon:'🔧', title:'作業内容を選ぶ', body:'施工メニューを選択', btn:`<button class="btn btn-primary btn-full" onclick="editCase('${cid}')">✏️ 作業内容を編集</button>`},
+    intake:    {icon:'🏠', title:'入庫＋SNS許可確認', body:'入庫日を記録、SNS掲載OKかも確認', btn:`<button class="btn btn-primary btn-full" onclick="editCase('${cid}')">✏️ 入庫情報を入力</button>`},
+    before:    {icon:'📸', title:'Before 写真＋塗膜', body:'施工前の写真と塗膜計測を入力', btn:`<button class="btn btn-primary btn-full" onclick="document.getElementById('photo-input-before').click()">📷 Before を撮影</button>`},
+    progress:  {icon:'⚙️', title:'作業進捗を保存', body:'塗膜After値・After写真', btn:`<button class="btn btn-primary btn-full" onclick="document.getElementById('photo-input-after').click()">📷 After を撮影</button>`},
+    after:     {icon:'✨', title:'納車記録', body:'納車日を入れて完了', btn:`<button class="btn btn-primary btn-full" onclick="editCase('${cid}')">✏️ 納車日を入力</button>`},
+    canva:     {icon:'🎨', title:'Canva → Instagram投稿', body:'写真URL+キャプションで投稿', btn:`<button class="btn btn-primary btn-full" onclick="openCanvaWorkflow('${cid}')">🎨 Canvaワークフロー</button>`},
     done:      {icon:'🎉', title:'すべて完了', body:'お疲れさまでした', btn:''}
   };
   const def = cards[stage.key] || cards.reception;
@@ -669,7 +684,7 @@ function _stageQuickActionHtml(c, stage){
 // ステージ進捗バーHTML
 function stageProgressHtml(c){
   const stage = detectStage(c);
-  const stages = ['受付','車両','作業','Before','進捗','After','SNS確認','投稿','完了'];
+  const stages = ['受付','車両','作業','入庫','Before','進捗','After','投稿','完了'];
   return `<div style="background:var(--card);border:1px solid var(--gold-border);border-radius:10px;padding:10px 12px;margin-bottom:10px">
     <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
       <span style="font-size:10px;letter-spacing:2px;color:var(--gold-deep)">PROGRESS</span>
@@ -736,10 +751,16 @@ function renderCaseDetail(c){
     </div>`:''}
 
     <div class="card">
-      <div class="card-title">Paint Gauge <span class="ja">🎨 塗膜計測</span></div>
+      <div class="card-title">Paint Gauge <span class="ja">🎨 塗膜計測（μm）</span></div>
       <div class="form-row" style="margin-bottom:10px">
         <label class="form-label">計測器</label>
         <input id="d-paint-device" type="text" value="${esc(c.paintGauge?.deviceModel||'')}" placeholder="例: Defelsko PosiTector 6000" style="font-size:13px">
+      </div>
+      <div style="display:grid;grid-template-columns:1.3fr 1fr 1fr 28px;gap:6px;align-items:center;font-size:10px;color:var(--gold-deep);letter-spacing:1px;padding:0 4px 4px;border-bottom:1px solid var(--border);margin-bottom:6px">
+        <span>位置</span>
+        <span style="text-align:center">Before</span>
+        <span style="text-align:center;color:var(--lime-deep)">After</span>
+        <span></span>
       </div>
       <div class="paint-grid" id="d-paint-rows">
         ${expanded.map((m,i)=>paintRowHtmlMobile(m,i)).join('')}
@@ -754,8 +775,8 @@ function renderCaseDetail(c){
 
     <div class="card">
       <div class="card-title">Photos <span class="ja">📸 写真</span></div>
-      ${['before','after','paint','other'].map(kind=>{
-        const labelMap={before:'Before（施工前）',after:'After（施工後）',paint:'塗膜ゲージ',other:'その他'};
+      ${['before','after','other'].map(kind=>{
+        const labelMap={before:'Before（施工前）',after:'After（施工後）',other:'その他'};
         return `<div style="margin-bottom:14px">
           <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--text-dim);margin-bottom:6px">
             <span>${labelMap[kind]}</span>
@@ -767,20 +788,14 @@ function renderCaseDetail(c){
       }).join('')}
     </div>
 
-    <!-- SNS 掲載許可カード -->
-    <div class="card" style="border-left:3px solid ${c.snsPermitted?'var(--lime)':'var(--orange)'}">
-      <div class="card-title">SNS Permission <span class="ja">📋 SNS掲載許可</span></div>
-      <label style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--bg2);border-radius:8px;cursor:pointer;margin-bottom:10px">
-        <input type="checkbox" id="sns-permit-toggle" ${c.snsPermitted?'checked':''} onchange="toggleSnsPermit('${esc(c.id)}', this.checked)" style="width:18px;height:18px;flex-shrink:0">
-        <span style="font-size:13px;flex:1">
-          <b style="color:${c.snsPermitted?'var(--lime)':'var(--text)'}">${c.snsPermitted?'✅ お客様の掲載許可OK':'⚠️ まずお客様に確認'}</b>
-          <span style="display:block;font-size:11px;color:var(--text-dim);margin-top:2px">「Before/After写真をSNSに掲載してもよろしいですか？」</span>
-        </span>
-      </label>
-      <div class="form-row" style="margin-bottom:0">
-        <label class="form-label">メモ（顧客名公開可否・タグNG等）</label>
-        <input id="sns-note" type="text" value="${esc(c.snsNote||'')}" placeholder="例: 顔出しNG / 車種名のみOK" style="font-size:12px" onchange="saveSnsNote('${esc(c.id)}', this.value)">
+    <!-- SNS 掲載許可：入庫時に編集フォームで確認するため、ここでは状態表示のみ -->
+    <div style="background:${c.snsPermitted?'rgba(184,233,134,.08)':'rgba(251,191,36,.08)'};border:1px solid ${c.snsPermitted?'var(--lime)':'var(--orange)'};border-radius:8px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:10px">
+      <span style="font-size:18px">${c.snsPermitted?'✅':'⚠️'}</span>
+      <div style="flex:1;font-size:12px">
+        <b style="color:${c.snsPermitted?'var(--lime)':'var(--orange)'}">${c.snsPermitted?'SNS掲載 OK':'SNS掲載 未確認'}</b>
+        ${c.snsNote?`<span style="display:block;font-size:10px;color:var(--text-dim);margin-top:2px">📝 ${esc(c.snsNote)}</span>`:''}
       </div>
+      <button class="btn btn-secondary" style="padding:6px 10px;font-size:11px" onclick="editCase('${esc(c.id)}')">変更</button>
     </div>
 
     <!-- Canva → Instagram ワークフローカード（許可済 + 写真あり時のみ強調） -->
@@ -807,24 +822,35 @@ function renderCaseDetail(c){
     </div>
   `;
   // 写真グリッドを描画
-  ['before','after','paint','other'].forEach(kind=>_renderPhotoGrid(c,kind));
+  ['before','after','other'].forEach(kind=>_renderPhotoGrid(c,kind));
 }
 
 function paintRowHtmlMobile(m,i){
-  const v=Number(m.value);
-  const abnormal=(!isNaN(v)&&v>0&&(v<30||v>200));
-  return `<div class="paint-row ${abnormal?'abnormal':''}" data-idx="${i}">
-    <span class="pos">${esc(m.position||'―')}</span>
-    <input class="val" type="number" inputmode="numeric" min="0" step="1" value="${m.value||''}" placeholder="―" oninput="onPaintValChange(this)">
-    <span class="unit">μm</span>
+  const vB=Number(m.valueBefore);
+  const vA=Number(m.valueAfter);
+  const isAbn=v=>!isNaN(v)&&v>0&&(v<30||v>200);
+  return `<div class="paint-row" data-idx="${i}" style="display:grid;grid-template-columns:1.3fr 1fr 1fr 28px;gap:6px;align-items:center;padding:6px 4px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;margin-bottom:4px">
+    <span class="pos" style="font-size:12px;color:var(--text);padding-left:4px">${esc(m.position||'―')}</span>
+    <input class="val-before" type="number" inputmode="numeric" min="0" step="1" value="${m.valueBefore||''}" placeholder="―" oninput="onPaintValChange(this,'before')" style="width:100%;padding:6px;font-size:14px;text-align:center;${isAbn(vB)?'border-color:var(--red);color:var(--red)':''}" title="施工前">
+    <input class="val-after" type="number" inputmode="numeric" min="0" step="1" value="${m.valueAfter||''}" placeholder="―" oninput="onPaintValChange(this,'after')" style="width:100%;padding:6px;font-size:14px;text-align:center;color:var(--lime-deep);${isAbn(vA)?'border-color:var(--red);color:var(--red)':''}" title="施工後">
+    <button type="button" onclick="_removePaintRowMobile(${i})" title="削除" style="background:transparent;border:1px solid var(--border);color:var(--red);width:24px;height:24px;border-radius:4px;font-size:12px;padding:0">✕</button>
   </div>`;
 }
 
-function onPaintValChange(input){
-  const row=input.closest('.paint-row');
+function onPaintValChange(input, kind){
   const v=Number(input.value);
-  if(!isNaN(v)&&v>0&&(v<30||v>200)) row.classList.add('abnormal');
-  else row.classList.remove('abnormal');
+  const abn = !isNaN(v) && v>0 && (v<30||v>200);
+  input.style.borderColor = abn ? 'var(--red)' : '';
+  input.style.color = abn ? 'var(--red)' : (kind==='after' ? 'var(--lime-deep)' : '');
+}
+
+function _removePaintRowMobile(idx){
+  const c=cases.find(c=>c.id===currentCaseId);
+  if(!c) return;
+  const cur=_collectPaintMeasurementsMobile();
+  cur.splice(idx,1);
+  c.paintGauge.measurements=cur;
+  renderCaseDetail(c);
 }
 
 function addPaintRowMobile(){
@@ -832,26 +858,32 @@ function addPaintRowMobile(){
   if(!custom||!custom.trim()) return;
   const wrap=document.getElementById('d-paint-rows');
   const i=wrap.children.length;
-  const m={position:custom.trim(),value:'',note:''};
+  const m={position:custom.trim(),valueBefore:'',valueAfter:'',note:''};
   wrap.insertAdjacentHTML('beforeend', paintRowHtmlMobile(m,i));
+}
+
+function _collectPaintMeasurementsMobile(){
+  const rows=Array.from(document.querySelectorAll('#d-paint-rows .paint-row'));
+  return rows.map(r=>({
+    position: r.querySelector('.pos').textContent.trim(),
+    valueBefore: r.querySelector('.val-before').value,
+    valueAfter: r.querySelector('.val-after').value,
+    note: ''
+  })).filter(m=>m.position&&m.position!=='―'&&(m.valueBefore||m.valueAfter));
 }
 
 function savePaintGauge(){
   const c=cases.find(c=>c.id===currentCaseId);
   if(!c){ toast('案件が見つかりません','error'); return; }
-  const rows=Array.from(document.querySelectorAll('#d-paint-rows .paint-row'));
-  const measurements=rows.map(r=>({
-    position: r.querySelector('.pos').textContent.trim(),
-    value: r.querySelector('.val').value,
-    note: ''
-  })).filter(m=>m.position&&m.position!=='―'&&(m.value||m.note));
+  const measurements=_collectPaintMeasurementsMobile();
   if(!c.paintGauge) c.paintGauge={measured:false,deviceModel:'',measurements:[],notes:''};
   c.paintGauge.deviceModel = document.getElementById('d-paint-device').value.trim();
   c.paintGauge.notes       = document.getElementById('d-paint-notes').value.trim();
   c.paintGauge.measurements= measurements;
-  c.paintGauge.measured    = measurements.some(m=>m.value);
+  c.paintGauge.measured    = measurements.some(m=>m.valueBefore||m.valueAfter);
   c.updatedAt = new Date().toISOString();
   saveCases();
+  setTimeout(()=>syncPush(true), 300);
   toast(`✅ 塗膜データ保存（${measurements.length}箇所）`);
 }
 
@@ -874,6 +906,16 @@ function _nextCaseId(){
 
 function newCase(){
   currentCaseId = null;
+  _newCaseKind = 'case';
+  _renderEditForm(null);
+  showPage('edit');
+}
+
+// 見積受付（顧客情報＋希望作業のみ。案件本体は後で同じIDで継続編集）
+let _newCaseKind = 'case';
+function newQuoteCase(){
+  currentCaseId = null;
+  _newCaseKind = 'quote';
   _renderEditForm(null);
   showPage('edit');
 }
@@ -888,12 +930,14 @@ function editCase(id){
 
 function _renderEditForm(c){
   const isNew = !c;
-  const data = c || {id:_nextCaseId(),customer:'',carModel:'',carYear:'',size:'',chassis:'',colorCode:'',
+  const data = c || {id:_nextCaseId(),customer:'',tel:'',carModel:'',carYear:'',size:'',chassis:'',colorCode:'',
                     arrival:'',deliveryPlan:'',delivery:'',workStaff:'',
                     optExt:0,optInt:0,optOther:0,discount:0,
-                    paymentMethod:'',paymentDeadline:'',workDetail:''};
+                    paymentMethod:'',paymentDeadline:'',workDetail:'',
+                    snsPermitted:false,snsNote:'',category:_newCaseKind==='quote'?'見積':'業販'};
+  const isQuote = isNew && _newCaseKind==='quote';
   document.getElementById('header-title').innerHTML = isNew
-    ? `<b>新規案件</b>`
+    ? (isQuote ? `<b>📄 見積受付</b>` : `<b>新規案件</b>`)
     : `<b>編集: ${esc(data.id)}</b>`;
   document.getElementById('btn-back').style.display='flex';
 
@@ -907,6 +951,10 @@ function _renderEditForm(c){
       <div class="form-row">
         <label class="form-label">顧客名 <span style="color:var(--red)">*</span></label>
         <input id="e-customer" type="text" value="${esc(data.customer||'')}" placeholder="例: 安里 昌悟">
+      </div>
+      <div class="form-row">
+        <label class="form-label">電話番号</label>
+        <input id="e-tel" type="tel" value="${esc(data.tel||'')}" placeholder="例: 090-1234-5678" autocomplete="tel">
       </div>
       <div style="display:grid;grid-template-columns:1fr 80px;gap:8px">
         <div class="form-row">
@@ -960,6 +1008,21 @@ function _renderEditForm(c){
       </div>
     </div>
 
+    <div class="card" style="border-left:3px solid ${data.snsPermitted?'var(--lime)':'var(--orange)'}">
+      <div class="card-title">SNS Permission <span class="ja">📋 SNS掲載許可（入庫時に確認）</span></div>
+      <label style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--bg2);border-radius:8px;cursor:pointer">
+        <input type="checkbox" id="e-snsPermitted" ${data.snsPermitted?'checked':''} style="width:18px;height:18px;flex-shrink:0">
+        <span style="font-size:13px;flex:1">
+          <b>お客様の Before/After SNS掲載 OK</b>
+          <span style="display:block;font-size:11px;color:var(--text-dim);margin-top:2px">入庫時に「写真をSNSに載せていいですか？」と確認</span>
+        </span>
+      </label>
+      <div class="form-row" style="margin-top:10px;margin-bottom:0">
+        <label class="form-label">メモ（顔出しNG・タグNG等）</label>
+        <input id="e-snsNote" type="text" value="${esc(data.snsNote||'')}" placeholder="例: 顔出しNG / 車種名のみOK" style="font-size:12px">
+      </div>
+    </div>
+
     <div class="card">
       <div class="card-title">Service <span class="ja">作業内容</span></div>
       <div class="form-row">
@@ -1002,9 +1065,11 @@ function saveCaseEdit(){
   if(isNew && cases.some(c=>c.id===id)){ toast('受付Noが重複しています','error'); return; }
   const g=(k,n)=>{const v=document.getElementById('e-'+k)?.value||'';return n?(Number(v)||0):v.trim();};
   const existing = isNew ? null : cases.find(c=>c.id===currentCaseId);
+  const snsPermitted = !!document.getElementById('e-snsPermitted')?.checked;
   const c = Object.assign({}, existing||{}, {
     id,
     customer: g('customer'),
+    tel:      g('tel'),
     carModel: g('carModel'),
     carYear:  g('carYear'),
     size:     g('size'),
@@ -1021,6 +1086,9 @@ function saveCaseEdit(){
     discount: g('discount',true),
     paymentMethod: g('paymentMethod'),
     paymentDeadline: g('paymentDeadline'),
+    snsPermitted: snsPermitted,
+    snsNote: g('snsNote'),
+    category: existing?.category || (_newCaseKind==='quote'?'見積':'業販'),
     updatedAt: new Date().toISOString(),
     org_id: existing?.org_id || 'self'
   });
