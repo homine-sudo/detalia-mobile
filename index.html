@@ -390,7 +390,11 @@ a{color:var(--gold-light);text-decoration:none}
             <label class="form-label">Client ID</label>
             <input id="canva-client-id" type="text" placeholder="OC-AZxxxxxxxx..." autocomplete="off" style="font-size:12px;font-family:Courier,monospace">
           </div>
-          <button class="btn btn-secondary btn-full" onclick="canvaSaveClientId()">💾 Client ID 保存</button>
+          <div class="form-row" style="margin-bottom:8px">
+            <label class="form-label">Client Secret <span style="color:var(--gold-deep);font-size:10px">（Canva の Configuration → Generate secret で発行）</span></label>
+            <input id="canva-client-secret" type="password" placeholder="cnvca_xxxxxxxx..." autocomplete="off" style="font-size:12px;font-family:Courier,monospace">
+          </div>
+          <button class="btn btn-secondary btn-full" onclick="canvaSaveCredentials()">💾 Client ID / Secret 保存</button>
           <button class="btn btn-primary btn-full" style="margin-top:8px" onclick="canvaAuthorize()">🎨 Canva と連携</button>
         </div>
         <!-- 連携済 -->
@@ -1940,7 +1944,8 @@ const CANVA_TOKEN_URL = 'https://api.canva.com/rest/v1/oauth/token';
 const CANVA_API_BASE  = 'https://api.canva.com/rest/v1';
 const CANVA_SCOPES    = 'asset:read asset:write brandtemplate:content:read brandtemplate:meta:read design:content:read design:content:write design:meta:read';
 
-const LS_KEY_CANVA_CLIENT_ID = 'detalia_canva_client_id';
+const LS_KEY_CANVA_CLIENT_ID     = 'detalia_canva_client_id';
+const LS_KEY_CANVA_CLIENT_SECRET = 'detalia_canva_client_secret';
 const LS_KEY_CANVA_TOKEN     = 'detalia_canva_token';
 const LS_KEY_CANVA_REFRESH   = 'detalia_canva_refresh';
 const LS_KEY_CANVA_VERIFIER  = 'detalia_canva_verifier';
@@ -1948,6 +1953,12 @@ const LS_KEY_CANVA_EXPIRES   = 'detalia_canva_expires';
 const LS_KEY_CANVA_TEMPLATE  = 'detalia_canva_template_id'; // リール用テンプレID
 
 function _canvaClientId(){ return localStorage.getItem(LS_KEY_CANVA_CLIENT_ID)||''; }
+function _canvaClientSecret(){ return localStorage.getItem(LS_KEY_CANVA_CLIENT_SECRET)||''; }
+function _canvaBasicAuth(){
+  const id = _canvaClientId(), sec = _canvaClientSecret();
+  if(!id || !sec) return '';
+  return 'Basic ' + btoa(id + ':' + sec);
+}
 function _canvaToken(){
   const t = localStorage.getItem(LS_KEY_CANVA_TOKEN);
   const exp = Number(localStorage.getItem(LS_KEY_CANVA_EXPIRES)||0);
@@ -1999,12 +2010,15 @@ async function canvaHandleCallback(){
       grant_type:'authorization_code',
       code,
       code_verifier: verifier,
-      client_id: clientId,
       redirect_uri: location.origin + location.pathname
     });
+    const headers = {'Content-Type':'application/x-www-form-urlencoded'};
+    const basic = _canvaBasicAuth();
+    if(basic){ headers['Authorization'] = basic; }
+    else{ params.append('client_id', clientId); }
     const res = await fetch(CANVA_TOKEN_URL,{
       method:'POST',
-      headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      headers: headers,
       body: params.toString()
     });
     if(!res.ok){
@@ -2032,12 +2046,15 @@ async function canvaRefresh(){
   try{
     const params = new URLSearchParams({
       grant_type:'refresh_token',
-      refresh_token: refresh,
-      client_id: clientId
+      refresh_token: refresh
     });
+    const headers = {'Content-Type':'application/x-www-form-urlencoded'};
+    const basic = _canvaBasicAuth();
+    if(basic){ headers['Authorization'] = basic; }
+    else{ params.append('client_id', clientId); }
     const res = await fetch(CANVA_TOKEN_URL,{
       method:'POST',
-      headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      headers: headers,
       body: params.toString()
     });
     if(!res.ok) return false;
@@ -2069,15 +2086,21 @@ async function canvaFetch(url, opts={}){
 }
 
 function canvaSaveClientId(){
+  // 旧API：後方互換
+  canvaSaveCredentials();
+}
+function canvaSaveCredentials(){
   const id = (document.getElementById('canva-client-id')?.value||'').trim();
+  const sec= (document.getElementById('canva-client-secret')?.value||'').trim();
   if(!id){ toast('Client IDを入力してください','error'); return; }
   localStorage.setItem(LS_KEY_CANVA_CLIENT_ID, id);
-  toast('✅ Client ID 保存');
+  if(sec){ localStorage.setItem(LS_KEY_CANVA_CLIENT_SECRET, sec); }
+  toast('✅ Client ID / Secret 保存');
   initSettingsUI();
 }
 
 function canvaLogout(){
-  if(!confirm('Canva連携を解除しますか？')) return;
+  if(!confirm('Canva連携を解除しますか？\n（Client ID/Secret は保持します）')) return;
   localStorage.removeItem(LS_KEY_CANVA_TOKEN);
   localStorage.removeItem(LS_KEY_CANVA_REFRESH);
   localStorage.removeItem(LS_KEY_CANVA_EXPIRES);
@@ -2514,6 +2537,8 @@ function initSettingsUI(){
     cYes.style.display = cConnected ? 'block' : 'none';
     const cidEl = document.getElementById('canva-client-id');
     if(cidEl) cidEl.value = localStorage.getItem(LS_KEY_CANVA_CLIENT_ID)||'';
+    const csecEl = document.getElementById('canva-client-secret');
+    if(csecEl) csecEl.value = localStorage.getItem(LS_KEY_CANVA_CLIENT_SECRET)||'';
     if(cConnected){
       canvaFetch(CANVA_API_BASE+'/users/me').then(r=>r.ok?r.json():null).then(data=>{
         const el=document.getElementById('canva-account');
