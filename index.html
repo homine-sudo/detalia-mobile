@@ -424,15 +424,35 @@ a{color:var(--gold-light);text-decoration:none}
 
       <div class="card">
         <div class="card-title">Brand <span class="ja">🎨 ブランド設定</span></div>
+        <!-- ロゴ -->
         <div style="font-size:11px;color:var(--text-dim);line-height:1.6;margin-bottom:10px">
-          リール・カルーセル動画に表示されるロゴを設定。<br>
-          推奨: PNG透過 / 横長 / 512px以上。
+          📷 <b>ロゴ画像</b>（動画・報告書に表示）。透過PNG・横長推奨
         </div>
-        <div id="logo-preview" style="display:flex;justify-content:center;align-items:center;background:linear-gradient(135deg,#0F0F1A,#1A1A2A);border:1px solid var(--gold-border);border-radius:8px;padding:14px;margin-bottom:10px;min-height:80px"></div>
+        <div id="logo-preview" style="display:flex;justify-content:center;align-items:center;background:linear-gradient(135deg,#0F0F1A,#1A1A2A);border:1px solid var(--gold-border);border-radius:8px;padding:14px;margin-bottom:8px;min-height:80px"></div>
         <input type="file" id="logo-input" accept="image/*" style="display:none" onchange="_onLogoSelected(this)">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <button class="btn btn-secondary" style="font-size:13px" onclick="document.getElementById('logo-input').click()">📁 ロゴ選択</button>
-          <button class="btn btn-secondary" style="font-size:13px;color:var(--red);border-color:var(--red)" onclick="_clearLogo()">🗑️ 削除</button>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:16px">
+          <button class="btn btn-secondary" style="font-size:12px" onclick="document.getElementById('logo-input').click()">📁 ロゴ選択</button>
+          <button class="btn btn-secondary" style="font-size:12px;color:var(--red);border-color:var(--red)" onclick="_clearLogo()">🗑️ 削除</button>
+        </div>
+        <!-- 店舗情報 -->
+        <div style="font-size:11px;color:var(--text-dim);margin-bottom:6px">🏪 <b>店舗情報</b>（報告書に印字）</div>
+        <input id="shop-addr" type="text" placeholder="例: 沖縄県豊見城市字与根326-6" style="font-size:13px;margin-bottom:6px" onblur="localStorage.setItem(LS_KEY_SHOP_ADDR,this.value);toast('住所保存')">
+        <input id="shop-tel" type="tel" placeholder="例: 098-0901-3817" style="font-size:13px;margin-bottom:16px" onblur="localStorage.setItem(LS_KEY_SHOP_TEL,this.value);toast('電話保存')">
+        <!-- Instagram QR -->
+        <div style="font-size:11px;color:var(--text-dim);margin-bottom:6px">📱 <b>Instagram QRコード</b>（報告書フッタに表示）</div>
+        <div id="insta-qr-preview" style="display:flex;justify-content:center;align-items:center;background:#fff;border:1px solid var(--gold-border);border-radius:8px;padding:10px;margin-bottom:8px;min-height:80px"></div>
+        <input type="file" id="insta-qr-input" accept="image/*" style="display:none" onchange="_onQrSelected(this,'insta')">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:16px">
+          <button class="btn btn-secondary" style="font-size:12px" onclick="document.getElementById('insta-qr-input').click()">📁 QR選択</button>
+          <button class="btn btn-secondary" style="font-size:12px;color:var(--red);border-color:var(--red)" onclick="_clearQr('insta')">🗑️ 削除</button>
+        </div>
+        <!-- LINE QR -->
+        <div style="font-size:11px;color:var(--text-dim);margin-bottom:6px">💬 <b>LINE QRコード</b>（報告書フッタに表示）</div>
+        <div id="line-qr-preview" style="display:flex;justify-content:center;align-items:center;background:#fff;border:1px solid var(--gold-border);border-radius:8px;padding:10px;margin-bottom:8px;min-height:80px"></div>
+        <input type="file" id="line-qr-input" accept="image/*" style="display:none" onchange="_onQrSelected(this,'line')">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          <button class="btn btn-secondary" style="font-size:12px" onclick="document.getElementById('line-qr-input').click()">📁 QR選択</button>
+          <button class="btn btn-secondary" style="font-size:12px;color:var(--red);border-color:var(--red)" onclick="_clearQr('line')">🗑️ 削除</button>
         </div>
       </div>
 
@@ -493,6 +513,10 @@ const PAINT_POSITIONS = [
 // ─────────────────────────────────────────────
 const LS_KEY_CASES    = 'detalia_mobile_cases_v1';
 const LS_KEY_LOGO     = 'detalia_mobile_logo_b64'; // 店舗ロゴ画像（base64）
+const LS_KEY_INSTA_QR = 'detalia_mobile_insta_qr_b64'; // Instagram QR画像
+const LS_KEY_LINE_QR  = 'detalia_mobile_line_qr_b64';  // LINE QR画像
+const LS_KEY_SHOP_ADDR= 'detalia_mobile_shop_addr';     // 店舗住所
+const LS_KEY_SHOP_TEL = 'detalia_mobile_shop_tel';      // 店舗電話
 const LS_KEY_REV      = 'detalia_mobile_dbx_rev';      // Dropbox file rev
 const LS_KEY_SNAPSHOT = 'detalia_mobile_sync_snapshot'; // 直近同期スナップショット
 const LS_KEY_TOKEN    = 'detalia_mobile_dbx_token';
@@ -2737,7 +2761,7 @@ async function generateReel(){
 }
 
 // ─────────────────────────────────────────────
-// 📄 納車診断・報告書 生成（A4縦長・シネマティック）
+// 📄 納車診断・報告書 生成（白背景・印刷映え・大型写真）
 // ─────────────────────────────────────────────
 async function generateDeliveryReport(){
   const c = cases.find(c=>c.id===currentCaseId);
@@ -2750,7 +2774,7 @@ async function generateDeliveryReport(){
   toast('📄 報告書を生成中...');
 
   try{
-    // 代表写真を1枚ずつロード（多い場合は最初のものを使用）
+    // 代表写真を1枚ずつロード
     let beforeImg=null, afterImg=null;
     if(before.length>0) beforeImg = await _loadImageFromDropbox(before[0].path);
     if(after.length>0)  afterImg  = await _loadImageFromDropbox(after[0].path);
@@ -2759,137 +2783,153 @@ async function generateDeliveryReport(){
     const workItems = (c.workDetail||'').split(/[・\n]/).map(s=>s.trim()).filter(Boolean);
     const ms = (c.paintGauge?.measurements||[]).filter(m=>m.valueBefore||m.valueAfter);
     const deliveryDate = c.delivery ? fmtDate(c.delivery) : fmtDate(new Date().toISOString());
+    const shopAddr = localStorage.getItem(LS_KEY_SHOP_ADDR) || '沖縄県豊見城市字与根326-6';
+    const shopTel  = localStorage.getItem(LS_KEY_SHOP_TEL)  || '098-0901-3817';
 
-    // === キャンバスサイズ計算（A4 比率 ≒ 1:1.414, 1080x1528) ===
-    // 必要な高さを動的計算
+    // 画像事前ロード
+    const _loadDataUrl = url => new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>res(img); img.onerror=()=>res(null); img.src=url; });
+    const logoSrc = localStorage.getItem(LS_KEY_LOGO);
+    const instaSrc = localStorage.getItem(LS_KEY_INSTA_QR);
+    const lineSrc = localStorage.getItem(LS_KEY_LINE_QR);
+    const logoImg2  = logoSrc  ? await _loadDataUrl(logoSrc)  : null;
+    const instaImg  = instaSrc ? await _loadDataUrl(instaSrc) : null;
+    const lineImg   = lineSrc  ? await _loadDataUrl(lineSrc)  : null;
+
+    // === デザイントークン（白背景・印刷映え版）===
     const W = 1080;
-    let H = 280;          // ヘッダ
-    H += 220;             // お客様＋納車日
-    H += 320;             // 車両情報
-    H += 760;             // Before/After 写真（並列）
-    if(c.beforeComment) H += 280; // Beforeコメント
-    if(workItems.length) H += 80 + Math.ceil(workItems.length/2) * 56; // 施工内容
-    if(c.afterComment)  H += 280; // Afterコメント
-    if(ms.length)       H += 100 + ms.length * 56;
-    if(c.nextMaintenance) H += 240; // 次回メンテ
-    H += 240;             // フッタ
-    H += 60;              // 下マージン
+    const COLOR_BG = '#FFFFFF';
+    const COLOR_PRIMARY = '#1A1A2A';       // 濃紺：本文・見出し
+    const COLOR_SECONDARY = '#5A5A5A';     // グレー：補足
+    const COLOR_ACCENT = '#8B7B3D';        // 落ち着いたゴールド（白で映える）
+    const COLOR_GOLD = '#C9A84C';          // 装飾ライン
+    const COLOR_BORDER = '#E5E5E5';        // 区切り線（薄）
+    const COLOR_BEFORE = '#B91C1C';        // 深い赤
+    const COLOR_AFTER = '#15803D';         // 深い緑
+    const COLOR_MAINT_BG = '#FFFCF0';      // メンテBox 背景
+    const COLOR_PHOTO_BG = '#F0F0F0';
+
+    // 必要な高さを動的計算（白背景・写真大きく・縦並び）
+    let H = 60;          // 上マージン
+    H += 200;            // ロゴヘッダ
+    H += 90;             // タイトル
+    H += 180;            // 顧客情報
+    H += 240;            // 車両情報
+    H += 50 + 620;       // BEFORE写真
+    if(c.beforeComment) H += 180;
+    H += 50 + 620;       // AFTER写真
+    if(c.afterComment) H += 180;
+    if(workItems.length) H += 80 + Math.ceil(workItems.length/2) * 50;
+    if(ms.length)       H += 110 + ms.length * 40;
+    if(c.nextMaintenance) H += 230;
+    H += 280;            // フッタ
+    H += 60;             // 下マージン
 
     const canvas = document.createElement('canvas');
     canvas.width = W;
     canvas.height = H;
     const ctx = canvas.getContext('2d');
 
-    // ─── 背景 ───
-    const bg = ctx.createLinearGradient(0,0,0,H);
-    bg.addColorStop(0,'#0A0A0F');
-    bg.addColorStop(0.5,'#0F0F1A');
-    bg.addColorStop(1,'#0A0A0F');
-    ctx.fillStyle = bg; ctx.fillRect(0,0,W,H);
+    // ─── 背景：純白 ───
+    ctx.fillStyle = COLOR_BG;
+    ctx.fillRect(0,0,W,H);
 
-    // 大きな透かしロゴ（中央薄く）
-    ctx.save();
-    ctx.globalAlpha = 0.025;
-    ctx.font='300 380px Georgia, serif';
-    ctx.fillStyle='#C9A84C';
-    ctx.textAlign='center';
-    ctx.translate(W/2, H/2);
-    ctx.rotate(-Math.PI/12);
-    ctx.fillText('LIME', 0, 0);
-    ctx.restore();
+    let y = 60; // 上マージン
 
-    let y = 0;
+    // ─── 1. ロゴヘッダ（上部1回のみ）───
+    if(logoImg2 && logoImg2.naturalWidth>0){
+      const maxH = 130;
+      const ratio = logoImg2.naturalWidth/logoImg2.naturalHeight;
+      const lh = maxH;
+      const lw = lh * ratio;
+      ctx.drawImage(logoImg2, W/2 - lw/2, y, lw, lh);
+      y += maxH + 10;
+    } else {
+      ctx.fillStyle = COLOR_PRIMARY;
+      ctx.font = '300 90px Georgia, serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('LIME', W/2, y + 75);
+      y += 90;
+      ctx.fillStyle = COLOR_ACCENT;
+      ctx.font = '600 22px sans-serif';
+      ctx.fillText('DETAILING  STUDIO', W/2, y + 30);
+      y += 50;
+    }
 
-    // ─── 1. ヘッダ ───
-    y = 0;
-    // ロゴ
-    _drawLogoHeader(ctx, W, W/2, 100);
-    // 装飾ライン
-    ctx.strokeStyle='rgba(201,168,76,0.5)';
-    ctx.lineWidth=2;
-    ctx.beginPath(); ctx.moveTo(120, 180); ctx.lineTo(W-120, 180); ctx.stroke();
-    // タイトル
-    ctx.fillStyle='#E8C96A';
-    ctx.font='300 50px Georgia, serif';
-    ctx.textAlign='center';
-    ctx.fillText('DETAILING  REPORT', W/2, 220);
-    ctx.fillStyle='#A38A36';
-    ctx.font='400 22px sans-serif';
-    ctx.fillText('施工診断・納車報告書', W/2, 255);
-    y = 290;
+    // ─── タイトル ───
+    ctx.strokeStyle = COLOR_GOLD;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(W/2-200, y); ctx.lineTo(W/2+200, y); ctx.stroke();
+    y += 40;
+    ctx.fillStyle = COLOR_PRIMARY;
+    ctx.font = '300 44px Georgia, serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('DETAILING  REPORT', W/2, y);
+    y += 28;
+    ctx.fillStyle = COLOR_SECONDARY;
+    ctx.font = '400 18px sans-serif';
+    ctx.fillText('施工診断・納車報告書', W/2, y);
+    y += 40;
 
-    // ─── 2. お客様情報＋納車日 ───
-    ctx.strokeStyle='rgba(201,168,76,0.25)';
-    ctx.lineWidth=1;
+    // ─── 2. 顧客情報＋納車日 ───
+    ctx.strokeStyle = COLOR_BORDER;
+    ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(80, y); ctx.lineTo(W-80, y); ctx.stroke();
     y += 30;
-    ctx.fillStyle='rgba(201,168,76,0.6)';
-    ctx.font='500 18px Georgia, serif';
-    ctx.textAlign='left';
-    ctx.fillText('TO', 80, y);
-    ctx.font='400 14px sans-serif';
-    ctx.textAlign='right';
-    ctx.fillStyle='rgba(232,201,106,0.6)';
-    ctx.fillText('DELIVERY DATE', W-80, y);
-    y += 50;
-    ctx.fillStyle='#F4E9C6';
-    ctx.font='700 56px sans-serif';
-    ctx.textAlign='left';
+    ctx.fillStyle = COLOR_ACCENT;
+    ctx.font = '500 14px Georgia, serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('TO  /  お客様', 80, y);
+    ctx.textAlign = 'right';
+    ctx.fillText('DELIVERY DATE  /  納車日', W-80, y);
+    y += 38;
+    ctx.fillStyle = COLOR_PRIMARY;
+    ctx.font = '700 52px sans-serif';
+    ctx.textAlign = 'left';
     ctx.fillText((c.customer||'お客様') + ' 様', 80, y);
-    ctx.font='600 36px Georgia, serif';
-    ctx.textAlign='right';
-    ctx.fillStyle='#E8C96A';
+    ctx.font = '600 32px Georgia, serif';
+    ctx.textAlign = 'right';
+    ctx.fillStyle = COLOR_ACCENT;
     ctx.fillText(deliveryDate, W-80, y);
-    y += 60;
-    ctx.fillStyle='rgba(244,233,198,0.6)';
-    ctx.font='400 18px sans-serif';
-    ctx.textAlign='left';
+    y += 40;
+    ctx.fillStyle = COLOR_SECONDARY;
+    ctx.font = '400 17px sans-serif';
+    ctx.textAlign = 'left';
     ctx.fillText('本日はご納車誠におめでとうございます。施工内容をご報告いたします。', 80, y);
-    y += 50;
+    y += 40;
 
     // ─── 3. 車両情報 ───
-    ctx.strokeStyle='rgba(201,168,76,0.25)';
+    ctx.strokeStyle = COLOR_BORDER;
     ctx.beginPath(); ctx.moveTo(80, y); ctx.lineTo(W-80, y); ctx.stroke();
     y += 30;
-    ctx.fillStyle='rgba(201,168,76,0.6)';
-    ctx.font='500 18px Georgia, serif';
-    ctx.fillText('VEHICLE', 80, y);
-    y += 50;
-    // 2列レイアウト
+    ctx.fillStyle = COLOR_ACCENT;
+    ctx.font = '500 14px Georgia, serif';
+    ctx.fillText('VEHICLE  /  お車情報', 80, y);
+    y += 40;
     const drawField = (label, value, x, yy)=>{
-      ctx.fillStyle='rgba(163,138,54,0.8)';
-      ctx.font='500 16px sans-serif';
-      ctx.textAlign='left';
+      ctx.fillStyle = COLOR_SECONDARY;
+      ctx.font = '500 13px sans-serif';
+      ctx.textAlign = 'left';
       ctx.fillText(label, x, yy);
-      ctx.fillStyle='#F4E9C6';
-      ctx.font='600 28px sans-serif';
-      ctx.fillText(value||'―', x, yy+38);
+      ctx.fillStyle = COLOR_PRIMARY;
+      ctx.font = '600 26px sans-serif';
+      ctx.fillText(value||'―', x, yy+34);
     };
     drawField('メーカー / 車種', `${c.carMaker||''} ${c.carModel||''}`.trim(), 80, y);
     drawField('サイズ', c.size||'―', W/2 + 40, y);
-    y += 90;
+    y += 80;
     drawField('年式', c.carYear||'―', 80, y);
     drawField('車台番号', c.chassis||'―', W/2 + 40, y);
-    y += 100;
+    y += 80;
 
-    // ─── 4. Before/After 写真 ───
-    ctx.strokeStyle='rgba(201,168,76,0.25)';
+    // ─── 4. BEFORE 写真（フル幅）───
+    ctx.strokeStyle = COLOR_BORDER;
     ctx.beginPath(); ctx.moveTo(80, y); ctx.lineTo(W-80, y); ctx.stroke();
     y += 30;
-    ctx.fillStyle='rgba(201,168,76,0.6)';
-    ctx.font='500 18px Georgia, serif';
-    ctx.textAlign='left';
-    ctx.fillText('BEFORE  /  AFTER', 80, y);
-    y += 30;
-    // 写真枠：450x600 を2つ並べる、間に12pxギャップ
-    const photoW = (W - 80*2 - 20) / 2;
+    const photoW = W - 160;  // 920px
     const photoH = 620;
-    const drawCinemaPhoto = (img, x, yy, isBefore)=>{
-      ctx.save();
-      // 枠
-      ctx.fillStyle='#1A1A2A';
+    const drawReportPhoto = (img, x, yy, isBefore, labelColor)=>{
+      ctx.fillStyle = COLOR_PHOTO_BG;
       ctx.fillRect(x, yy, photoW, photoH);
-      // 写真
       if(img){
         const ratio = img.naturalWidth/img.naturalHeight;
         let dw, dh;
@@ -2898,247 +2938,238 @@ async function generateDeliveryReport(){
         else            { dw = photoW; dh = dw/ratio; }
         const dx = x + (photoW-dw)/2;
         const dy = yy + (photoH-dh)/2;
-        ctx.beginPath();
-        ctx.rect(x, yy, photoW, photoH);
-        ctx.clip();
-        try{ ctx.filter = isBefore ? 'saturate(0.7) contrast(1.12) brightness(0.88)' : 'saturate(1.22) contrast(1.08) brightness(1.04)'; }catch(e){}
+        ctx.save();
+        ctx.beginPath(); ctx.rect(x, yy, photoW, photoH); ctx.clip();
+        try{ ctx.filter = isBefore ? 'saturate(0.7) contrast(1.12) brightness(0.92)' : 'saturate(1.18) contrast(1.05) brightness(1.02)'; }catch(e){}
         ctx.drawImage(img, dx, dy, dw, dh);
         ctx.filter='none';
-        // ティント
-        ctx.fillStyle = isBefore ? 'rgba(30,40,90,0.1)' : 'rgba(255,215,150,0.06)';
-        ctx.fillRect(x, yy, photoW, photoH);
-        // ビネット
-        const v = ctx.createRadialGradient(x+photoW/2, yy+photoH/2, photoW*0.25, x+photoW/2, yy+photoH/2, photoW*0.7);
-        v.addColorStop(0,'rgba(0,0,0,0)');
-        v.addColorStop(1,'rgba(0,0,0,0.5)');
-        ctx.fillStyle = v;
-        ctx.fillRect(x, yy, photoW, photoH);
-      } else {
-        ctx.fillStyle='rgba(255,255,255,0.05)';
-        ctx.fillRect(x, yy, photoW, photoH);
-        ctx.fillStyle='rgba(255,255,255,0.3)';
-        ctx.font='400 24px sans-serif';
-        ctx.textAlign='center';
-        ctx.fillText('（写真なし）', x+photoW/2, yy+photoH/2);
+        ctx.restore();
+      }else{
+        ctx.fillStyle = '#999';
+        ctx.font = '400 26px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('（写真未撮影）', x+photoW/2, yy+photoH/2);
       }
-      ctx.restore();
-      // 上部ラベル
-      const labelColor = isBefore ? '#F87171' : '#B8E986';
-      ctx.fillStyle='rgba(15,15,26,0.85)';
-      const lblY = yy + 24;
-      const lblW = 180;
-      if(ctx.roundRect){ ctx.beginPath(); ctx.roundRect(x + photoW/2 - lblW/2, lblY, lblW, 50, 8); ctx.fill(); }
-      ctx.strokeStyle = labelColor;
-      ctx.lineWidth=2;
-      if(ctx.roundRect){ ctx.beginPath(); ctx.roundRect(x + photoW/2 - lblW/2, lblY, lblW, 50, 8); ctx.stroke(); }
-      ctx.fillStyle='#F4E9C6';
-      ctx.font='800 28px sans-serif';
-      ctx.textAlign='center';
-      ctx.fillText(isBefore?'BEFORE':'AFTER', x+photoW/2, lblY+33);
       // 枠線
-      ctx.strokeStyle=labelColor;
-      ctx.lineWidth=2;
+      ctx.strokeStyle = labelColor;
+      ctx.lineWidth = 3;
       ctx.strokeRect(x, yy, photoW, photoH);
+      // 左下に大きいバッジ
+      const lblW = 240, lblH = 80;
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(x + 24, yy + photoH - lblH - 24, lblW, lblH);
+      ctx.strokeStyle = labelColor;
+      ctx.lineWidth = 3;
+      ctx.strokeRect(x + 24, yy + photoH - lblH - 24, lblW, lblH);
+      ctx.fillStyle = labelColor;
+      ctx.font = '900 46px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(isBefore?'BEFORE':'AFTER', x + 24 + lblW/2, yy + photoH - lblH - 24 + 56);
     };
-    drawCinemaPhoto(beforeImg, 80, y, true);
-    drawCinemaPhoto(afterImg, 80 + photoW + 20, y, false);
-    y += photoH + 40;
-
-    // ─── 5. Before スタッフコメント ───
+    drawReportPhoto(beforeImg, 80, y, true, COLOR_BEFORE);
+    y += photoH + 20;
+    // Before コメント
     if(c.beforeComment){
-      ctx.strokeStyle='rgba(248,113,113,0.4)';
-      ctx.lineWidth=3;
-      ctx.beginPath(); ctx.moveTo(80, y); ctx.lineTo(180, y); ctx.stroke();
-      ctx.lineWidth=1;
-      y += 20;
-      ctx.fillStyle='#F87171';
-      ctx.font='600 22px sans-serif';
-      ctx.textAlign='left';
-      ctx.fillText('施工前の所見', 80, y);
-      ctx.fillStyle='rgba(232,201,106,0.5)';
-      ctx.font='400 16px Georgia, serif';
-      ctx.fillText('Before assessment', 240, y);
-      y += 30;
-      // 本文
-      ctx.fillStyle='#F4E9C6';
-      ctx.font='400 22px sans-serif';
-      y = _drawWrappedText(ctx, c.beforeComment, 80, y+30, W-160, 36) + 30;
+      ctx.fillStyle = COLOR_BEFORE;
+      ctx.font = '700 18px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('▸ 施工前の所見', 80, y);
+      y += 28;
+      ctx.fillStyle = COLOR_PRIMARY;
+      ctx.font = '400 20px sans-serif';
+      y = _drawWrappedText(ctx, c.beforeComment, 80, y, W-160, 30) + 20;
+    }
+
+    // ─── 5. AFTER 写真（フル幅）───
+    ctx.strokeStyle = COLOR_BORDER;
+    ctx.beginPath(); ctx.moveTo(80, y); ctx.lineTo(W-80, y); ctx.stroke();
+    y += 30;
+    drawReportPhoto(afterImg, 80, y, false, COLOR_AFTER);
+    y += photoH + 20;
+    if(c.afterComment){
+      ctx.fillStyle = COLOR_AFTER;
+      ctx.font = '700 18px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('▸ 施工後のご報告', 80, y);
+      y += 28;
+      ctx.fillStyle = COLOR_PRIMARY;
+      ctx.font = '400 20px sans-serif';
+      y = _drawWrappedText(ctx, c.afterComment, 80, y, W-160, 30) + 20;
     }
 
     // ─── 6. 施工内容 ───
     if(workItems.length){
-      ctx.strokeStyle='rgba(201,168,76,0.5)';
-      ctx.lineWidth=3;
-      ctx.beginPath(); ctx.moveTo(80, y); ctx.lineTo(180, y); ctx.stroke();
-      ctx.lineWidth=1;
-      y += 20;
-      ctx.fillStyle='#E8C96A';
-      ctx.font='600 22px sans-serif';
-      ctx.textAlign='left';
-      ctx.fillText('施工内容', 80, y);
-      ctx.fillStyle='rgba(232,201,106,0.5)';
-      ctx.font='400 16px Georgia, serif';
-      ctx.fillText('Services performed', 180, y);
+      ctx.strokeStyle = COLOR_BORDER;
+      ctx.beginPath(); ctx.moveTo(80, y); ctx.lineTo(W-80, y); ctx.stroke();
+      y += 30;
+      ctx.fillStyle = COLOR_ACCENT;
+      ctx.font = '500 14px Georgia, serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('SERVICE  /  施工内容', 80, y);
       y += 40;
-      // 2列レイアウト
-      ctx.fillStyle='#F4E9C6';
-      ctx.font='500 22px sans-serif';
       workItems.forEach((it,i)=>{
         const col = i % 2;
         const row = Math.floor(i / 2);
         const xx = 80 + col * (W-160)/2;
         const yy = y + row * 50;
-        ctx.fillStyle='#C9A84C';
+        ctx.fillStyle = COLOR_GOLD;
+        ctx.font = '700 22px sans-serif';
+        ctx.textAlign = 'left';
         ctx.fillText('✓', xx, yy);
-        ctx.fillStyle='#F4E9C6';
+        ctx.fillStyle = COLOR_PRIMARY;
+        ctx.font = '500 22px sans-serif';
         ctx.fillText(it, xx+34, yy);
       });
       y += Math.ceil(workItems.length/2) * 50 + 20;
     }
 
-    // ─── 7. After スタッフコメント ───
-    if(c.afterComment){
-      ctx.strokeStyle='rgba(184,233,134,0.4)';
-      ctx.lineWidth=3;
-      ctx.beginPath(); ctx.moveTo(80, y); ctx.lineTo(180, y); ctx.stroke();
-      ctx.lineWidth=1;
-      y += 20;
-      ctx.fillStyle='#B8E986';
-      ctx.font='600 22px sans-serif';
-      ctx.textAlign='left';
-      ctx.fillText('施工後のご報告', 80, y);
-      ctx.fillStyle='rgba(232,201,106,0.5)';
-      ctx.font='400 16px Georgia, serif';
-      ctx.fillText('After completion', 240, y);
-      y += 30;
-      ctx.fillStyle='#F4E9C6';
-      ctx.font='400 22px sans-serif';
-      y = _drawWrappedText(ctx, c.afterComment, 80, y+30, W-160, 36) + 30;
-    }
-
-    // ─── 8. 塗膜計測 ───
+    // ─── 7. 塗膜計測 ───
     if(ms.length){
-      ctx.strokeStyle='rgba(201,168,76,0.5)';
-      ctx.lineWidth=3;
-      ctx.beginPath(); ctx.moveTo(80, y); ctx.lineTo(180, y); ctx.stroke();
-      ctx.lineWidth=1;
-      y += 20;
-      ctx.fillStyle='#E8C96A';
-      ctx.font='600 22px sans-serif';
-      ctx.textAlign='left';
-      ctx.fillText('塗膜計測結果', 80, y);
-      ctx.fillStyle='rgba(232,201,106,0.5)';
-      ctx.font='400 16px Georgia, serif';
-      ctx.fillText('Paint thickness measurement', 250, y);
-      if(c.paintGauge?.deviceModel){
-        ctx.fillStyle='rgba(244,233,198,0.5)';
-        ctx.font='400 16px sans-serif';
-        ctx.textAlign='right';
-        ctx.fillText(`計測器: ${c.paintGauge.deviceModel}`, W-80, y);
-      }
-      y += 50;
-      // ヘッダ行
-      ctx.fillStyle='rgba(163,138,54,0.7)';
-      ctx.font='500 16px sans-serif';
-      ctx.textAlign='left';
-      ctx.fillText('位置', 80, y);
-      ctx.textAlign='right';
-      ctx.fillText('Before', W-360, y);
-      ctx.fillText('→', W-260, y);
-      ctx.fillText('After', W-100, y);
-      y += 16;
-      ctx.strokeStyle='rgba(201,168,76,0.3)';
+      ctx.strokeStyle = COLOR_BORDER;
       ctx.beginPath(); ctx.moveTo(80, y); ctx.lineTo(W-80, y); ctx.stroke();
       y += 30;
+      ctx.fillStyle = COLOR_ACCENT;
+      ctx.font = '500 14px Georgia, serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('PAINT  THICKNESS  /  塗膜計測', 80, y);
+      if(c.paintGauge?.deviceModel){
+        ctx.fillStyle = COLOR_SECONDARY;
+        ctx.font = '400 13px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText(`計測器: ${c.paintGauge.deviceModel}`, W-80, y);
+      }
+      y += 40;
+      // ヘッダ行
+      ctx.fillStyle = COLOR_SECONDARY;
+      ctx.font = '500 14px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('位置', 80, y);
+      ctx.textAlign = 'right';
+      ctx.fillText('Before', W-360, y);
+      ctx.fillText('After', W-100, y);
+      y += 12;
+      ctx.strokeStyle = COLOR_BORDER;
+      ctx.beginPath(); ctx.moveTo(80, y); ctx.lineTo(W-80, y); ctx.stroke();
+      y += 28;
       ms.forEach(m=>{
-        ctx.fillStyle='#F4E9C6';
-        ctx.font='500 22px sans-serif';
-        ctx.textAlign='left';
+        ctx.fillStyle = COLOR_PRIMARY;
+        ctx.font = '500 20px sans-serif';
+        ctx.textAlign = 'left';
         ctx.fillText(m.position||'―', 80, y);
-        ctx.fillStyle='#A38A36';
-        ctx.font='400 22px sans-serif';
-        ctx.textAlign='right';
+        ctx.fillStyle = COLOR_SECONDARY;
+        ctx.font = '400 20px sans-serif';
+        ctx.textAlign = 'right';
         ctx.fillText((m.valueBefore||'―')+(m.valueBefore?'μm':''), W-360, y);
-        ctx.fillStyle='#C9A84C';
+        ctx.fillStyle = COLOR_ACCENT;
         ctx.fillText('→', W-260, y);
-        ctx.fillStyle='#B8E986';
-        ctx.font='700 24px sans-serif';
+        ctx.fillStyle = COLOR_AFTER;
+        ctx.font = '700 22px sans-serif';
         ctx.fillText((m.valueAfter||'―')+(m.valueAfter?'μm':''), W-100, y);
-        y += 36;
-        ctx.strokeStyle='rgba(201,168,76,0.1)';
-        ctx.beginPath(); ctx.moveTo(80, y-12); ctx.lineTo(W-80, y-12); ctx.stroke();
+        y += 32;
+        ctx.strokeStyle = '#F0F0F0';
+        ctx.beginPath(); ctx.moveTo(80, y-10); ctx.lineTo(W-80, y-10); ctx.stroke();
       });
       y += 20;
     }
 
-    // ─── 8.5. 次回メンテナンス ───
+    // ─── 8. 次回メンテナンス（ゴールド背景BOX）───
     if(c.nextMaintenance){
-      ctx.strokeStyle='rgba(201,168,76,0.5)';
-      ctx.lineWidth=3;
-      ctx.beginPath(); ctx.moveTo(80, y); ctx.lineTo(180, y); ctx.stroke();
-      ctx.lineWidth=1;
-      y += 20;
-      ctx.fillStyle='#E8C96A';
-      ctx.font='600 22px sans-serif';
-      ctx.textAlign='left';
-      ctx.fillText('次回メンテナンスのご案内', 80, y);
-      ctx.fillStyle='rgba(232,201,106,0.5)';
-      ctx.font='400 16px Georgia, serif';
-      ctx.fillText('Next maintenance', 320, y);
-      y += 40;
-      // 大きく日付を表示
+      const boxH = 180;
+      ctx.fillStyle = COLOR_MAINT_BG;
+      ctx.fillRect(60, y, W-120, boxH);
+      ctx.strokeStyle = COLOR_GOLD;
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(60, y, W-120, boxH);
+      ctx.fillStyle = COLOR_GOLD;
+      ctx.fillRect(60, y, 6, boxH); // 左帯
+      const mY = y + 30;
+      ctx.fillStyle = COLOR_ACCENT;
+      ctx.font = '600 16px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('🔧 次回メンテナンスのご案内 / Next maintenance', 90, mY);
       const md = new Date(c.nextMaintenance);
       if(!isNaN(md.getTime())){
-        const dateStr = `${md.getFullYear()}年${md.getMonth()+1}月${md.getDate()}日`;
-        ctx.fillStyle='#F4E9C6';
-        ctx.font='700 48px sans-serif';
-        ctx.textAlign='left';
-        ctx.fillText('📅 '+dateStr, 80, y);
-        y += 50;
+        ctx.fillStyle = COLOR_PRIMARY;
+        ctx.font = '700 42px sans-serif';
+        ctx.fillText(`${md.getFullYear()}年${md.getMonth()+1}月${md.getDate()}日`, 90, mY+50);
       }
       if(c.maintenanceType){
-        ctx.fillStyle='rgba(232,201,106,0.8)';
-        ctx.font='500 24px sans-serif';
-        ctx.fillText('▸ '+c.maintenanceType, 80, y);
-        y += 36;
+        ctx.fillStyle = COLOR_ACCENT;
+        ctx.font = '500 20px sans-serif';
+        ctx.fillText('▸ ' + c.maintenanceType, 90, mY+88);
       }
-      if(c.maintenanceNote){
-        ctx.fillStyle='rgba(244,233,198,0.7)';
-        ctx.font='400 18px sans-serif';
-        y = _drawWrappedText(ctx, c.maintenanceNote, 80, y+10, W-160, 28) + 10;
-      }
-      ctx.fillStyle='rgba(163,138,54,0.7)';
-      ctx.font='400 16px sans-serif';
-      ctx.fillText('時期が近づきましたらこちらからご案内いたします。', 80, y);
-      y += 40;
+      ctx.fillStyle = COLOR_SECONDARY;
+      ctx.font = '400 14px sans-serif';
+      ctx.fillText('時期が近づきましたらこちらからご案内いたします。', 90, mY+120);
+      y += boxH + 30;
     }
 
-    // ─── 9. フッタ：店舗情報 ───
-    ctx.strokeStyle='rgba(201,168,76,0.5)';
-    ctx.lineWidth=2;
+    // ─── 9. フッタ（店舗情報＋QR）───
+    ctx.strokeStyle = COLOR_GOLD;
+    ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(80, y); ctx.lineTo(W-80, y); ctx.stroke();
-    y += 40;
-    ctx.fillStyle='#E8C96A';
-    ctx.font='300 44px Georgia, serif';
-    ctx.textAlign='center';
-    ctx.fillText('LIME', W/2, y);
-    y += 38;
-    ctx.fillStyle='#C9A84C';
-    ctx.font='600 18px sans-serif';
-    ctx.fillText('DETAILING  STUDIO', W/2, y);
-    y += 35;
-    ctx.fillStyle='rgba(244,233,198,0.7)';
-    ctx.font='400 16px sans-serif';
-    ctx.fillText('沖縄県沖縄市', W/2, y);
-    y += 26;
+    y += 30;
+
+    // 左：店舗情報
+    const fooLeftX = 80;
+    ctx.fillStyle = COLOR_PRIMARY;
+    ctx.font = '600 22px Georgia, serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('LIME DETAILING STUDIO', fooLeftX, y);
+    let yL = y + 30;
+    ctx.fillStyle = COLOR_SECONDARY;
+    ctx.font = '400 15px sans-serif';
+    ctx.fillText('📍 ' + shopAddr, fooLeftX, yL);
+    yL += 24;
+    ctx.fillText('📞 TEL: ' + shopTel, fooLeftX, yL);
+    yL += 24;
     if(c.workStaff){
-      ctx.fillStyle='rgba(232,201,106,0.7)';
-      ctx.fillText(`担当 / ${c.workStaff}`, W/2, y);
-      y += 26;
+      ctx.fillStyle = COLOR_ACCENT;
+      ctx.fillText('👤 担当 / ' + c.workStaff, fooLeftX, yL);
+      yL += 24;
     }
-    ctx.fillStyle='rgba(163,138,54,0.6)';
-    ctx.font='400 14px Georgia, serif';
-    ctx.fillText('Hand-detailed in Okinawa, with care.', W/2, y);
+    ctx.fillStyle = '#999';
+    ctx.font = '400 12px Georgia, serif';
+    ctx.fillText('Hand-detailed in Okinawa, with care.', fooLeftX, yL+8);
+
+    // 右：QR コード（Insta + LINE）
+    const qrSize = 130;
+    const qrAreaW = qrSize * 2 + 24;
+    const qrX = W - 80 - qrAreaW;
+    const qrY = y - 10;
+    // Instagram QR
+    if(instaImg && instaImg.naturalWidth>0){
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(qrX, qrY, qrSize, qrSize);
+      ctx.strokeStyle = COLOR_BORDER;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(qrX, qrY, qrSize, qrSize);
+      ctx.drawImage(instaImg, qrX+8, qrY+8, qrSize-16, qrSize-16);
+      ctx.fillStyle = COLOR_PRIMARY;
+      ctx.font = '600 13px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('📱 Instagram', qrX + qrSize/2, qrY + qrSize + 20);
+      ctx.fillStyle = COLOR_SECONDARY;
+      ctx.font = '400 10px sans-serif';
+      ctx.fillText('施工事例をフォロー', qrX + qrSize/2, qrY + qrSize + 36);
+    }
+    // LINE QR
+    if(lineImg && lineImg.naturalWidth>0){
+      const lineX = qrX + qrSize + 24;
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(lineX, qrY, qrSize, qrSize);
+      ctx.strokeStyle = COLOR_BORDER;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(lineX, qrY, qrSize, qrSize);
+      ctx.drawImage(lineImg, lineX+8, qrY+8, qrSize-16, qrSize-16);
+      ctx.fillStyle = COLOR_PRIMARY;
+      ctx.font = '600 13px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('💬 LINE', lineX + qrSize/2, qrY + qrSize + 20);
+      ctx.fillStyle = COLOR_SECONDARY;
+      ctx.font = '400 10px sans-serif';
+      ctx.fillText('お問合せはこちら', lineX + qrSize/2, qrY + qrSize + 36);
+    }
 
     // === 書き出し ===
     const blob = await new Promise(res=>canvas.toBlob(res, 'image/jpeg', 0.92));
@@ -4698,6 +4729,42 @@ function _refreshLogoPreview(){
   }
 }
 
+// QR 画像アップロード（base64保存）
+function _onQrSelected(input, kind){
+  const file = input.files && input.files[0];
+  if(!file) return;
+  if(!file.type.startsWith('image/')){ toast('画像を選んでください','error'); return; }
+  if(file.size > 3*1024*1024){ toast('3MB以下のファイル','error'); return; }
+  _compressImage(file, 800, 0.92).then(blob=>{
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      const key = kind==='insta' ? LS_KEY_INSTA_QR : LS_KEY_LINE_QR;
+      localStorage.setItem(key, reader.result);
+      _refreshQrPreview(kind);
+      toast(`✅ ${kind==='insta'?'Instagram':'LINE'} QR 保存`);
+    };
+    reader.readAsDataURL(blob);
+  });
+}
+function _clearQr(kind){
+  if(!confirm(`${kind==='insta'?'Instagram':'LINE'} QR を削除しますか？`)) return;
+  const key = kind==='insta' ? LS_KEY_INSTA_QR : LS_KEY_LINE_QR;
+  localStorage.removeItem(key);
+  _refreshQrPreview(kind);
+  toast('削除しました');
+}
+function _refreshQrPreview(kind){
+  const wrap = document.getElementById(kind==='insta'?'insta-qr-preview':'line-qr-preview');
+  if(!wrap) return;
+  const key = kind==='insta' ? LS_KEY_INSTA_QR : LS_KEY_LINE_QR;
+  const src = localStorage.getItem(key);
+  if(src){
+    wrap.innerHTML = `<img src="${src}" style="max-height:120px;max-width:120px;object-fit:contain" alt="qr">`;
+  }else{
+    wrap.innerHTML = `<div style="font-size:11px;color:#888;text-align:center">未設定<br><span style="font-size:9px">${kind==='insta'?'Instagram':'LINE'}のQR画像をアップロード</span></div>`;
+  }
+}
+
 // ─────────────────────────────────────────────
 // 🔔 トースト
 // ─────────────────────────────────────────────
@@ -4722,8 +4789,14 @@ function _registerSW(){
 function initSettingsUI(){
   const buildEl=document.getElementById('app-build');
   if(buildEl) buildEl.textContent = APP_BUILD;
-  // ロゴプレビュー
+  // ロゴ・QR・店舗情報プレビュー
   _refreshLogoPreview();
+  _refreshQrPreview('insta');
+  _refreshQrPreview('line');
+  const addrEl=document.getElementById('shop-addr');
+  if(addrEl) addrEl.value = localStorage.getItem(LS_KEY_SHOP_ADDR)||'';
+  const telEl=document.getElementById('shop-tel');
+  if(telEl) telEl.value = localStorage.getItem(LS_KEY_SHOP_TEL)||'';
   // デモトグル（折りたたみ内のもの）
   const demo2 = document.getElementById('demo-toggle-2');
   if(demo2) demo2.checked = isDemoMode;
