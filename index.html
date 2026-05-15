@@ -418,7 +418,21 @@ a{color:var(--gold-light);text-decoration:none}
             </div>
           </div>
           <button class="btn btn-secondary btn-full" onclick="canvaTestConnection()">🧪 接続テスト</button>
-          <button class="btn btn-secondary btn-full" style="margin-top:8px;color:var(--red);border-color:var(--red)" onclick="canvaLogout()">🚪 連携を解除</button>
+
+          <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+            <label class="form-label">🎬 リール用 ブランドテンプレートID</label>
+            <div style="font-size:10px;color:var(--text-dim);line-height:1.7;margin-bottom:6px">
+              Canvaで縦型リール動画の<b>ブランドテンプレート</b>を作成し、データフィールド名を
+              <code style="color:var(--gold-light)">before / after / before2 / after2</code>（画像）、
+              <code style="color:var(--gold-light)">car / service / studio</code>（テキスト）にしておく。
+            </div>
+            <input id="canva-template-id" type="text" placeholder="DAFxxxxxxxxx" autocomplete="off" style="font-size:12px;font-family:Courier,monospace">
+            <button class="btn btn-secondary btn-full" style="margin-top:8px" onclick="canvaSaveTemplateId()">💾 テンプレートID保存</button>
+            <button class="btn btn-secondary btn-full" style="margin-top:8px" onclick="canvaListTemplates()">📋 ブランドテンプレ一覧を取得</button>
+            <div id="canva-template-list" style="margin-top:8px"></div>
+          </div>
+
+          <button class="btn btn-secondary btn-full" style="margin-top:12px;color:var(--red);border-color:var(--red)" onclick="canvaLogout()">🚪 連携を解除</button>
         </div>
       </div>
 
@@ -1195,7 +1209,8 @@ function renderCaseDetail(c){
           }catch(e){ return ''; }
         })()}
       </div>
-      <button class="btn btn-primary btn-full" id="btn-gen-reel" style="padding:16px;font-size:16px" onclick="generateReel()" ${c.snsPermitted?'':'disabled'} ${c.snsPermitted?'':'style="opacity:.5"'}">🎬 自動リール生成 → 共有</button>
+      <button class="btn btn-primary btn-full" id="btn-gen-reel" style="padding:16px;font-size:16px" onclick="generateReel()" ${c.snsPermitted?'':'disabled'} ${c.snsPermitted?'':'style="opacity:.5"'}">🎬 自動リール生成（簡易・端末内）</button>
+      <button class="btn btn-primary btn-full" id="btn-gen-canva-reel" style="padding:16px;font-size:15px;margin-top:8px;background:linear-gradient(135deg,#8B3DFF,#00C4CC);color:#fff;font-weight:bold;${canvaIsConnected()&&localStorage.getItem(LS_KEY_CANVA_TEMPLATE)?'':'display:none'}" onclick="generateCanvaReel()" ${c.snsPermitted?'':'disabled'}>🎨 Canvaでプロ品質リール生成</button>
       <button class="btn btn-primary btn-full" id="btn-gen-post" style="padding:16px;font-size:16px;display:none" onclick="generatePost()" ${c.snsPermitted?'':'disabled'} ${c.snsPermitted?'':'style="opacity:.5"'}">📸 自動カルーセル生成 → 共有</button>
       <div id="reel-progress" style="display:none;font-size:11px;color:var(--gold-light);margin-top:6px;text-align:center"></div>
       <button class="btn btn-secondary btn-full" id="btn-save-post-device" style="display:none;margin-top:8px;font-size:12px;padding:10px" onclick="_savePostToDevice()">💾 通常投稿の画像を端末に保存</button>
@@ -2210,6 +2225,8 @@ function _selectFormat(fmt){
     postBtn.style.fontWeight='normal';
     if(genReel) genReel.style.display='';
     if(genPost) genPost.style.display='none';
+    const cvBtn=document.getElementById('btn-gen-canva-reel');
+    if(cvBtn) cvBtn.style.display=(canvaIsConnected()&&localStorage.getItem(LS_KEY_CANVA_TEMPLATE))?'':'none';
     const svBtn0=document.getElementById('btn-save-post-device'); if(svBtn0) svBtn0.style.display='none';
     // リール用の推奨スタイル
     const c = cases.find(c=>c.id===currentCaseId);
@@ -2233,6 +2250,7 @@ function _selectFormat(fmt){
     reelBtn.style.fontWeight='normal';
     if(genReel) genReel.style.display='none';
     if(genPost) genPost.style.display='';
+    const cvBtn2=document.getElementById('btn-gen-canva-reel'); if(cvBtn2) cvBtn2.style.display='none';
     const svBtn1=document.getElementById('btn-save-post-device'); if(svBtn1) svBtn1.style.display='';
     // 通常投稿用の推奨構成
     const c = cases.find(c=>c.id===currentCaseId);
@@ -4525,6 +4543,182 @@ async function canvaUploadAsset(blob, name){
   throw new Error('Asset upload timeout');
 }
 
+// ── ブランドテンプレートID 保存 / 一覧 ──
+function canvaSaveTemplateId(){
+  const v = (document.getElementById('canva-template-id')?.value||'').trim();
+  if(!v){ toast('テンプレートIDを入力してください','error'); return; }
+  localStorage.setItem(LS_KEY_CANVA_TEMPLATE, v);
+  toast('✅ リール用テンプレートID 保存');
+}
+async function canvaListTemplates(){
+  const box = document.getElementById('canva-template-list');
+  if(box) box.innerHTML = '<div style="font-size:11px;color:var(--text-dim)">取得中...</div>';
+  try{
+    const r = await canvaFetch(CANVA_API_BASE+'/brand-templates?limit=50');
+    if(!r.ok){ throw new Error(r.status+' '+(await r.text()).substring(0,120)); }
+    const data = await r.json();
+    const items = data.items||[];
+    if(!items.length){ if(box) box.innerHTML='<div style="font-size:11px;color:var(--orange)">ブランドテンプレートが見つかりません（Canvaで作成・要Enterprise/Teams）</div>'; return; }
+    if(box) box.innerHTML = items.map(t=>`
+      <div style="display:flex;align-items:center;gap:8px;padding:8px;border:1px solid var(--border);border-radius:6px;margin-bottom:6px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.title||'(無題)')}</div>
+          <div style="font-size:9px;color:var(--text-dim);font-family:Courier,monospace">${esc(t.id)}</div>
+        </div>
+        <button class="btn btn-secondary" style="font-size:10px;padding:5px 8px" onclick="document.getElementById('canva-template-id').value='${esc(t.id)}';canvaSaveTemplateId()">選択</button>
+      </div>`).join('');
+  }catch(e){
+    if(box) box.innerHTML = `<div style="font-size:11px;color:var(--red)">取得失敗: ${esc(e.message)}</div>`;
+  }
+}
+
+// ── オートフィル（テンプレ＋データ → 新規デザイン）──
+async function canvaCreateAutofill(brandTemplateId, dataObj){
+  const r = await canvaFetch(CANVA_API_BASE+'/autofills', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ brand_template_id: brandTemplateId, data: dataObj })
+  });
+  if(!r.ok) throw new Error('Autofill開始失敗: '+r.status+' '+(await r.text()).substring(0,160));
+  const init = await r.json();
+  let job = init.job;
+  for(let i=0;i<90 && job && job.status!=='success'; i++){
+    if(job.status==='failed') throw new Error('Autofill失敗: '+(job.error?.message||''));
+    await new Promise(rs=>setTimeout(rs,2000));
+    const pr = await canvaFetch(CANVA_API_BASE+'/autofills/'+job.id);
+    if(!pr.ok) continue;
+    job = (await pr.json()).job;
+  }
+  if(!job || job.status!=='success') throw new Error('Autofillタイムアウト');
+  const designId = job.result?.design?.id || job.result?.design_id;
+  if(!designId) throw new Error('生成デザインID取得失敗');
+  return designId;
+}
+
+// ── デザインを MP4 で書き出し ──
+async function canvaExportDesign(designId, quality='vertical_1080p'){
+  const r = await canvaFetch(CANVA_API_BASE+'/exports', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ design_id: designId, format:{ type:'mp4', quality } })
+  });
+  if(!r.ok) throw new Error('Export開始失敗: '+r.status+' '+(await r.text()).substring(0,160));
+  const init = await r.json();
+  let job = init.job;
+  for(let i=0;i<120 && job && job.status!=='success'; i++){
+    if(job.status==='failed') throw new Error('Export失敗: '+(job.error?.message||''));
+    await new Promise(rs=>setTimeout(rs,2500));
+    const pr = await canvaFetch(CANVA_API_BASE+'/exports/'+job.id);
+    if(!pr.ok) continue;
+    job = (await pr.json()).job;
+  }
+  if(!job || job.status!=='success') throw new Error('Exportタイムアウト');
+  const urls = job.urls || (job.result&&job.result.urls) || [];
+  if(!urls.length) throw new Error('書き出しURL取得失敗');
+  return urls[0];
+}
+
+// Dropboxパスのファイルを Blob で取得
+async function _dbxFetchFileBlob(path){
+  if(!_dbxToken()) throw new Error('Dropbox未連携');
+  const r = await fetch('https://content.dropboxapi.com/2/files/download',{
+    method:'POST',
+    headers:{'Authorization':'Bearer '+_dbxToken(),'Dropbox-API-Arg':_asciiSafeJson({path})}
+  });
+  if(!r.ok) throw new Error('Dropbox取得失敗: '+r.status);
+  return await r.blob();
+}
+
+// ── Canva 自動リール生成（本命）──
+async function generateCanvaReel(){
+  const c = cases.find(c=>c.id===currentCaseId);
+  if(!c){ toast('案件が見つかりません','error'); return; }
+  if(isDemoMode){ toast('デモモードでは生成できません','error'); return; }
+  if(!canvaIsConnected()){ toast('先に設定でCanva連携してください','error'); return; }
+  const tplId = localStorage.getItem(LS_KEY_CANVA_TEMPLATE)||'';
+  if(!tplId){ toast('設定でリール用テンプレートIDを指定してください','error'); return; }
+  const before = (c.photos&&c.photos.before)||[];
+  const after  = (c.photos&&c.photos.after)||[];
+  if(before.length===0 && after.length===0){ toast('Before/After写真がありません','error'); return; }
+
+  const prog = document.getElementById('reel-progress');
+  const btn = document.getElementById('btn-gen-canva-reel');
+  if(btn){ btn.disabled=true; btn.style.opacity='.5'; }
+  if(prog){ prog.style.display='block'; prog.textContent='Canvaへ写真を転送中...'; }
+
+  try{
+    // 1) Before/After をDropboxから取得 → Canvaアセット化
+    const pick = (arr,n)=>arr.slice(0,n);
+    const bsel = pick(before,2), asel = pick(after,2);
+    const assetMap = {};
+    const jobs = [
+      ...bsel.map((p,i)=>({key:i===0?'before':'before2', path:p.path})),
+      ...asel.map((p,i)=>({key:i===0?'after':'after2',  path:p.path}))
+    ];
+    let done=0;
+    for(const j of jobs){
+      if(prog) prog.textContent=`Canvaへ写真を転送中... ${done+1}/${jobs.length}`;
+      const blob = await _dbxFetchFileBlob(j.path);
+      const asset = await canvaUploadAsset(blob, `${c.id}_${j.key}.jpg`);
+      assetMap[j.key] = asset.id;
+      done++;
+    }
+
+    // 2) オートフィル用データ（テンプレのフィールド名に合わせる）
+    const workItems = (c.workDetail||'').split(/[・\n]/).map(s=>s.trim()).filter(Boolean);
+    const data = {};
+    if(assetMap.before)  data.before  = {type:'image', asset_id:assetMap.before};
+    if(assetMap.before2) data.before2 = {type:'image', asset_id:assetMap.before2};
+    if(assetMap.after)   data.after   = {type:'image', asset_id:assetMap.after};
+    if(assetMap.after2)  data.after2  = {type:'image', asset_id:assetMap.after2};
+    data.car     = {type:'text', text:`${c.carMaker||''} ${c.carModel||''}`.trim()||'お客様のお車'};
+    data.service = {type:'text', text:workItems.slice(0,4).join(' / ')||'ディテーリング施工'};
+    data.studio  = {type:'text', text:'LIME DETAILING STUDIO'};
+
+    if(prog) prog.textContent='Canvaでデザイン生成中...（数十秒）';
+    const designId = await canvaCreateAutofill(tplId, data);
+
+    if(prog) prog.textContent='動画を書き出し中...（1〜2分）';
+    const videoUrl = await canvaExportDesign(designId, 'vertical_1080p');
+
+    if(prog) prog.textContent='動画をダウンロード中...';
+    const vres = await fetch(videoUrl);
+    const vblob = await vres.blob();
+
+    // 3) Dropbox保存 + 記録
+    const remotePath = `${_photoFolderPath(c.id,'reel')}/canva_${Date.now()}.mp4`;
+    try{ await dbxUpload(remotePath, vblob); }catch(e){ console.warn('canva reel upload failed', e); }
+    if(!c.reel) c.reel={generated:false,videoPath:'',captionDraft:'',hashtags:[],instagramPosted:false,instagramUrl:'',postedAt:''};
+    c.reel.generated = true;
+    c.reel.source = 'canva';
+    c.reel.videoPath = remotePath;
+    c.reel.canvaDesignId = designId;
+    if(!c.reel.captionDraft){ c.reel.captionDraft = _generateCaption(c); c.reel.hashtags = DEFAULT_HASHTAGS.slice(); }
+    c.updatedAt = new Date().toISOString();
+    saveCases();
+    setTimeout(()=>syncPush(true), 500);
+
+    if(prog) prog.style.display='none';
+    if(btn){ btn.disabled=false; btn.style.opacity='1'; }
+    toast(`✅ Canvaリール生成完了（${(vblob.size/1048576).toFixed(1)}MB）`);
+
+    // 共有
+    const file = new File([vblob], `${c.id}_canva_reel.mp4`, {type:'video/mp4'});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      try{ await navigator.share({files:[file], title:'DETALIA リール', text:c.reel.captionDraft}); }
+      catch(e){ if(e.name!=='AbortError') console.warn(e); }
+    } else {
+      const u=URL.createObjectURL(vblob); const a=document.createElement('a');
+      a.href=u; a.download=file.name; document.body.appendChild(a); a.click(); a.remove();
+    }
+    renderCaseDetail(c);
+  }catch(e){
+    if(prog) prog.style.display='none';
+    if(btn){ btn.disabled=false; btn.style.opacity='1'; }
+    toast('❌ Canvaリール失敗: '+e.message,'error');
+  }
+}
+
 
 // ─────────────────────────────────────────────
 // 🔐 Dropbox OAuth2 PKCE（LIME Oneパターン踏襲）
@@ -5250,6 +5444,8 @@ function initSettingsUI(){
     if(cidEl) cidEl.value = localStorage.getItem(LS_KEY_CANVA_CLIENT_ID)||'';
     const csecEl = document.getElementById('canva-client-secret');
     if(csecEl) csecEl.value = localStorage.getItem(LS_KEY_CANVA_CLIENT_SECRET)||'';
+    const ctplEl = document.getElementById('canva-template-id');
+    if(ctplEl) ctplEl.value = localStorage.getItem(LS_KEY_CANVA_TEMPLATE)||'';
     if(cConnected){
       canvaFetch(CANVA_API_BASE+'/users/me').then(r=>r.ok?r.json():null).then(data=>{
         const el=document.getElementById('canva-account');
