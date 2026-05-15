@@ -981,20 +981,27 @@ function renderCaseDetail(c){
     `)}
 
     ${sCard(8, 'SNS自動投稿', `
-      ${!c.snsPermitted ? '<div style="font-size:11px;color:var(--orange);padding:8px;background:rgba(251,191,36,.1);border-radius:6px;margin-bottom:10px">⚠️ STEP 4 でお客様の掲載許可を取ってください</div>' : ''}
-      ${(()=>{
-        // この案件の推奨スタイルを表示
-        try{
-          const plan = _buildReelPlan(c);
-          return `<div style="padding:10px 12px;background:linear-gradient(135deg,rgba(201,168,76,.12) 0%,rgba(232,201,106,.06) 100%);border:1px solid var(--gold-border);border-radius:8px;margin-bottom:10px">
-            <div style="font-size:10px;letter-spacing:2px;color:var(--gold-deep);margin-bottom:4px">🎯 AI 推奨スタイル</div>
-            <div style="font-size:13px;color:var(--text);font-weight:bold;margin-bottom:4px">${esc(plan.style)}</div>
-            <div style="font-size:10px;color:var(--text-dim);line-height:1.6">${esc(plan.reason)}</div>
-            <div style="font-size:9px;color:var(--gold-deep);margin-top:6px;letter-spacing:1px">推定 ${plan.totalDuration.toFixed(0)}秒 ／ ${plan.scenes.length}シーン</div>
-          </div>`;
-        }catch(e){ return ''; }
-      })()}
+      ${!c.snsPermitted ? `<div style="font-size:11px;color:var(--orange);padding:10px;background:rgba(251,191,36,.1);border-radius:6px;margin-bottom:10px;line-height:1.7">⚠️ STEP 4 でお客様の掲載許可を取ってください<br><button class="btn btn-secondary" style="font-size:11px;padding:6px 10px;margin-top:6px" onclick="document.querySelectorAll('details')[3]?.scrollIntoView({behavior:'smooth',block:'center'})">⬆️ STEP 4へ</button></div>` : ''}
+      <!-- 投稿形式セレクター -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;padding:4px;background:var(--bg2);border-radius:10px">
+        <button id="fmt-reel" class="fmt-btn fmt-active" onclick="_selectFormat('reel')" style="padding:10px;border-radius:8px;background:var(--gold);color:#0F0F1A;font-weight:bold;font-size:13px">🎬 リール（縦動画）</button>
+        <button id="fmt-post" class="fmt-btn" onclick="_selectFormat('post')" style="padding:10px;border-radius:8px;background:transparent;color:var(--text-dim);font-size:13px">📸 通常投稿（カルーセル）</button>
+      </div>
+      <div id="ai-style-card">
+        ${(()=>{
+          try{
+            const plan = _buildReelPlan(c);
+            return `<div style="padding:10px 12px;background:linear-gradient(135deg,rgba(201,168,76,.12) 0%,rgba(232,201,106,.06) 100%);border:1px solid var(--gold-border);border-radius:8px;margin-bottom:10px">
+              <div style="font-size:10px;letter-spacing:2px;color:var(--gold-deep);margin-bottom:4px">🎯 AI 推奨スタイル</div>
+              <div style="font-size:13px;color:var(--text);font-weight:bold;margin-bottom:4px">${esc(plan.style)}</div>
+              <div style="font-size:10px;color:var(--text-dim);line-height:1.6">${esc(plan.reason)}</div>
+              <div style="font-size:9px;color:var(--gold-deep);margin-top:6px;letter-spacing:1px">推定 ${plan.totalDuration.toFixed(0)}秒 ／ ${plan.scenes.length}シーン</div>
+            </div>`;
+          }catch(e){ return ''; }
+        })()}
+      </div>
       <button class="btn btn-primary btn-full" id="btn-gen-reel" style="padding:16px;font-size:16px" onclick="generateReel()" ${c.snsPermitted?'':'disabled'} ${c.snsPermitted?'':'style="opacity:.5"'}">🎬 自動リール生成 → 共有</button>
+      <button class="btn btn-primary btn-full" id="btn-gen-post" style="padding:16px;font-size:16px;display:none" onclick="generatePost()" ${c.snsPermitted?'':'disabled'} ${c.snsPermitted?'':'style="opacity:.5"'}">📸 自動カルーセル生成 → 共有</button>
       <div id="reel-progress" style="display:none;font-size:11px;color:var(--gold-light);margin-top:6px;text-align:center"></div>
       ${c.reel?.videoPath?`<div style="font-size:11px;color:var(--lime);margin-top:8px">✅ 生成済: ${esc((c.reel.videoPath||'').split('/').pop())}</div>`:''}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
@@ -1497,6 +1504,114 @@ function _openPhoto(path){
 // ─────────────────────────────────────────────
 const DEFAULT_HASHTAGS = ['#沖縄ディテーリング','#セラミックコーティング','#ガラスコーティング','#洗車','#沖縄市','#コーティング専門店','#LIME','#LIMEDETAILINGSTUDIO'];
 
+// 投稿形式（reel | post）切替
+let _currentFormat = 'reel';
+function _selectFormat(fmt){
+  _currentFormat = fmt;
+  const reelBtn = document.getElementById('fmt-reel');
+  const postBtn = document.getElementById('fmt-post');
+  const genReel = document.getElementById('btn-gen-reel');
+  const genPost = document.getElementById('btn-gen-post');
+  const styleCard = document.getElementById('ai-style-card');
+  if(fmt==='reel'){
+    reelBtn.style.background='var(--gold)';
+    reelBtn.style.color='#0F0F1A';
+    reelBtn.style.fontWeight='bold';
+    postBtn.style.background='transparent';
+    postBtn.style.color='var(--text-dim)';
+    postBtn.style.fontWeight='normal';
+    if(genReel) genReel.style.display='';
+    if(genPost) genPost.style.display='none';
+    // リール用の推奨スタイル
+    const c = cases.find(c=>c.id===currentCaseId);
+    if(c && styleCard){
+      try{
+        const plan = _buildReelPlan(c);
+        styleCard.innerHTML = `<div style="padding:10px 12px;background:linear-gradient(135deg,rgba(201,168,76,.12) 0%,rgba(232,201,106,.06) 100%);border:1px solid var(--gold-border);border-radius:8px;margin-bottom:10px">
+          <div style="font-size:10px;letter-spacing:2px;color:var(--gold-deep);margin-bottom:4px">🎯 AI 推奨スタイル（リール）</div>
+          <div style="font-size:13px;color:var(--text);font-weight:bold;margin-bottom:4px">${esc(plan.style)}</div>
+          <div style="font-size:10px;color:var(--text-dim);line-height:1.6">${esc(plan.reason)}</div>
+          <div style="font-size:9px;color:var(--gold-deep);margin-top:6px;letter-spacing:1px">推定 ${plan.totalDuration.toFixed(0)}秒 ／ ${plan.scenes.length}シーン</div>
+        </div>`;
+      }catch(e){}
+    }
+  }else{
+    postBtn.style.background='var(--gold)';
+    postBtn.style.color='#0F0F1A';
+    postBtn.style.fontWeight='bold';
+    reelBtn.style.background='transparent';
+    reelBtn.style.color='var(--text-dim)';
+    reelBtn.style.fontWeight='normal';
+    if(genReel) genReel.style.display='none';
+    if(genPost) genPost.style.display='';
+    // 通常投稿用の推奨構成
+    const c = cases.find(c=>c.id===currentCaseId);
+    if(c && styleCard){
+      try{
+        const plan = _buildPostPlan(c);
+        styleCard.innerHTML = `<div style="padding:10px 12px;background:linear-gradient(135deg,rgba(201,168,76,.12) 0%,rgba(232,201,106,.06) 100%);border:1px solid var(--gold-border);border-radius:8px;margin-bottom:10px">
+          <div style="font-size:10px;letter-spacing:2px;color:var(--gold-deep);margin-bottom:4px">🎯 AI 推奨構成（カルーセル）</div>
+          <div style="font-size:13px;color:var(--text);font-weight:bold;margin-bottom:4px">${esc(plan.style)}</div>
+          <div style="font-size:10px;color:var(--text-dim);line-height:1.6">${esc(plan.reason)}</div>
+          <div style="font-size:9px;color:var(--gold-deep);margin-top:6px;letter-spacing:1px">${plan.slides.length}枚のカルーセル</div>
+        </div>`;
+      }catch(e){}
+    }
+  }
+}
+
+// 案件属性から「通常投稿（カルーセル）」の構成を自動判定
+function _buildPostPlan(c){
+  const beforeCount = (c.photos?.before||[]).length;
+  const afterCount  = (c.photos?.after||[]).length;
+  const hasPaint = c.paintGauge?.measured && (c.paintGauge?.measurements||[]).filter(m=>m.valueBefore||m.valueAfter).length > 0;
+  const totalAmt = totalAmount(c)||0;
+  const isPremium = totalAmt >= 200000;
+  const isWholesale = c.category==='業販';
+  const workItems = (c.workDetail||'').split(/[・\n]/).map(s=>s.trim()).filter(Boolean);
+
+  let style, reason;
+  if(hasPaint){
+    style = '🔬 専門性訴求カルーセル';
+    reason = '塗膜計測データを2-3枚目で見せて、最後にお客様への安心感アピール';
+  } else if(isPremium){
+    style = '🎥 プレミアム比較カルーセル';
+    reason = '高単価案件 → 表紙・比較・施工内容で価値を可視化';
+  } else if(isWholesale){
+    style = '🤝 業販向け実績カルーセル';
+    reason = '業販向け → ビフォーアフター比較で信頼性アピール';
+  } else {
+    style = '⚡ シンプル対比カルーセル';
+    reason = '汎用形式：表紙 + Before + After + 詳細';
+  }
+
+  // スライド構成
+  const slides = [];
+  slides.push({type:'cover', data:{title:'BEFORE & AFTER', sub:c.customer||'お客様'}});
+  // Before
+  (c.photos?.before||[]).slice(0,3).forEach((p,i)=>{
+    slides.push({type:'photo', data:{photoIdx:i, kind:'before', label:'BEFORE'}});
+  });
+  // 塗膜計測スライド
+  if(hasPaint){
+    slides.push({type:'paint', data:{paintGauge:c.paintGauge}});
+  }
+  // 車両情報スライド
+  slides.push({type:'vehicle', data:{
+    carLine:`${c.carModel||''} ${c.carYear||''}`.trim(),
+    sizeBadge:c.size?`[${c.size}]`:'',
+    items:workItems.slice(0,5)
+  }});
+  // After
+  (c.photos?.after||[]).slice(0,3).forEach((p,i)=>{
+    slides.push({type:'photo', data:{photoIdx:i, kind:'after', label:'AFTER'}});
+  });
+  // エンディングカード
+  slides.push({type:'end', data:{title:'THANK YOU', sub:'LIME DETAILING STUDIO'}});
+
+  return { style, reason, slides };
+}
+
 // 案件の属性から「最適なリール構成」を自動判定
 function _buildReelPlan(c){
   const beforeCount = (c.photos?.before||[]).length;
@@ -1966,6 +2081,277 @@ async function generateReel(){
     prog.style.display='none';
     btn.disabled=false; btn.style.opacity='1';
     toast('❌ リール生成失敗: '+e.message, 'error');
+  }
+}
+
+// ─────────────────────────────────────────────
+// 📸 通常投稿（カルーセル画像）自動生成
+// ─────────────────────────────────────────────
+// 1080×1350 (4:5) Instagram推奨サイズ
+function _drawPostSlide(ctx, slide, beforeImgs, afterImgs){
+  const W=1080, H=1350;
+  const grad = ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0,'#0F0F1A'); grad.addColorStop(1,'#1A1A2A');
+  ctx.fillStyle=grad; ctx.fillRect(0,0,W,H);
+
+  // 共通ロゴヘッダ
+  const drawHeader = ()=>{
+    ctx.fillStyle='#E8C96A';
+    ctx.font='300 56px Georgia, serif';
+    ctx.textAlign='center';
+    ctx.fillText('LIME', W/2, 95);
+    ctx.fillStyle='#C9A84C';
+    ctx.font='600 18px sans-serif';
+    ctx.fillText('DETAILING  STUDIO', W/2, 130);
+    ctx.strokeStyle='#C9A84C';
+    ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(W/2-140, 152); ctx.lineTo(W/2+140, 152); ctx.stroke();
+  };
+  const drawFooter = ()=>{
+    ctx.fillStyle='#A38A36';
+    ctx.font='500 22px sans-serif';
+    ctx.textAlign='center';
+    ctx.fillText('Hand-detailed in Okinawa', W/2, H-50);
+  };
+
+  switch(slide.type){
+    case 'cover': {
+      drawHeader();
+      ctx.fillStyle='#F4E9C6';
+      ctx.font='800 110px sans-serif';
+      ctx.textAlign='center';
+      ctx.fillText('BEFORE', W/2, H/2-30);
+      ctx.fillStyle='#C9A84C';
+      ctx.font='400 50px Georgia, serif';
+      ctx.fillText('&', W/2, H/2+50);
+      ctx.fillStyle='#F4E9C6';
+      ctx.font='800 110px sans-serif';
+      ctx.fillText('AFTER', W/2, H/2+170);
+      // 顧客名
+      if(slide.data.sub){
+        ctx.fillStyle='#A38A36';
+        ctx.font='500 32px sans-serif';
+        ctx.fillText(slide.data.sub, W/2, H-130);
+      }
+      drawFooter();
+      break;
+    }
+    case 'photo': {
+      const img = slide.data.kind==='before' ? beforeImgs[slide.data.photoIdx] : afterImgs[slide.data.photoIdx];
+      if(img){
+        // 中央に大きく配置（4:5 アスペクト）
+        const ratio = img.naturalWidth/img.naturalHeight;
+        let dw, dh;
+        if(ratio > W/H){ dh = H; dw = dh*ratio; }
+        else            { dw = W; dh = dw/ratio; }
+        const dx = (W-dw)/2;
+        const dy = (H-dh)/2;
+        ctx.drawImage(img, dx, dy, dw, dh);
+        // Before の場合は色を少し沈める
+        if(slide.data.kind==='before'){
+          ctx.fillStyle='rgba(15,15,26,0.18)'; ctx.fillRect(0,0,W,H);
+        }
+      }
+      // 上下の暗いグラデ
+      const topG = ctx.createLinearGradient(0,0,0,250);
+      topG.addColorStop(0,'rgba(15,15,26,0.85)'); topG.addColorStop(1,'rgba(15,15,26,0)');
+      ctx.fillStyle=topG; ctx.fillRect(0,0,W,250);
+      const botG = ctx.createLinearGradient(0,H-300,0,H);
+      botG.addColorStop(0,'rgba(15,15,26,0)'); botG.addColorStop(1,'rgba(15,15,26,0.92)');
+      ctx.fillStyle=botG; ctx.fillRect(0,H-300,W,300);
+      drawHeader();
+      // 大きなラベル
+      ctx.fillStyle='rgba(201,168,76,0.18)';
+      const labelW = slide.data.label.length * 50 + 90;
+      ctx.beginPath();
+      if(ctx.roundRect) ctx.roundRect(W/2-labelW/2, H-200, labelW, 100, 14);
+      else ctx.rect(W/2-labelW/2, H-200, labelW, 100);
+      ctx.fill();
+      ctx.strokeStyle='rgba(232,201,106,0.6)';
+      ctx.lineWidth=2;
+      ctx.stroke();
+      ctx.fillStyle='#F4E9C6';
+      ctx.font='800 64px sans-serif';
+      ctx.textAlign='center';
+      ctx.fillText(slide.data.label, W/2, H-130);
+      drawFooter();
+      break;
+    }
+    case 'paint': {
+      drawHeader();
+      ctx.fillStyle='rgba(232,201,106,0.85)';
+      ctx.font='400 30px Georgia, serif';
+      ctx.textAlign='center';
+      ctx.fillText('PAINT  THICKNESS', W/2, 240);
+      ctx.fillStyle='#A38A36';
+      ctx.font='400 22px sans-serif';
+      ctx.fillText('塗膜計測（μm）', W/2, 275);
+      const ms = (slide.data.paintGauge?.measurements||[]).filter(m=>m.valueBefore||m.valueAfter).slice(0,5);
+      const startY = 380;
+      ms.forEach((m,i)=>{
+        const y = startY + i*130;
+        ctx.fillStyle='#A38A36';
+        ctx.font='500 24px sans-serif';
+        ctx.textAlign='left';
+        ctx.fillText(m.position||'―', 120, y+8);
+        ctx.fillStyle='#F4E9C6';
+        ctx.font='600 32px sans-serif';
+        ctx.textAlign='right';
+        ctx.fillText((m.valueBefore||'―')+(m.valueBefore?'μm':''), W-440, y+8);
+        ctx.fillStyle='#C9A84C';
+        ctx.font='400 26px sans-serif';
+        ctx.textAlign='center';
+        ctx.fillText('→', W-340, y+8);
+        ctx.fillStyle='#B8E986';
+        ctx.font='800 36px sans-serif';
+        ctx.textAlign='right';
+        ctx.fillText((m.valueAfter||'―')+(m.valueAfter?'μm':''), W-120, y+8);
+      });
+      drawFooter();
+      break;
+    }
+    case 'vehicle': {
+      drawHeader();
+      ctx.fillStyle='rgba(232,201,106,0.85)';
+      ctx.font='400 26px Georgia, serif';
+      ctx.textAlign='center';
+      ctx.fillText('CASE  DETAIL', W/2, 240);
+      ctx.fillStyle='#F4E9C6';
+      ctx.font='800 64px sans-serif';
+      ctx.fillText(slide.data.carLine || '―', W/2, 340);
+      if(slide.data.sizeBadge){
+        ctx.fillStyle='#C9A84C';
+        ctx.font='600 34px sans-serif';
+        ctx.fillText(slide.data.sizeBadge, W/2, 405);
+      }
+      ctx.fillStyle='rgba(232,201,106,0.6)';
+      ctx.font='400 22px Georgia, serif';
+      ctx.fillText('SERVICE', W/2, 530);
+      ctx.fillStyle='#F4E9C6';
+      ctx.font='600 40px sans-serif';
+      (slide.data.items||[]).slice(0,5).forEach((it,i)=>{
+        ctx.fillText('•  ' + it, W/2, 620 + i*72);
+      });
+      drawFooter();
+      break;
+    }
+    case 'end': {
+      drawHeader();
+      ctx.fillStyle='#E8C96A';
+      ctx.font='300 90px Georgia, serif';
+      ctx.textAlign='center';
+      ctx.fillText('THANK YOU', W/2, H/2-30);
+      ctx.fillStyle='#F4E9C6';
+      ctx.font='600 36px sans-serif';
+      ctx.fillText(slide.data.sub, W/2, H/2+50);
+      ctx.fillStyle='#A38A36';
+      ctx.font='400 22px sans-serif';
+      ctx.fillText('沖縄県沖縄市', W/2, H/2+120);
+      drawFooter();
+      break;
+    }
+  }
+}
+
+async function generatePost(){
+  const c = cases.find(c=>c.id===currentCaseId);
+  if(!c){ toast('案件が見つかりません','error'); return; }
+  if(isDemoMode){ toast('デモモードでは生成できません','error'); return; }
+  if(!_dbxToken()){ toast('Dropbox 未連携','error'); return; }
+  const before = (c.photos&&c.photos.before)||[];
+  const after  = (c.photos&&c.photos.after)||[];
+  if(before.length===0 && after.length===0){
+    toast('Before / After 写真がありません','error'); return;
+  }
+  const btn = document.getElementById('btn-gen-post');
+  const prog = document.getElementById('reel-progress');
+  btn.disabled=true; btn.style.opacity='.5';
+  prog.style.display='block'; prog.textContent='構成判定中...';
+
+  try{
+    const plan = _buildPostPlan(c);
+    prog.textContent=`画像ダウンロード中... 0/${before.length+after.length}`;
+    const beforeImgs=[], afterImgs=[];
+    let dlCount = 0;
+    for(const p of before){
+      const img=await _loadImageFromDropbox(p.path);
+      if(img) beforeImgs.push(img);
+      dlCount++;
+      prog.textContent=`画像ダウンロード中... ${dlCount}/${before.length+after.length}`;
+    }
+    for(const p of after){
+      const img=await _loadImageFromDropbox(p.path);
+      if(img) afterImgs.push(img);
+      dlCount++;
+      prog.textContent=`画像ダウンロード中... ${dlCount}/${before.length+after.length}`;
+    }
+    if(beforeImgs.length===0 && afterImgs.length===0) throw new Error('画像取得失敗');
+
+    // 各スライドを JPEG に書き出し
+    const files = [];
+    for(let i=0;i<plan.slides.length;i++){
+      prog.textContent=`スライド生成中... ${i+1}/${plan.slides.length}`;
+      const canvas = document.createElement('canvas');
+      canvas.width=1080; canvas.height=1350;
+      const ctx = canvas.getContext('2d');
+      _drawPostSlide(ctx, plan.slides[i], beforeImgs, afterImgs);
+      // canvas → Blob (JPEG)
+      const blob = await new Promise(res=>canvas.toBlob(res, 'image/jpeg', 0.92));
+      if(blob){
+        const filename = `${c.id}_slide_${String(i+1).padStart(2,'0')}.jpg`;
+        files.push(new File([blob], filename, {type:'image/jpeg'}));
+      }
+    }
+
+    // Dropbox に保存（バックアップ）
+    prog.textContent='Dropboxに保存中...';
+    try{
+      for(let i=0;i<files.length;i++){
+        const remotePath = `${_photoFolderPath(c.id,'reel').replace(/\/reel$/,'')}/post_${Date.now()}_${String(i+1).padStart(2,'0')}.jpg`;
+        await dbxUpload(remotePath, files[i]);
+      }
+    }catch(e){ console.warn('post slides upload failed', e); }
+
+    // キャプション生成
+    if(!c.reel) c.reel={generated:false,videoPath:'',captionDraft:'',hashtags:[],instagramPosted:false,instagramUrl:'',postedAt:''};
+    c.reel.captionDraft = _generateCaption(c);
+    c.reel.hashtags = DEFAULT_HASHTAGS.slice();
+    c.updatedAt = new Date().toISOString();
+    saveCases();
+    setTimeout(()=>syncPush(true), 500);
+
+    prog.style.display='none';
+    btn.disabled=false; btn.style.opacity='1';
+    toast(`✅ カルーセル${files.length}枚 生成完了`);
+
+    // Web Share API で共有
+    if(navigator.canShare && navigator.canShare({files})){
+      try{
+        await navigator.share({
+          files,
+          title:'DETALIA 施工事例',
+          text: c.reel.captionDraft
+        });
+        toast('📤 共有完了');
+      }catch(e){
+        if(e.name !== 'AbortError') console.warn('share failed', e);
+      }
+    } else {
+      // Web Share 非対応 → 全部ダウンロード
+      for(const f of files){
+        const url = URL.createObjectURL(f);
+        const a = document.createElement('a');
+        a.href=url; a.download=f.name;
+        document.body.appendChild(a); a.click(); a.remove();
+        await new Promise(r=>setTimeout(r,300));
+      }
+      toast('📥 全スライドをダウンロード');
+    }
+    renderCaseDetail(c);
+  }catch(e){
+    prog.style.display='none';
+    btn.disabled=false; btn.style.opacity='1';
+    toast('❌ 生成失敗: '+e.message, 'error');
   }
 }
 
