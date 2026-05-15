@@ -564,7 +564,8 @@ const DEMO_CASES = [
 // 🚀 起動
 // ─────────────────────────────────────────────
 function init(){
-  document.getElementById('demo-toggle').checked = isDemoMode;
+  const demoEl = document.getElementById('demo-toggle');
+  if(demoEl) demoEl.checked = isDemoMode;
   loadCases();
   renderHome();
   renderCaseList();
@@ -682,9 +683,9 @@ function renderHome(){
     : '<div class="empty"><div class="icon">📭</div><div class="msg">案件がまだありません</div></div>';
 
   // 近日メンテナンス予定（30日以内 or 1ヶ月以内に過ぎたもの）
-  const today=new Date(); today.setHours(0,0,0,0);
-  const upcomingDate=new Date(today); upcomingDate.setDate(upcomingDate.getDate()+30);
-  const recentlyPast=new Date(today); recentlyPast.setDate(recentlyPast.getDate()-30);
+  const todayD=new Date(); todayD.setHours(0,0,0,0);
+  const upcomingDate=new Date(todayD); upcomingDate.setDate(upcomingDate.getDate()+30);
+  const recentlyPast=new Date(todayD); recentlyPast.setDate(recentlyPast.getDate()-30);
   const upcoming = cases.filter(c=>{
     if(c.deleted || !c.nextMaintenance) return false;
     const m = new Date(c.nextMaintenance);
@@ -698,7 +699,7 @@ function renderHome(){
       card.style.display='block';
       list.innerHTML = upcoming.map(c=>{
         const d = new Date(c.nextMaintenance);
-        const diff = Math.round((d - today)/86400000);
+        const diff = Math.round((d - todayD)/86400000);
         const status = diff < 0 ? `🔴 ${-diff}日経過` : diff===0 ? '🟡 本日' : diff<=7 ? `🟠 あと${diff}日` : `🟢 あと${diff}日`;
         const dateStr = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
         return `<div class="case-card" onclick="openCase('${esc(c.id)}')" style="border-left-color:${diff<0?'var(--red)':diff<=7?'var(--orange)':'var(--lime)'}">
