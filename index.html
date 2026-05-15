@@ -2061,8 +2061,12 @@ function _buildReelPlan(c){
   }
 
   // 4) After（最大2枚・各3.5秒。仕上がりをじっくり堪能）
+  //    1枚目に施工内容を写真上へ透過オーバーレイ（背景透過のチップ式）
   AF.slice(0,2).forEach((p,i)=>{
-    scenes.push({type:'after', duration:3.5, data:{photoIdx:i, label:'AFTER', sub:''}});
+    scenes.push({type:'after', duration:3.5, data:{
+      photoIdx:i, label:'AFTER', sub:'',
+      serviceItems: i===0 ? workItems.slice(0,5) : null
+    }});
   });
 
   // 5) 車両＋施工内容（1シーンに集約・3.5秒）
@@ -2190,6 +2194,54 @@ function _drawReelFrame(ctx, img, t, brand){
     vignette.addColorStop(1, 'rgba(0,0,0,0.75)');
     ctx.fillStyle = vignette;
     ctx.fillRect(0,0,W,H);
+  }
+
+  // === 施工内容：写真上へ透過オーバーレイ（背景透過のチップ式）===
+  if(img && Array.isArray(brand.serviceItems) && brand.serviceItems.length){
+    const items = brand.serviceItems;
+    // ふわっと登場：t=0.10→0.38 でフェード＆スライドイン
+    const ap = Math.max(0, Math.min(1, (t-0.10)/0.28));
+    const ease = 1 - Math.pow(1-ap, 3);
+    const slide = (1-ease) * 60;
+    ctx.save();
+    ctx.globalAlpha = ease;
+    ctx.translate(0, slide);
+    const chipH = 92, gap = 22, padX = 44, iconGap = 40;
+    const blockH = items.length*chipH + (items.length-1)*gap;
+    let cy = H/2 - blockH/2 + 40;
+    // キャプション
+    ctx.fillStyle = 'rgba(232,201,106,0.9)';
+    ctx.font = '600 34px Georgia, serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('SERVICE  /  施工内容', 72, cy - 36);
+    items.forEach(it=>{
+      ctx.font = '700 44px sans-serif';
+      const tw = ctx.measureText(it).width;
+      const cw = tw + padX*2 + iconGap;
+      // 透過ピル背景
+      ctx.fillStyle = 'rgba(15,15,26,0.42)';
+      ctx.beginPath();
+      if(ctx.roundRect) ctx.roundRect(56, cy, cw, chipH, 16);
+      else ctx.rect(56, cy, cw, chipH);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(232,201,106,0.85)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      if(ctx.roundRect) ctx.roundRect(56, cy, cw, chipH, 16);
+      else ctx.rect(56, cy, cw, chipH);
+      ctx.stroke();
+      // チェック
+      ctx.fillStyle = '#E8C96A';
+      ctx.font = '900 40px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('✓', 56+padX, cy+chipH/2+14);
+      // テキスト
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = '700 44px sans-serif';
+      ctx.fillText(it, 56+padX+iconGap, cy+chipH/2+15);
+      cy += chipH + gap;
+    });
+    ctx.restore();
   }
 
   // === レターボックス（上下に黒帯）===
@@ -2669,7 +2721,7 @@ async function generateReel(){
             _drawReelFrame(ctx, beforeImgs[sc.data.photoIdx], t, {label:sc.data.label, sub:sc.data.sub, dim:true});
             break;
           case 'after':
-            _drawReelFrame(ctx, afterImgs[sc.data.photoIdx], t, {label:sc.data.label, sub:sc.data.sub, dim:false});
+            _drawReelFrame(ctx, afterImgs[sc.data.photoIdx], t, {label:sc.data.label, sub:sc.data.sub, dim:false, serviceItems:sc.data.serviceItems});
             break;
           case 'paint':
             _drawPaintFrame(ctx, t, sc.data.paintGauge);
@@ -2820,6 +2872,7 @@ async function generateDeliveryReport(){
     H += 220;            // 車両
     H += 50;             // 写真見出し
     H += gridRows*cellH + cellGap; // 2×2 グリッド
+    if(workItems.length) H += 70 + Math.ceil(Math.min(workItems.length,10)/2)*44;
     if(ms.length)        H += 70 + Math.min(ms.length,5)*38;
     if(c.nextMaintenance)H += 160;
     H += 60;             // フッタ区切り
@@ -2978,55 +3031,40 @@ async function generateDeliveryReport(){
     drawCell(afterImgs[0]||null,  M,                    row2Y, false);
     drawCell(afterImgs[1]||null,  M+cellW+colGap,        row2Y, false);
 
-    // ─── 施工内容：写真下段に透明オーバーレイ（背景透過）───
-    if(workItems.length){
-      const ovGrad = ctx.createLinearGradient(0, row2Y, 0, row2Y+cellH);
-      ovGrad.addColorStop(0, 'rgba(15,15,26,0)');
-      ovGrad.addColorStop(0.55, 'rgba(15,15,26,0.45)');
-      ovGrad.addColorStop(1, 'rgba(15,15,26,0.86)');
-      ctx.fillStyle = ovGrad;
-      ctx.fillRect(M, row2Y, W-2*M, cellH);
-      // SERVICE 見出し
-      let oy = row2Y + cellH - 24;
-      const chips = workItems.slice(0,6);
-      ctx.font = '600 22px sans-serif';
-      ctx.textAlign = 'left';
-      // チップを下から積む（行数を先に算出）
-      const padX = 18, gapX = 12, gapY = 12, chipH = 40;
-      const chipBoxes = chips.map(t=>({ t, w: ctx.measureText(t).width + padX*2 + 26 }));
-      const lines = [[]]; let lw = 0; const maxW = W-2*M-36;
-      chipBoxes.forEach(cb=>{
-        if(lw + cb.w + gapX > maxW && lines[lines.length-1].length){ lines.push([]); lw=0; }
-        lines[lines.length-1].push(cb); lw += cb.w + gapX;
-      });
-      const blockH = lines.length*chipH + (lines.length-1)*gapY;
-      let cyy = row2Y + cellH - 22 - blockH;
-      ctx.fillStyle = COLOR_GOLD;
-      ctx.font = '600 16px Georgia, serif';
-      ctx.fillText('SERVICE  /  施工内容', M+18, cyy - 16);
-      lines.forEach(line=>{
-        let cxx = M+18;
-        line.forEach(cb=>{
-          ctx.fillStyle = 'rgba(255,255,255,0.14)';
-          _roundRect(ctx, cxx, cyy, cb.w, chipH, 8); ctx.fill();
-          ctx.strokeStyle = 'rgba(201,168,76,0.85)';
-          ctx.lineWidth = 1.5;
-          _roundRect(ctx, cxx, cyy, cb.w, chipH, 8); ctx.stroke();
-          ctx.fillStyle = COLOR_GOLD;
-          ctx.font = '800 18px sans-serif';
-          ctx.textAlign = 'left';
-          ctx.fillText('✓', cxx+padX, cyy+27);
-          ctx.fillStyle = '#fff';
-          ctx.font = '600 22px sans-serif';
-          ctx.fillText(cb.t, cxx+padX+26, cyy+27);
-          cxx += cb.w + gapX;
-        });
-        cyy += chipH + gapY;
-      });
-    }
     y = row2Y + cellH + cellGap;
 
-    // ─── 5. 塗膜計測（コンパクト表・最大5行）───
+    // ─── 5. 施工内容（通常セクション・白背景・2列チェックリスト）───
+    if(workItems.length){
+      y += 18;
+      ctx.fillStyle = COLOR_ACCENT;
+      ctx.font = '600 20px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('施工内容 / SERVICE', M, y);
+      y += 14;
+      ctx.strokeStyle = COLOR_GOLD;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(M, y); ctx.lineTo(W-M, y); ctx.stroke();
+      y += 36;
+      const items = workItems.slice(0,10);
+      const colX = [M, M + (W-2*M)/2 + 10];
+      const rowH = 44;
+      items.forEach((it,i)=>{
+        const col = i % 2;
+        const row = Math.floor(i / 2);
+        const ix = colX[col];
+        const iy = y + row * rowH;
+        ctx.fillStyle = COLOR_GOLD;
+        ctx.font = '800 22px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('✓', ix, iy);
+        ctx.fillStyle = COLOR_PRIMARY;
+        ctx.font = '500 24px sans-serif';
+        ctx.fillText(it, ix + 34, iy);
+      });
+      y += Math.ceil(items.length/2) * rowH + 12;
+    }
+
+    // ─── 6. 塗膜計測（コンパクト表・最大5行）───
     if(ms.length){
       y += 18;
       ctx.fillStyle = COLOR_ACCENT;
@@ -3067,7 +3105,7 @@ async function generateDeliveryReport(){
       });
     }
 
-    // ─── 6. 次回メンテナンス（ゴールドBOX・コンパクト）───
+    // ─── 7. 次回メンテナンス（ゴールドBOX・コンパクト）───
     if(c.nextMaintenance){
       y += 10;
       const boxH = 130;
@@ -3101,7 +3139,7 @@ async function generateDeliveryReport(){
       y += boxH + 30;
     }
 
-    // ─── 7. フッタ（店舗情報＋QR）───
+    // ─── 8. フッタ（店舗情報＋QR）───
     y += 20;
     ctx.strokeStyle = COLOR_GOLD;
     ctx.lineWidth = 2;
