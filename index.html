@@ -2860,24 +2860,28 @@ async function generateDeliveryReport(){
     const COLOR_MAINT_BG = '#FFFCF0';      // メンテBox 背景
     const COLOR_PHOTO_BG = '#F0F0F0';
 
-    // === A4 印刷最適化（縦長すぎると印刷で中央に細く出るため、比率を A4 に近づける）===
+    // === A4 印刷最適化 ===
     const M = 56; // 左右マージン
-    const photoCols = 2, cellH = 300, cellGap = 14;
-    // 写真は最大4枚（Before2 + After2）を 2×2 グリッドで
-    const gridRows = 2; // Before行 + After行
-    let H = 50;          // 上マージン
-    H += 110;            // ロゴ
-    H += 80;             // タイトル
-    H += 150;            // 顧客
-    H += 220;            // 車両
-    H += 50;             // 写真見出し
-    H += gridRows*cellH + cellGap; // 2×2 グリッド
-    if(workItems.length) H += 70 + Math.ceil(Math.min(workItems.length,10)/2)*44;
-    if(ms.length)        H += 70 + Math.min(ms.length,5)*38;
-    if(c.nextMaintenance)H += 160;
-    H += 60;             // フッタ区切り
-    H += 210;            // フッタ
-    H += 50;             // 下マージン
+    const cellGap = 16;
+
+    // ─── 写真セルを構築（同じ写真の重複表示を回避・実在枚数に最適化）───
+    const photoCells = [];
+    beforeImgs.forEach(im=>{ if(im) photoCells.push({img:im, isBefore:true}); });
+    afterImgs.forEach(im=>{  if(im) photoCells.push({img:im, isBefore:false}); });
+    if(photoCells.length===0){ photoCells.push({img:null,isBefore:true},{img:null,isBefore:false}); }
+    const nCells = photoCells.length;
+    // 列数・行数・セル寸法を枚数で最適化
+    const photoCols = nCells===1 ? 1 : 2;
+    const gridRows  = Math.ceil(nCells / photoCols);
+    const cellW = (W - 2*M - cellGap*(photoCols-1)) / photoCols;
+    // 1行なら大きく、2行ならA4に収まる高さに（写真の見栄え優先）
+    const cellH = gridRows===1 ? Math.round(cellW*0.70)
+                : gridRows===2 ? 360
+                :                 300;
+
+    // 高さは余白が出ないよう最後に実コンテンツでクロップする。
+    // ここでは十分大きいキャンバスを確保しておく。
+    const H = 3200;
 
     const canvas = document.createElement('canvas');
     canvas.width = W;
@@ -2982,8 +2986,6 @@ async function generateDeliveryReport(){
     ctx.fillText('BEFORE  →  AFTER', W-M, y);
     y += 28;
 
-    const colGap = 14;
-    const cellW = (W - 2*M - colGap) / 2;
     const gridTop = y;
 
     const drawCell = (img, cx, cy, isBefore)=>{
@@ -3023,15 +3025,20 @@ async function generateDeliveryReport(){
       ctx.fillText(isBefore?'BEFORE':'AFTER', cx + lblW/2, cy + 30);
     };
 
-    // 上段：Before×2
-    drawCell(beforeImgs[0]||null, M,                    gridTop, true);
-    drawCell(beforeImgs[1]||null, M+cellW+colGap,        gridTop, true);
-    // 下段：After×2
-    const row2Y = gridTop + cellH + cellGap;
-    drawCell(afterImgs[0]||null,  M,                    row2Y, false);
-    drawCell(afterImgs[1]||null,  M+cellW+colGap,        row2Y, false);
+    // 実在写真だけを最適レイアウトで配置（重複表示しない）
+    photoCells.forEach((pc, idx)=>{
+      const col = idx % photoCols;
+      const row = Math.floor(idx / photoCols);
+      // 端数行のセンタリング（最終行が1枚なら中央寄せ）
+      const inThisRow = Math.min(photoCols, nCells - row*photoCols);
+      const rowW = inThisRow*cellW + (inThisRow-1)*cellGap;
+      const rowX0 = (W - rowW) / 2;
+      const cx = rowX0 + col*(cellW+cellGap);
+      const cy = gridTop + row*(cellH+cellGap);
+      drawCell(pc.img, cx, cy, pc.isBefore);
+    });
 
-    y = row2Y + cellH + cellGap;
+    y = gridTop + gridRows*cellH + (gridRows-1)*cellGap + cellGap;
 
     // ─── 5. 施工内容（通常セクション・白背景・2列チェックリスト）───
     if(workItems.length){
@@ -3167,6 +3174,7 @@ async function generateDeliveryReport(){
     ctx.fillStyle = '#999';
     ctx.font = '400 14px Georgia, serif';
     ctx.fillText('Hand-detailed in Okinawa, with care.', M, yL+6);
+    const footLeftBottom = yL + 20;
 
     // 右：QR コード（Insta + LINE）
     const qrSize = 150;
@@ -3199,8 +3207,18 @@ async function generateDeliveryReport(){
       ctx.fillText('💬 LINE', lineX + qrSize/2, qrY + qrSize + 24);
     }
 
+    // === 実コンテンツでクロップ（下部の余白を解消・印刷バランス最適化）===
+    const contentBottom = Math.ceil(Math.max(footLeftBottom, qrY + qrSize + 40)) + 50;
+    const cropCanvas = document.createElement('canvas');
+    cropCanvas.width = W;
+    cropCanvas.height = Math.min(contentBottom, H);
+    const cropCtx = cropCanvas.getContext('2d');
+    cropCtx.fillStyle = COLOR_BG;
+    cropCtx.fillRect(0, 0, cropCanvas.width, cropCanvas.height);
+    cropCtx.drawImage(canvas, 0, 0);
+
     // === 書き出し ===
-    const blob = await new Promise(res=>canvas.toBlob(res, 'image/jpeg', 0.92));
+    const blob = await new Promise(res=>cropCanvas.toBlob(res, 'image/jpeg', 0.92));
     const filename = `${c.id}_delivery_report.jpg`;
     const file = new File([blob], filename, {type:'image/jpeg'});
 
