@@ -1042,11 +1042,30 @@ function renderCaseDetail(c){
     `)}
 
     ${sCard(2, '車両情報', `
-      ${E('carMaker','メーカー','例: トヨタ', {placeholder:'例: トヨタ / 三菱 / 日産'})}
-      ${E('carModel','車種','例: デリカD:5')}
+      <div style="margin-bottom:10px">
+        <label style="font-size:10px;color:var(--gold-deep);letter-spacing:1px;display:block;margin-bottom:3px">メーカー</label>
+        <select id="veh-maker" onchange="_mobMakerChange('${cid}')" style="font-size:15px;padding:10px 12px">
+          <option value="">メーカー選択</option>
+          ${_carMakerOptionsHtml(c.carMaker || _detectMakerFromModel(c.carModel||''))}
+        </select>
+      </div>
+      <div style="margin-bottom:10px">
+        <label style="font-size:10px;color:var(--gold-deep);letter-spacing:1px;display:block;margin-bottom:3px">車種</label>
+        <select id="veh-model-sel" onchange="_mobModelChange('${cid}')" style="font-size:15px;padding:10px 12px">
+          <option value="">車種を選択</option>
+          ${_carModelOptionsHtml(c.carMaker || _detectMakerFromModel(c.carModel||''), c.carModel||'')}
+        </select>
+        <input id="veh-model-txt" type="text" value="${esc(c.carModel||'')}" placeholder="車種を直接入力" oninput="_mobModelText('${cid}',this.value)" style="font-size:15px;padding:10px 12px;margin-top:6px;display:${(c.carModel && !_modelInData(c.carModel))?'block':'none'}">
+      </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
         ${E('carYear','年式','R5')}
-        ${ESel('size','サイズ',SIZE_OPTIONS)}
+        <div style="margin-bottom:10px">
+          <label style="font-size:10px;color:var(--gold-deep);letter-spacing:1px;display:block;margin-bottom:3px">サイズ（自動判定）</label>
+          <select id="veh-size" onchange="inlineEdit('${cid}','size',this.value)" style="font-size:15px;padding:10px 12px">
+            <option value="">―</option>
+            ${SIZE_OPTIONS.map(o=>`<option value="${esc(o)}"${o===(c.size||'')?' selected':''}>${esc(o)}</option>`).join('')}
+          </select>
+        </div>
       </div>
       <div id="size-suggest" style="font-size:10px;color:var(--gold-deep);margin-bottom:8px;padding:6px;background:var(--gold-dim);border-radius:4px;display:none"></div>
       ${E('chassis','車台番号','')}
@@ -1240,27 +1259,21 @@ function _addCustomWorkItem(){
   _renderWorkCheckboxes(c);
 }
 
-// 車種・メーカー入力時にサイズを自動推測
+// 描画後：サイズ未設定で車種が分かっていれば自動判定して埋める
 function _attachSizeAutoDetect(c){
-  // 既存サイズあればスキップ
-  const onChange = ()=>{
-    const makerEl = document.querySelector('input[onblur*="carMaker"]');
-    const modelEl = document.querySelector('input[onblur*="carModel"]');
-    const sizeSel = document.querySelector('select[onchange*="size"]');
-    const suggEl  = document.getElementById('size-suggest');
-    if(!modelEl || !sizeSel || !suggEl) return;
-    const maker = makerEl?.value || c.carMaker || '';
-    const model = modelEl.value || c.carModel || '';
-    if(!model){ suggEl.style.display='none'; return; }
-    const detected = detectSizeByModel(maker, model);
-    if(!detected){ suggEl.style.display='none'; return; }
-    if(sizeSel.value === detected){ suggEl.style.display='none'; return; }
-    // 提案表示
-    suggEl.style.display='block';
-    suggEl.innerHTML = `💡 「${esc(maker)} ${esc(model)}」のサイズは <b>${detected}</b> 想定です <button class="btn btn-secondary" style="margin-left:8px;padding:3px 8px;font-size:10px" onclick="document.querySelector('select[onchange*=size]').value='${detected}';inlineEdit('${esc(c.id)}','size','${detected}');document.getElementById('size-suggest').style.display='none';">適用</button>`;
-  };
-  // 一度走らせる + イベント設定（再描画される度に呼ばれる）
-  setTimeout(onChange, 200);
+  setTimeout(()=>{
+    if(c.size) return; // 既にサイズあれば触らない
+    const model = c.carModel || '';
+    if(!model) return;
+    const maker = c.carMaker || _detectMakerFromModel(model) || '';
+    const size = _sizeFromMakerData(maker, model);
+    if(!size) return;
+    const sz = document.getElementById('veh-size');
+    if(sz) sz.value = size;
+    inlineEdit(c.id,'size',size);
+    const sg = document.getElementById('size-suggest');
+    if(sg){ sg.style.display='block'; sg.innerHTML = `✅ サイズ自動判定: <b>${esc(size)}</b>（必要なら上で変更できます）`; }
+  }, 200);
 }
 
 // 塗膜計測のサブフィールド インライン保存
@@ -1429,7 +1442,7 @@ function savePaintGauge(){
 // ─────────────────────────────────────────────
 const SIZE_OPTIONS = ['SS','S','M','L','LL','3L'];
 const STATUS_OPTIONS = ['予約','入庫済','作業中','作業完了','納車済','入金済','キャンセル'];
-const STAFF_DEFAULTS = ['川武','金城','大嶺'];
+const STAFF_DEFAULTS = ['川武','金城','大嶺','末吉'];
 
 // 作業項目マスター（カテゴリ別）
 const WORK_MASTER = [
@@ -1465,6 +1478,128 @@ function detectSizeByModel(maker, model){
     if(rule.match.test(s)) return rule.size;
   }
   return null;
+}
+
+// ── 車種→サイズ自動補完マップ（メーカー別・PC版と同一）──
+const CAR_MAKER_DATA = {
+  'レクサス':[['LX','3L'],['LS','LL'],['GS','L'],['IS','M'],['IS F','M'],['LBX','M'],['LC','L'],['LF-A','S'],['NX','LL'],['RC','M'],['RX','LL'],['RZ','LL'],['SC','M'],['UX','L'],['CT','M'],['ES','L'],['HS','L']],
+  'トヨタ':[['アルファード','LL'],['ヴェルファイア','LL'],['ノア','LL'],['ヴォクシー','LL'],['エスティマ','LL'],['エスクァイア','LL'],['ハイエース','3L'],['グランエース','3L'],['ランドクルーザー','3L'],['ランクル','3L'],['ランドクルーザープラド','LL'],['プラド','LL'],['ハリアー','LL'],['RAV4','LL'],['ハイラックス','LL'],['センチュリー','LL'],['bZ4X','LL'],['FJクルーザー','LL'],['タウンエースノア','LL'],['グランドハイエース','LL'],['カローラクロス','LL'],['クラウン','L'],['カムリ','L'],['アリスト','L'],['セルシオ','L'],['ソアラ','L'],['マークⅡ','L'],['マーク2','L'],['マークX','L'],['プリウスα','L'],['ヴァンガード','L'],['ウィッシュ','L'],['ヤリスクロス','L'],['プリウス','M'],['カローラ','M'],['カローラスポーツ','M'],['カローラフィールダー','M'],['シエンタ','M'],['タンク','M'],['ルーミー','M'],['ライズ','M'],['スープラ','M'],['86','M'],['GR86','M'],['bB','M'],['オーリス','M'],['スペイド','M'],['ラクティス','M'],['アリオン','M'],['アルテッツァ','M'],['サイ','M'],['プロボックス','M'],['サクシード','M'],['CH-R','M'],['C-HR','M'],['ヴィッツ','S'],['ヤリス','S'],['パッソ','S'],['アクア','S'],['MR2','S'],['MR-S','S'],['ピクシスメガ','S'],['ピクシス','SS']],
+  '日産':[['エルグランド','LL'],['セレナ','LL'],['ムラーノ','LL'],['アリア','LL'],['エクストレイル','LL'],['キャラバン','3L'],['フーガ','L'],['シーマ','L'],['ティアナ','L'],['スカイライン','L'],['スカイラインクロスオーバー','L'],['プレジデント','L'],['グロリア','L'],['セドリック','L'],['デュアリス','L'],['NV200','L'],['リーフ','L'],['キューブ','M'],['ジューク','M'],['ノート','M'],['ノートオーラ','M'],['ティーダ','M'],['キックス','M'],['フェアレディZ','M'],['180SX','M'],['GT-R','M'],['スカイラインGT-R','M'],['ラフェスタ','M'],['マーチ','S'],['シルビア','S'],['ルークス','S'],['NV100','S'],['サクラ','SS'],['デイズ','SS'],['モコ','SS']],
+  'ホンダ':[['オデッセイ','LL'],['エリシオン','LL'],['ステップワゴン','LL'],['CR-V','LL'],['ZR-V','LL'],['ラグレイト','LL'],['レジェンド','L'],['アコード','L'],['ヴェゼル','L'],['フリード','L'],['エアウェイブ','L'],['インスパイア','L'],['ジェイド','L'],['クロスロード','L'],['WR-V','L'],['シビック','M'],['インサイト','M'],['インテグラ','M'],['ストリーム','M'],['CR-Z','M'],['フィットシャトル','M'],['グレイス','M'],['NSX','M'],['フィット','S'],['N-BOX','S'],['N-VAN','S'],['アクティ','S'],['バモス','S'],['S2000','S'],['Honda e','S'],['N-ONE','SS'],['N-WGN','SS'],['ゼスト','SS'],['ライフ','SS']],
+  '三菱':[['アウトランダー','LL'],['デリカD:5','LL'],['デリカD5','LL'],['デリカ','LL'],['パジェロ','LL'],['トライトン','LL'],['エクリプスクロス','L'],['RVR','L'],['ランエボ','L'],['デリカD:3','L'],['ランサーエボリューション','L'],['ランサー','M'],['ギャラン','M'],['デリカD:2','M'],['デリカD2','M'],['ekスペース','S'],['タウンボックス','S'],['パジェロミニ','S'],['デリカミニ','S'],['ミラージュ','S'],['ek','SS'],['ekクロス','SS']],
+  'スバル':[['ソルテラ','LL'],['クロスオーバー7','LL'],['レガシィアウトバック','LL'],['フォレスター','L'],['レヴォーグ','L'],['レガシィ','L'],['エクシーガ','L'],['XV','L'],['クロストレック','L'],['インプレッサ','M'],['WRX','M'],['ジャスティー','M'],['レックス','M'],['BRZ','S'],['サンバー','S'],['ステラ','SS'],['R1','SS'],['R2','SS']],
+  'スズキ':[['ジムニー5ドア','LL'],['エスクード','L'],['キザシ','L'],['SX4','M'],['X-BEE','M'],['ソリオ','M'],['ジムニーシエラ','M'],['スイフト','S'],['スペーシア','S'],['ハスラー','S'],['イグニス','S'],['エブリイ','S'],['ラパン','S'],['カプチーノ','S'],['バレーノ','S'],['ジムニー','SS'],['アルト','SS'],['ワゴンR','SS']],
+  'ダイハツ':[['タント','S'],['アトレー','S'],['ハイゼット','S'],['WAKE','S'],['ウェイク','S'],['ブーン','S'],['ネイキッド','S'],['MAX','S'],['トール','M'],['ロッキー','M'],['コペン','SS'],['キャスト','SS'],['タフト','SS'],['トコット','SS'],['ミラ','SS'],['ムーヴ','SS'],['エッセ','SS'],['ミライース','SS']],
+  'マツダ':[['CX-5','LL'],['CX-7','LL'],['CX-8','LL'],['CX-60','LL'],['CX-80','3L'],['MPV','LL'],['ビアンテ','LL'],['アテンザ','L'],['プレマシー','L'],['MX-30','L'],['アクセラ','M'],['マツダ3','M'],['CX-3','M'],['CX-30','M'],['RX-8','M'],['デミオ','M'],['マツダ2','S'],['RX-7','S'],['フレアワゴン','S'],['ロードスター','SS'],['AZ-ワゴン','SS'],['フレア','SS'],['キャロル','SS']],
+  'BMW':[['X7','3L'],['X8','3L'],['X3','LL'],['X4','LL'],['X5','LL'],['X6','LL'],['iX','LL'],['XM','LL'],['7シリーズ','LL'],['X1','L'],['X2','L'],['iX1','L'],['5シリーズ','L'],['6シリーズ','L'],['8シリーズ','L'],['1シリーズ','M'],['2シリーズ','M'],['3シリーズ','M'],['4シリーズ','M'],['i3','M'],['i8','M'],['MINIクロスオーバー','M'],['MINIクラブマン','M'],['MINIペースマン','M'],['MINI','S'],['MINIクーパー','S'],['Z3','S'],['Z4','S']],
+  'アウディ':[['A8','LL'],['S8','LL'],['Q5','LL'],['Q7','LL'],['Q8','LL'],['e-tron','LL'],['A6','L'],['S6','L'],['A7','L'],['S7','L'],['Q3','L'],['Q4 e-tron','L'],['RS4','L'],['RS5','L'],['RS6','L'],['RS7','L'],['e-tron GT','L'],['A4','L'],['S4','L'],['A5','M'],['S5','M'],['Q2','M'],['RS3','M'],['TT','M'],['A3','M'],['S3','M'],['A1','S'],['S1','S']],
+  'メルセデス・ベンツ':[['GLクラス','3L'],['Gクラス','3L'],['GLSクラス','3L'],['EQS SUV','3L'],['EQV','3L'],['Vクラス','3L'],['Sクラス','LL'],['EQSクラス','LL'],['EQCクラス','LL'],['EQBクラス','LL'],['EQEクラス','LL'],['GLEクラス','LL'],['GLCクラス','LL'],['GLBクラス','LL'],['AMG GT','LL'],['Mクラス','LL'],['Rクラス','LL'],['Eクラス','L'],['CLS','L'],['CLクラス','L'],['EQA','L'],['GLK','L'],['Bクラス','L'],['Cクラス','M'],['CLAクラス','M'],['CLEクーペ','M'],['CLKクラス','M'],['GLAクラス','M'],['Aクラス','M'],['SLクラス','M'],['SLCクラス','S'],['SLKクラス','S']],
+  'ポルシェ':[['カイエン','LL'],['マカン','LL'],['タイカン','L'],['パナメーラ','L'],['911','M'],['カレラ','M'],['ケイマン','S'],['ボクスター','S']],
+  'フォルクスワーゲン':[['トゥアレグ','LL'],['シャラン','LL'],['パサート','L'],['ティグアン','L'],['ゴルフヴァリアント','L'],['ゴルフトゥーラン','L'],['アルテオン','L'],['ID.4','L'],['ID.5','L'],['ゴルフ','M'],['ジェッタ','M'],['シロッコ','M'],['ニュービートル','M'],['ポロ','S'],['ビートル','S'],['UP!','S'],['アップ','S']],
+  'ボルボ':[['XC90','LL'],['XC70','LL'],['XC60','LL'],['V90クロスカントリー','LL'],['V90','L'],['V70','L'],['V60','L'],['XC40','L'],['S90','L'],['S80','L'],['S60','L'],['C40','L'],['V50','M'],['V40','M'],['S40','M'],['S70','M'],['C70','M'],['EX30','M'],['C30','M']],
+  'アルファロメオ':[['ステルビオ','LL'],['159','L'],['ジュリア','L'],['トナーレ','L'],['147','M'],['ジュリエッタ','M'],['アルファGT','M'],['スパイダー','M'],['ブレラ','M'],['4C','S'],['ミト','S'],['GTV','S']],
+  'ジャガー':[['Fペイス','LL'],['XJ','LL'],['Eペイス','L'],['iペイス','L'],['XF','L'],['Sタイプ','L'],['Fタイプ','M'],['XE','M'],['XK','M'],['Xタイプ','M']],
+  'ランドローバー':[['レンジローバー','3L'],['ディスカバリー','LL'],['ディフェンダー','LL'],['レンジローバースポーツ','LL'],['レンジローバーヴェラール','LL'],['フリーランダー','L'],['イヴォーク','L'],['レンジローバーイヴォーク','L']],
+  'その他輸入車':[['エスカレード','3L'],['タホ','3L'],['ナビゲーター','3L'],['アストロ','3L'],['エクスプレス','3L'],['H2','3L'],['ファントム','3L'],['エクスプローラー','3L'],['モデルS','LL'],['モデルX','LL'],['モデルY','LL'],['グランドチェロキー','LL'],['チェロキー','LL'],['ラングラー','LL'],['アウトランダーPHEV','LL'],['5008','LL'],['リフター','LL'],['C5エアクロス','LL'],['モデル3','L'],['コンパス','L'],['レネゲード','L'],['マスタング','L'],['3008','L'],['カングー','L'],['アルカナ','L'],['308','M'],['2008','M'],['メガーヌ','M'],['キャプチャー','M'],['208','S'],['ルーテシア','S'],['トゥインゴ','S'],['C3','S'],['フィアット500','S'],['パンダ','S'],['テスラロードスター','SS'],['エリーゼ','SS'],['エキシージ','SS'],['スマートK','SS']],
+};
+
+function _modelInData(model){
+  if(!model) return false;
+  return Object.values(CAR_MAKER_DATA).some(models=>models.some(([m])=>m===model));
+}
+function _detectMakerFromModel(model){
+  if(!model) return '';
+  for(const [maker,models] of Object.entries(CAR_MAKER_DATA)){
+    if(models.some(([m])=>m===model)) return maker;
+  }
+  return '';
+}
+function _carMakerOptionsHtml(selMaker){
+  return Object.keys(CAR_MAKER_DATA).map(m=>`<option value="${esc(m)}"${m===selMaker?' selected':''}>${esc(m)}</option>`).join('');
+}
+function _carModelOptionsHtml(maker, selModel){
+  const list = (maker && CAR_MAKER_DATA[maker]) ? CAR_MAKER_DATA[maker] : Object.values(CAR_MAKER_DATA).flat();
+  const inList = list.some(([m])=>m===selModel);
+  let html = list.map(([m])=>`<option value="${esc(m)}"${m===selModel?' selected':''}>${esc(m)}</option>`).join('');
+  html += `<option value="__other__"${(selModel&&!inList)?' selected':''}>その他（直接入力）</option>`;
+  return html;
+}
+// メーカー別データから車種のサイズを引く（なければ正規表現DBにフォールバック）
+function _sizeFromMakerData(maker, model){
+  if(!model) return '';
+  if(maker && CAR_MAKER_DATA[maker]){
+    const hit = CAR_MAKER_DATA[maker].find(([m])=>m===model);
+    if(hit) return hit[1];
+  }
+  for(const models of Object.values(CAR_MAKER_DATA)){
+    const hit = models.find(([m])=>m===model);
+    if(hit) return hit[1];
+  }
+  return detectSizeByModel(maker, model) || '';
+}
+// メーカー選択変更 → 車種select再構築＋保存
+function _mobMakerChange(cid){
+  const c = cases.find(x=>x.id===cid); if(!c) return;
+  const maker = document.getElementById('veh-maker')?.value || '';
+  inlineEdit(cid,'carMaker',maker);
+  const msel = document.getElementById('veh-model-sel');
+  if(msel){ msel.innerHTML = '<option value="">車種を選択</option>' + _carModelOptionsHtml(maker,''); }
+  const txt = document.getElementById('veh-model-txt');
+  if(txt){ txt.style.display='none'; txt.value=''; }
+  inlineEdit(cid,'carModel','');
+}
+// 車種select変更 → 保存＋サイズ自動判定
+function _mobModelChange(cid){
+  const sel = document.getElementById('veh-model-sel');
+  const txt = document.getElementById('veh-model-txt');
+  const v = sel?.value || '';
+  if(v==='__other__'){ if(txt){ txt.style.display=''; txt.value=''; txt.focus(); } inlineEdit(cid,'carModel',''); return; }
+  if(txt){ txt.style.display='none'; txt.value=v; }
+  inlineEdit(cid,'carModel',v);
+  _mobAutoSize(cid, v);
+}
+// 車種を直接入力（その他）
+function _mobModelText(cid, val){
+  inlineEdit(cid,'carModel',val);
+  _mobAutoSize(cid, val);
+}
+// サイズ自動判定 → size select と保存値へ反映
+function _mobAutoSize(cid, model){
+  const maker = document.getElementById('veh-maker')?.value || '';
+  const size = _sizeFromMakerData(maker, model);
+  const sg = document.getElementById('size-suggest');
+  if(!size){ if(sg) sg.style.display='none'; return; }
+  const sz = document.getElementById('veh-size');
+  if(sz) sz.value = size;
+  inlineEdit(cid,'size',size);
+  if(sg){ sg.style.display='block'; sg.innerHTML = `✅ サイズ自動判定: <b>${esc(size)}</b>（必要なら上で変更できます）`; }
+}
+
+// ── 編集フォーム(_renderEditForm)用のメーカー/車種カスケード ──
+function _efMakerChange(){
+  const maker = document.getElementById('e-maker')?.value || '';
+  const msel = document.getElementById('e-carModel-sel');
+  if(msel) msel.innerHTML = '<option value="">車種を選択</option>' + _carModelOptionsHtml(maker,'');
+  const txt = document.getElementById('e-carModel');
+  if(txt){ txt.style.display='none'; txt.value=''; }
+}
+function _efModelChange(){
+  const sel = document.getElementById('e-carModel-sel');
+  const txt = document.getElementById('e-carModel');
+  const v = sel?.value || '';
+  if(v==='__other__'){ if(txt){ txt.style.display='block'; txt.value=''; txt.focus(); } return; }
+  if(txt){ txt.style.display='none'; txt.value=v; }
+  _efAutoSize(v);
+}
+function _efModelText(){
+  _efAutoSize(document.getElementById('e-carModel')?.value || '');
+}
+function _efAutoSize(model){
+  const maker = document.getElementById('e-maker')?.value || '';
+  const size = _sizeFromMakerData(maker, model);
+  if(!size) return;
+  const sz = document.getElementById('e-size');
+  if(sz) sz.value = size;
 }
 
 function _nextCaseId(){
@@ -1565,10 +1700,21 @@ function _renderEditForm(c){
         <label class="form-label">電話番号</label>
         <input id="e-tel" type="tel" value="${esc(data.tel||'')}" placeholder="例: 090-1234-5678" autocomplete="tel">
       </div>
+      <div class="form-row">
+        <label class="form-label">メーカー</label>
+        <select id="e-maker" onchange="_efMakerChange()">
+          <option value="">メーカー選択</option>
+          ${_carMakerOptionsHtml(data.carMaker || _detectMakerFromModel(data.carModel||''))}
+        </select>
+      </div>
       <div style="display:grid;grid-template-columns:1fr 80px;gap:8px">
         <div class="form-row">
           <label class="form-label">車種</label>
-          <input id="e-carModel" type="text" value="${esc(data.carModel||'')}" placeholder="例: デリカD:5">
+          <select id="e-carModel-sel" onchange="_efModelChange()">
+            <option value="">車種を選択</option>
+            ${_carModelOptionsHtml(data.carMaker || _detectMakerFromModel(data.carModel||''), data.carModel||'')}
+          </select>
+          <input id="e-carModel" type="text" value="${esc(data.carModel||'')}" placeholder="車種を直接入力" style="margin-top:6px;display:${(data.carModel && !_modelInData(data.carModel))?'block':'none'}" oninput="_efModelText()">
         </div>
         <div class="form-row">
           <label class="form-label">年式</label>
@@ -1576,7 +1722,7 @@ function _renderEditForm(c){
         </div>
       </div>
       <div class="form-row">
-        <label class="form-label">サイズ</label>
+        <label class="form-label">サイズ（自動判定）</label>
         <select id="e-size">
           <option value="">―</option>
           ${SIZE_OPTIONS.map(s=>`<option value="${s}"${s===data.size?' selected':''}>${s}</option>`).join('')}
@@ -1679,6 +1825,7 @@ function saveCaseEdit(){
     id,
     customer: g('customer'),
     tel:      g('tel'),
+    carMaker: g('maker'),
     carModel: g('carModel'),
     carYear:  g('carYear'),
     size:     g('size'),
