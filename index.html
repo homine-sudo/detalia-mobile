@@ -1940,6 +1940,10 @@ function _buildReelPlan(c){
     sizeBadge: c.size?`[${c.size}]`:'',
     items: workItems.slice(0,4)
   }});
+  // ★ Before→After 切替ワイプシーン（両方写真あるときの劇的演出）
+  if(beforeCount>=1 && afterCount>=1){
+    scenes.push({type:'compare', duration:2.5, data:{beforeIdx:0, afterIdx:0}});
+  }
   // After
   const afterSlide = totalPhotos<=3 ? 2.0 : 1.4;
   (c.photos?.after||[]).forEach((p,i)=>{
@@ -2018,59 +2022,239 @@ function _drawLogoHeader(ctx, W, cx, baseY){
   }
 }
 
+// 写真フレーム描画（シネマティック・カラーグレーディング・ビネット入り）
 function _drawReelFrame(ctx, img, t, brand){
   const W=1080, H=1920;
-  // 背景
-  const grad = ctx.createLinearGradient(0,0,0,H);
-  grad.addColorStop(0,'#0F0F1A'); grad.addColorStop(1,'#000');
-  ctx.fillStyle=grad; ctx.fillRect(0,0,W,H);
-  // 画像（Ken Burns: 1.0→1.12 ズーム + 左右にパン）
+  // 背景（黒に近いダーク）
+  ctx.fillStyle='#000'; ctx.fillRect(0,0,W,H);
+
+  // === 写真の描画 ===
   if(img){
-    const scale = 1 + 0.12*t;
+    // ドラマチック Ken Burns: 1.0→1.18 ズーム + 大きめパン
+    const scale = 1 + 0.18*t;
     const ratio = img.naturalWidth/img.naturalHeight;
     let dw, dh;
     if(ratio > W/H){ dh = H*scale; dw = dh*ratio; }
     else            { dw = W*scale; dh = dw/ratio; }
-    const panX = (t-0.5)*60;
+    const panX = (t-0.5)*80;
+    const panY = (t-0.5)*30;
     const dx = (W-dw)/2 + panX;
-    const dy = (H-dh)/2;
+    const dy = (H-dh)/2 + panY;
+    // 映画的カラーグレーディング
+    // Before: クール・ロー彩度 (劣化感を演出)
+    // After:  ウォーム・高彩度 (蘇った印象)
+    try{
+      if(brand.dim){
+        ctx.filter = 'saturate(0.7) contrast(1.12) brightness(0.88)';
+      } else {
+        ctx.filter = 'saturate(1.22) contrast(1.08) brightness(1.04)';
+      }
+    }catch(e){}
     ctx.drawImage(img, dx, dy, dw, dh);
-    // BEFORE時は色を少し沈める、AFTERは元のまま明るく
-    if(brand.dim){
-      ctx.fillStyle='rgba(15,15,26,0.18)'; ctx.fillRect(0,0,W,H);
-    }
-  }
-  // 上部グラデーション帯（ロゴ用）
-  const topG = ctx.createLinearGradient(0,0,0,290);
-  topG.addColorStop(0,'rgba(15,15,26,0.92)'); topG.addColorStop(1,'rgba(15,15,26,0)');
-  ctx.fillStyle=topG; ctx.fillRect(0,0,W,290);
-  // 下部グラデーション帯
-  const bottomG = ctx.createLinearGradient(0,H-360,0,H);
-  bottomG.addColorStop(0,'rgba(15,15,26,0)'); bottomG.addColorStop(1,'rgba(15,15,26,0.96)');
-  ctx.fillStyle=bottomG; ctx.fillRect(0,H-360,W,360);
-  // 上部ブランド（ロゴあればそれ、無ければテキスト）
-  _drawLogoHeader(ctx, W, W/2, 115);
+    ctx.filter='none';
 
-  // 下部ラベル（大きく目立つ）
-  // タグ風背景
-  ctx.fillStyle='rgba(201,168,76,0.18)';
+    // Before のときに微かなブルーティント
+    if(brand.dim){
+      ctx.fillStyle='rgba(30,40,90,0.10)';
+      ctx.fillRect(0,0,W,H);
+    } else {
+      // After のときに微かなゴールドティント
+      ctx.fillStyle='rgba(255,215,150,0.06)';
+      ctx.fillRect(0,0,W,H);
+    }
+
+    // ビネット効果（周辺暗く）
+    const vignette = ctx.createRadialGradient(W/2, H/2, Math.min(W,H)*0.32, W/2, H/2, Math.max(W,H)*0.75);
+    vignette.addColorStop(0, 'rgba(0,0,0,0)');
+    vignette.addColorStop(0.7, 'rgba(0,0,0,0.35)');
+    vignette.addColorStop(1, 'rgba(0,0,0,0.75)');
+    ctx.fillStyle = vignette;
+    ctx.fillRect(0,0,W,H);
+  }
+
+  // === レターボックス（上下に黒帯）===
+  ctx.fillStyle='#000';
+  ctx.fillRect(0,0,W,80);
+  ctx.fillRect(0,H-80,W,80);
+
+  // 上部ロゴ
+  ctx.save();
+  ctx.globalAlpha = 0.9;
+  _drawLogoHeader(ctx, W, W/2, 60);
+  ctx.restore();
+
+  // === 下部ラベル（パルススケール演出）===
+  // 最初0.15で 1.4倍 → 1.0倍に縮む
+  const pulse = t < 0.15 ? 1 + (0.15-t)*2.5 : 1;
+  ctx.save();
+  ctx.translate(W/2, H-220);
+  ctx.scale(pulse, pulse);
+  // ラベル枠
+  const labelW = brand.label.length * 60 + 120;
+  ctx.fillStyle='rgba(15,15,26,0.85)';
   ctx.beginPath();
-  const labelW = brand.label.length * 50 + 80;
-  ctx.roundRect(W/2-labelW/2, H-250, labelW, 90, 12);
+  if(ctx.roundRect) ctx.roundRect(-labelW/2, -60, labelW, 120, 18);
+  else ctx.rect(-labelW/2, -60, labelW, 120);
   ctx.fill();
-  ctx.strokeStyle='rgba(232,201,106,0.6)';
-  ctx.lineWidth=2;
+  // 枠色: Before赤系 / After緑系
+  ctx.strokeStyle = brand.dim ? '#F87171' : '#B8E986';
+  ctx.lineWidth = 3;
   ctx.stroke();
-  // ラベル
-  ctx.fillStyle='#F4E9C6';
-  ctx.font='800 64px sans-serif';
+  // ラベルテキスト（グロー付き）
+  ctx.shadowColor = brand.dim ? 'rgba(248,113,113,0.7)' : 'rgba(184,233,134,0.7)';
+  ctx.shadowBlur = 24;
+  ctx.fillStyle = '#F4E9C6';
+  ctx.font = '900 88px sans-serif';
   ctx.textAlign='center';
-  ctx.fillText(brand.label, W/2, H-188);
-  // サブ
+  ctx.textBaseline='middle';
+  ctx.fillText(brand.label, 0, 5);
+  ctx.shadowBlur = 0;
+  ctx.restore();
+
+  // サブテキスト
   if(brand.sub){
-    ctx.fillStyle='#A38A36';
-    ctx.font='500 28px sans-serif';
+    ctx.fillStyle='rgba(232,201,106,0.85)';
+    ctx.font='500 30px sans-serif';
+    ctx.textAlign='center';
     ctx.fillText(brand.sub, W/2, H-110);
+  }
+
+  // フィルムグレイン（軽く）
+  if(img){
+    ctx.globalAlpha = 0.03;
+    for(let i=0;i<150;i++){
+      ctx.fillStyle = Math.random()>0.5 ? '#fff':'#000';
+      ctx.fillRect(Math.random()*W, Math.random()*H, 1.5, 1.5);
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+
+// シーンの開始/終了でフェード（黒に向かう）— レンダリングループで呼ぶ
+function _applySceneTransition(ctx, t, W=1080, H=1920){
+  // 最初0.08 で黒→透明、最後0.08 で透明→黒
+  let alpha = 0;
+  if(t < 0.08) alpha = 1 - (t / 0.08);
+  else if(t > 0.92) alpha = (t - 0.92) / 0.08;
+  if(alpha > 0){
+    ctx.fillStyle = `rgba(0,0,0,${alpha})`;
+    ctx.fillRect(0,0,W,H);
+  }
+}
+
+// ★ Before/After ワイプ切替シーン（同アングルなら効果絶大）
+function _drawCompareFrame(ctx, t, beforeImg, afterImg){
+  const W=1080, H=1920;
+  ctx.fillStyle='#000'; ctx.fillRect(0,0,W,H);
+  // ワイプ位置（0→1で左から右）
+  const wipeX = t * W;
+
+  // 画像描画ヘルパ（Cover-fit）
+  const drawImg = (img, gradeFn)=>{
+    if(!img) return;
+    const ratio = img.naturalWidth/img.naturalHeight;
+    let dw, dh;
+    if(ratio > W/H){ dh = H; dw = dh*ratio; }
+    else            { dw = W; dh = dw/ratio; }
+    const dx = (W-dw)/2;
+    const dy = (H-dh)/2;
+    try{ ctx.filter = gradeFn; }catch(e){}
+    ctx.drawImage(img, dx, dy, dw, dh);
+    ctx.filter='none';
+  };
+
+  // 全体に After 写真（背景レイヤー）
+  drawImg(afterImg, 'saturate(1.22) contrast(1.08) brightness(1.04)');
+  // ウォームティント
+  ctx.fillStyle='rgba(255,215,150,0.08)';
+  ctx.fillRect(0,0,W,H);
+
+  // Before を上書き（ワイプ位置までの左側のみ）
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, wipeX, H);
+  ctx.clip();
+  drawImg(beforeImg, 'saturate(0.7) contrast(1.12) brightness(0.88)');
+  ctx.fillStyle='rgba(30,40,90,0.10)';
+  ctx.fillRect(0,0,W,H);
+  ctx.restore();
+
+  // ビネット
+  const vignette = ctx.createRadialGradient(W/2, H/2, Math.min(W,H)*0.32, W/2, H/2, Math.max(W,H)*0.75);
+  vignette.addColorStop(0, 'rgba(0,0,0,0)');
+  vignette.addColorStop(0.7, 'rgba(0,0,0,0.35)');
+  vignette.addColorStop(1, 'rgba(0,0,0,0.75)');
+  ctx.fillStyle = vignette;
+  ctx.fillRect(0,0,W,H);
+
+  // ワイプライン（光る縦線）
+  if(wipeX > 5 && wipeX < W-5){
+    const lineGrad = ctx.createLinearGradient(wipeX-4, 0, wipeX+4, 0);
+    lineGrad.addColorStop(0, 'rgba(232,201,106,0)');
+    lineGrad.addColorStop(0.5, 'rgba(232,201,106,1)');
+    lineGrad.addColorStop(1, 'rgba(232,201,106,0)');
+    ctx.fillStyle = lineGrad;
+    ctx.fillRect(wipeX-4, 0, 8, H);
+    // 光のハロー
+    ctx.shadowColor = 'rgba(232,201,106,0.8)';
+    ctx.shadowBlur = 30;
+    ctx.fillRect(wipeX-2, 0, 4, H);
+    ctx.shadowBlur = 0;
+  }
+
+  // レターボックス
+  ctx.fillStyle='#000';
+  ctx.fillRect(0,0,W,80);
+  ctx.fillRect(0,H-80,W,80);
+
+  // 上部ロゴ
+  ctx.save(); ctx.globalAlpha = 0.85;
+  _drawLogoHeader(ctx, W, W/2, 60);
+  ctx.restore();
+
+  // 左下「BEFORE」 / 右下「AFTER」ラベル
+  // 左下
+  ctx.fillStyle='rgba(15,15,26,0.7)';
+  if(ctx.roundRect){ ctx.beginPath(); ctx.roundRect(40, H-200, 320, 100, 14); ctx.fill(); }
+  ctx.strokeStyle='#F87171';
+  ctx.lineWidth=3;
+  if(ctx.roundRect){ ctx.beginPath(); ctx.roundRect(40, H-200, 320, 100, 14); ctx.stroke(); }
+  ctx.fillStyle='#F4E9C6';
+  ctx.font='800 60px sans-serif';
+  ctx.textAlign='center';
+  ctx.shadowColor='rgba(248,113,113,0.6)';
+  ctx.shadowBlur=18;
+  ctx.fillText('BEFORE', 200, H-130);
+  ctx.shadowBlur=0;
+
+  // 右下
+  ctx.fillStyle='rgba(15,15,26,0.7)';
+  if(ctx.roundRect){ ctx.beginPath(); ctx.roundRect(W-360, H-200, 320, 100, 14); ctx.fill(); }
+  ctx.strokeStyle='#B8E986';
+  ctx.lineWidth=3;
+  if(ctx.roundRect){ ctx.beginPath(); ctx.roundRect(W-360, H-200, 320, 100, 14); ctx.stroke(); }
+  ctx.fillStyle='#F4E9C6';
+  ctx.font='800 60px sans-serif';
+  ctx.shadowColor='rgba(184,233,134,0.6)';
+  ctx.shadowBlur=18;
+  ctx.fillText('AFTER', W-200, H-130);
+  ctx.shadowBlur=0;
+
+  // 中央の「VS」（ワイプライン上に乗る）
+  if(t > 0.15 && t < 0.85){
+    const vsAlpha = Math.min(1, Math.min(t-0.15, 0.85-t) * 5);
+    ctx.globalAlpha = vsAlpha;
+    ctx.fillStyle='rgba(232,201,106,0.95)';
+    ctx.beginPath();
+    ctx.arc(wipeX, H/2, 60, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle='#0F0F1A';
+    ctx.font='900 50px Georgia, serif';
+    ctx.textAlign='center';
+    ctx.textBaseline='middle';
+    ctx.fillText('VS', wipeX, H/2);
+    ctx.textBaseline='alphabetic';
+    ctx.globalAlpha = 1;
   }
 }
 
@@ -2379,10 +2563,15 @@ async function generateReel(){
           case 'comment':
             _drawCommentFrame(ctx, t, sc.data.title, sc.data.subtitle, sc.data.text, sc.data.color);
             break;
+          case 'compare':
+            _drawCompareFrame(ctx, t, beforeImgs[sc.data.beforeIdx], afterImgs[sc.data.afterIdx]);
+            break;
           case 'end':
             _drawReelFrame(ctx, null, t, {label:sc.data.label, sub:sc.data.sub});
             break;
         }
+        // シーン間フェード
+        _applySceneTransition(ctx, t);
         await frameDelay(33);
       }
     }
