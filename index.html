@@ -280,10 +280,10 @@ a{color:var(--gold-light);text-decoration:none}
 
       <div class="card">
         <div class="card-title">Quick Actions <span class="ja">クイック操作</span></div>
-        <button class="btn btn-primary btn-full" style="margin-bottom:8px;padding:14px;font-size:15px" onclick="newQuoteCase()">📄 見積受付（新規）</button>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <button class="btn btn-secondary" onclick="newCase()">＋ 案件登録</button>
-          <button class="btn btn-secondary" onclick="showPage('cases')">📋 案件一覧</button>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+          <button class="btn btn-secondary" style="font-size:12px;padding:10px 4px" onclick="newQuoteCase()">📄 見積</button>
+          <button class="btn btn-primary" style="font-size:12px;padding:10px 4px" onclick="newCase()">＋ 案件</button>
+          <button class="btn btn-secondary" style="font-size:12px;padding:10px 4px" onclick="showPage('cases')">📋 一覧</button>
         </div>
       </div>
 
@@ -412,21 +412,33 @@ a{color:var(--gold-light);text-decoration:none}
       </div>
 
       <div class="card">
-        <div class="card-title">Mode <span class="ja">動作モード</span></div>
-        <label style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--bg2);border-radius:8px">
-          <input type="checkbox" id="demo-toggle" onchange="toggleDemoMode()" style="width:18px;height:18px;flex-shrink:0">
-          <span style="font-size:13px">デモモード（外部通信なし・サンプルデータ使用）</span>
-        </label>
+        <div class="card-title">Brand <span class="ja">🎨 ブランド設定</span></div>
+        <div style="font-size:11px;color:var(--text-dim);line-height:1.6;margin-bottom:10px">
+          リール・カルーセル動画に表示されるロゴを設定。<br>
+          推奨: PNG透過 / 横長 / 512px以上。
+        </div>
+        <div id="logo-preview" style="display:flex;justify-content:center;align-items:center;background:linear-gradient(135deg,#0F0F1A,#1A1A2A);border:1px solid var(--gold-border);border-radius:8px;padding:14px;margin-bottom:10px;min-height:80px"></div>
+        <input type="file" id="logo-input" accept="image/*" style="display:none" onchange="_onLogoSelected(this)">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <button class="btn btn-secondary" style="font-size:13px" onclick="document.getElementById('logo-input').click()">📁 ロゴ選択</button>
+          <button class="btn btn-secondary" style="font-size:13px;color:var(--red);border-color:var(--red)" onclick="_clearLogo()">🗑️ 削除</button>
+        </div>
       </div>
 
-      <div class="card" style="border-left:3px solid var(--gold)">
-        <div class="card-title">App Update <span class="ja">🔄 アプリ更新</span></div>
-        <div style="font-size:11px;color:var(--text-dim);line-height:1.7;margin-bottom:10px">
-          画面が古いまま変わらないときは、ここをタップすると最新版に強制更新します。<br>
-          （ホーム画面からアプリを消す必要はありません）
+      <details style="background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;overflow:hidden">
+        <summary style="padding:14px 16px;cursor:pointer;list-style:none;display:flex;align-items:center;gap:10px">
+          <span style="font-size:11px;letter-spacing:3px;color:var(--gold-deep)">SYSTEM</span>
+          <span style="font-size:13px;color:var(--text);flex:1">⚙️ システム</span>
+          <span style="font-size:11px;color:var(--text-dim)">▾</span>
+        </summary>
+        <div style="padding:0 16px 16px">
+          <button class="btn btn-primary btn-full" style="margin-bottom:10px" onclick="forceUpdate()">🔄 アプリを最新版に更新</button>
+          <label style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--bg2);border-radius:8px;cursor:pointer">
+            <input type="checkbox" id="demo-toggle-2" onchange="toggleDemoMode2()" style="width:18px;height:18px;flex-shrink:0">
+            <span style="font-size:13px;flex:1">デモモード（外部通信なし）</span>
+          </label>
         </div>
-        <button class="btn btn-primary btn-full" onclick="forceUpdate()">🔄 アプリを最新版に更新</button>
-      </div>
+      </details>
 
       <div class="card">
         <div class="card-title">About <span class="ja">バージョン</span></div>
@@ -469,6 +481,7 @@ const PAINT_POSITIONS = [
 // 🗄️ ストレージ / モード
 // ─────────────────────────────────────────────
 const LS_KEY_CASES    = 'detalia_mobile_cases_v1';
+const LS_KEY_LOGO     = 'detalia_mobile_logo_b64'; // 店舗ロゴ画像（base64）
 const LS_KEY_TOKEN    = 'detalia_mobile_dbx_token';
 const LS_KEY_REFRESH  = 'detalia_mobile_dbx_refresh';
 const LS_KEY_VERIFIER = 'detalia_mobile_dbx_verifier'; // sessionStorage
@@ -522,6 +535,7 @@ function init(){
 
 // 既存案件にα-1モバイル特化フィールドを補完（マイグレーション）
 function _migrateMobileCase(c){
+  if(typeof c.carMaker!=='string') c.carMaker='';
   if(!c.photos || typeof c.photos!=='object') c.photos={before:[],after:[],paint:[],other:[]};
   ['before','after','paint','other'].forEach(k=>{ if(!Array.isArray(c.photos[k])) c.photos[k]=[]; });
   if(!c.paintGauge||typeof c.paintGauge!=='object') c.paintGauge={measured:false,deviceModel:'',measurements:[],notes:''};
@@ -721,13 +735,12 @@ function openCase(id){
 function detectStage(c){
   if(!c.customer || !c.tel) return {n:1, key:'reception', label:'受付情報', next:'車種・サイズを入力'};
   if(!c.carModel || !c.size) return {n:2, key:'vehicle', label:'車両情報', next:'作業内容を入力'};
-  if(!c.workDetail) return {n:3, key:'work', label:'作業内容', next:'入庫日＋SNS許可'};
-  if(!c.arrival) return {n:4, key:'intake', label:'入庫＋SNS許可', next:'Before写真を撮影'};
-  if((c.photos?.before||[]).length === 0) return {n:5, key:'before', label:'Before写真', next:'施工後 After撮影'};
-  if((c.photos?.after||[]).length === 0) return {n:6, key:'after', label:'After写真', next:'納車日を記録'};
-  if(!c.delivery) return {n:7, key:'delivery', label:'納車記録', next:c.snsPermitted?'Canvaで投稿準備':'完了'};
-  if(c.snsPermitted && !c.reel?.instagramPosted) return {n:8, key:'sns', label:'SNS投稿', next:'Canva→Instagram投稿'};
-  return {n:9, key:'done', label:'完了', next:c.snsPermitted?'お疲れさまでした 🎉':'SNS掲載なし・完了 🎉'};
+  if(!c.workDetail) return {n:3, key:'work', label:'作業内容', next:'Before写真を撮影'};
+  if((c.photos?.before||[]).length === 0) return {n:4, key:'before', label:'Before写真', next:'施工後 After撮影'};
+  if((c.photos?.after||[]).length === 0) return {n:5, key:'after', label:'After写真', next:'納車日を記録'};
+  if(!c.delivery) return {n:6, key:'delivery', label:'納車記録', next:c.snsPermitted?'SNS投稿準備':'完了'};
+  if(c.snsPermitted && !c.reel?.instagramPosted) return {n:7, key:'sns', label:'SNS投稿', next:'リール/カルーセル生成'};
+  return {n:8, key:'done', label:'完了', next:c.snsPermitted?'お疲れさまでした 🎉':'SNS掲載なし・完了 🎉'};
 }
 
 // ステージ別「次にやること」のクイックアクション
@@ -760,7 +773,7 @@ function _stageQuickActionHtml(c, stage){
 // ステージ進捗バーHTML
 function stageProgressHtml(c){
   const stage = detectStage(c);
-  const stages = ['受付','車両','作業','入庫','Before','After','納車','SNS','完了'];
+  const stages = ['受付','車両','作業','Before','After','納車','SNS','完了'];
   return `<div style="background:var(--card);border:1px solid var(--gold-border);border-radius:10px;padding:10px 12px;margin-bottom:10px">
     <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
       <span style="font-size:10px;letter-spacing:2px;color:var(--gold-deep)">PROGRESS</span>
@@ -862,13 +875,15 @@ function renderCaseDetail(c){
   const sCard = (n, label, contentHtml)=>{
     const isCurrent = stage.n === n;
     const isPast    = stage.n > n;
-    const icon = isPast ? '✅' : isCurrent ? '🎯' : '🔒';
+    const isFuture  = stage.n < n;
+    const icon = isPast ? '✅' : isCurrent ? '🎯' : '';
     const open = (isCurrent || isPast) ? 'open' : '';
     const tag  = isCurrent ? '<span style="font-size:10px;color:var(--gold-light);font-weight:bold;background:var(--gold-dim);padding:2px 8px;border-radius:10px">いまここ</span>' : '';
     const border = isCurrent ? 'border-left:3px solid var(--gold);box-shadow:0 0 12px rgba(201,168,76,.15)' : '';
-    return `<details ${open} style="background:var(--card);border:1px solid var(--border);${border};border-radius:10px;margin-bottom:8px;overflow:hidden">
+    const opacity = isFuture ? 'opacity:.55' : '';
+    return `<details ${open} style="background:var(--card);border:1px solid var(--border);${border};${opacity};border-radius:10px;margin-bottom:8px;overflow:hidden">
       <summary style="padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;list-style:none;user-select:none">
-        <span style="font-size:18px">${icon}</span>
+        ${icon ? `<span style="font-size:18px">${icon}</span>` : '<span style="width:18px;display:inline-block"></span>'}
         <span style="font-size:10px;color:var(--gold-deep);letter-spacing:2px;min-width:42px">STEP ${n}</span>
         <span style="font-size:13px;color:var(--text);flex:1">${label}</span>
         ${tag}
@@ -926,21 +941,39 @@ function renderCaseDetail(c){
       ${E('customer','顧客名','例: 安里 昌悟')}
       ${E('tel','電話番号','090-1234-5678',{type:'tel',inputmode:'tel'})}
       ${E('contact','担当者名（会社案件のみ）','空欄でOK')}
+      <div style="margin-top:8px;border-top:1px solid var(--border);padding-top:12px">
+        ${E('arrival','入庫日','',{type:'date'})}
+        ${E('deliveryPlan','納車予定日','',{type:'date'})}
+      </div>
+      <div style="margin-top:8px;border-top:1px solid var(--border);padding-top:12px">
+        ${EChk('snsPermitted','✅ お客様のSNS掲載許可OK','受付時に確認: Before/After写真をSNS投稿してOK？')}
+        ${E('snsNote','メモ（顔出しNG等）','空欄でOK')}
+      </div>
     `)}
 
     ${sCard(2, '車両情報', `
+      ${E('carMaker','メーカー','例: トヨタ', {placeholder:'例: トヨタ / 三菱 / 日産'})}
       ${E('carModel','車種','例: デリカD:5')}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
         ${E('carYear','年式','R5')}
         ${ESel('size','サイズ',SIZE_OPTIONS)}
       </div>
+      <div id="size-suggest" style="font-size:10px;color:var(--gold-deep);margin-bottom:8px;padding:6px;background:var(--gold-dim);border-radius:4px;display:none"></div>
       ${E('chassis','車台番号','')}
       ${E('colorCode','カラーコード','')}
       ${ESel('workStaff','担当スタッフ',STAFF_DEFAULTS.concat(c.workStaff&&!STAFF_DEFAULTS.includes(c.workStaff)?[c.workStaff]:[]))}
     `)}
 
     ${sCard(3, '作業内容＋料金', `
-      ${ETxt('workDetail','作業項目（・区切り or 改行）',4,'例: 鉄粉除去・ボディ磨き・ガラスコーティング')}
+      <div style="margin-bottom:10px">
+        <label style="font-size:10px;color:var(--gold-deep);letter-spacing:1px;display:block;margin-bottom:6px">作業項目（タップで選択）</label>
+        <div id="work-checkbox-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:6px"></div>
+        <button class="btn btn-secondary" style="font-size:11px;padding:6px 10px;margin-top:8px" onclick="_addCustomWorkItem()">＋ 自由追加</button>
+        <div style="margin-top:10px">
+          <label style="font-size:10px;color:var(--gold-deep);letter-spacing:1px;display:block;margin-bottom:3px">作業項目（テキスト・自動同期）</label>
+          <textarea id="e-workDetail" rows="2" placeholder="チェックすると自動で入る" onblur="inlineEdit('${cid}','workDetail',this.value)" style="font-size:13px;padding:8px 10px;resize:vertical;color:var(--text-dim)">${esc(c.workDetail||'')}</textarea>
+        </div>
+      </div>
       <details><summary style="font-size:11px;color:var(--text-dim);cursor:pointer;padding:6px 0">💰 料金（税抜）</summary>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
           ${E('optExt','外装','0',{type:'number',inputmode:'numeric'})}
@@ -952,35 +985,32 @@ function renderCaseDetail(c){
       </details>
     `)}
 
-    ${sCard(4, '入庫＋SNS許可', `
-      ${E('arrival','入庫日','',{type:'date'})}
-      ${E('deliveryPlan','納車予定日','',{type:'date'})}
-      <div style="margin-top:8px;border-top:1px solid var(--border);padding-top:10px">
-        ${EChk('snsPermitted','✅ お客様のSNS掲載許可OK','入庫時に確認: Before/After写真をSNS投稿してOK？')}
-        ${E('snsNote','メモ（顔出しNG等）','空欄でOK')}
-      </div>
-    `)}
-
-    ${sCard(5, 'Before写真＋塗膜', `
+    ${sCard(4, 'Before写真＋塗膜', `
       <button class="btn btn-primary btn-full" style="margin-bottom:10px;padding:14px;font-size:15px" onclick="document.getElementById('photo-input-before').click()">📷 Before を撮影</button>
+      <div style="font-size:10px;color:var(--text-dim);line-height:1.6;margin-bottom:8px;padding:6px 8px;background:var(--bg2);border-radius:4px">
+        📐 推奨アングル：①正面 ②斜め前（運転席側） ③ボンネット俯瞰 ④気になる箇所アップ
+      </div>
       ${photoSec('before','Before（施工前）')}
       <details style="margin-top:10px"><summary style="font-size:12px;color:var(--gold-deep);cursor:pointer;padding:8px;background:var(--bg2);border-radius:6px">🎨 塗膜計測（Before / After）</summary>
         <div style="margin-top:10px">${paintBlock}</div>
       </details>
     `)}
 
-    ${sCard(6, 'After写真', `
+    ${sCard(5, 'After写真', `
       <button class="btn btn-primary btn-full" style="margin-bottom:10px;padding:14px;font-size:15px" onclick="document.getElementById('photo-input-after').click()">📷 After を撮影</button>
+      <div style="font-size:10px;color:var(--text-dim);line-height:1.6;margin-bottom:8px;padding:6px 8px;background:var(--bg2);border-radius:4px">
+        📐 推奨：Beforeと <b>同じアングル</b> で撮影 → 比較効果UP
+      </div>
       ${photoSec('after','After（施工後）')}
     `)}
 
-    ${sCard(7, '納車', `
+    ${sCard(6, '納車', `
       ${E('delivery','✅ 納車日（実際）','',{type:'date'})}
       ${ESel('paymentMethod','支払方法',['振込','現金','クレジット'])}
       ${E('paymentDeadline','支払期限','',{type:'date'})}
     `)}
 
-    ${sCard(8, 'SNS自動投稿', `
+    ${sCard(7, 'SNS自動投稿', `
       ${!c.snsPermitted ? `<div style="font-size:11px;color:var(--orange);padding:10px;background:rgba(251,191,36,.1);border-radius:6px;margin-bottom:10px;line-height:1.7">⚠️ STEP 4 でお客様の掲載許可を取ってください<br><button class="btn btn-secondary" style="font-size:11px;padding:6px 10px;margin-top:6px" onclick="document.querySelectorAll('details')[3]?.scrollIntoView({behavior:'smooth',block:'center'})">⬆️ STEP 4へ</button></div>` : ''}
       <!-- 投稿形式セレクター -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;padding:4px;background:var(--bg2);border-radius:10px">
@@ -1016,6 +1046,93 @@ function renderCaseDetail(c){
   `;
   // 写真グリッドを描画
   ['before','after','other'].forEach(kind=>_renderPhotoGrid(c,kind));
+  // 作業項目チェックボックスを描画
+  _renderWorkCheckboxes(c);
+  // 車種→サイズ自動判定の監視
+  _attachSizeAutoDetect(c);
+}
+
+// 作業項目チェックボックス描画
+function _renderWorkCheckboxes(c){
+  const wrap = document.getElementById('work-checkbox-grid');
+  if(!wrap) return;
+  const current = (c.workDetail||'').split(/[・\n]/).map(s=>s.trim()).filter(Boolean);
+  const allItems = WORK_MASTER.flatMap(cat=>cat.items);
+  // 自由追加項目も含めるため、現在の項目で master に無いものを追加
+  const customItems = current.filter(it=>!allItems.includes(it));
+  let html = '';
+  WORK_MASTER.forEach(cat=>{
+    html += `<div style="grid-column:1/-1;font-size:10px;color:var(--gold-deep);letter-spacing:1px;margin-top:6px;padding-bottom:3px;border-bottom:1px solid var(--border)">▼ ${cat.cat}</div>`;
+    cat.items.forEach(item=>{
+      const checked = current.includes(item);
+      html += `<label style="display:flex;align-items:center;gap:6px;padding:6px 8px;background:${checked?'var(--gold-dim)':'var(--bg2)'};border:1px solid ${checked?'var(--gold-border)':'var(--border)'};border-radius:6px;cursor:pointer;font-size:12px">
+        <input type="checkbox" ${checked?'checked':''} value="${esc(item)}" onchange="_toggleWorkItem('${esc(c.id)}', this.value, this.checked)" style="width:14px;height:14px;flex-shrink:0">
+        <span style="${checked?'color:var(--gold-light);font-weight:600':'color:var(--text)'}">${esc(item)}</span>
+      </label>`;
+    });
+  });
+  // カスタム項目
+  if(customItems.length){
+    html += `<div style="grid-column:1/-1;font-size:10px;color:var(--lime-deep);letter-spacing:1px;margin-top:6px;padding-bottom:3px;border-bottom:1px solid var(--border)">▼ 自由追加</div>`;
+    customItems.forEach(item=>{
+      html += `<label style="display:flex;align-items:center;gap:6px;padding:6px 8px;background:rgba(184,233,134,.1);border:1px solid var(--lime);border-radius:6px;cursor:pointer;font-size:12px">
+        <input type="checkbox" checked value="${esc(item)}" onchange="_toggleWorkItem('${esc(c.id)}', this.value, this.checked)" style="width:14px;height:14px;flex-shrink:0">
+        <span style="color:var(--lime-light);font-weight:600">${esc(item)}</span>
+      </label>`;
+    });
+  }
+  wrap.innerHTML = html;
+}
+
+function _toggleWorkItem(caseId, item, checked){
+  const c = cases.find(c=>c.id===caseId);
+  if(!c) return;
+  const current = (c.workDetail||'').split(/[・\n]/).map(s=>s.trim()).filter(Boolean);
+  const idx = current.indexOf(item);
+  if(checked && idx<0) current.push(item);
+  else if(!checked && idx>=0) current.splice(idx,1);
+  c.workDetail = current.join('・');
+  c.updatedAt = new Date().toISOString();
+  saveCases();
+  clearTimeout(window._inlineEditTimer);
+  window._inlineEditTimer = setTimeout(()=>syncPush(true), 800);
+  // テキストエリアも同期
+  const ta = document.getElementById('e-workDetail');
+  if(ta) ta.value = c.workDetail;
+  const ind = document.getElementById('save-indicator');
+  if(ind){ ind.textContent='💾 保存済'; ind.style.opacity='1'; setTimeout(()=>{ ind.style.opacity='0'; }, 1200); }
+}
+
+function _addCustomWorkItem(){
+  const c = cases.find(c=>c.id===currentCaseId);
+  if(!c) return;
+  const item = prompt('追加する作業項目を入力\n（例: ホイールガラスコーティング）');
+  if(!item || !item.trim()) return;
+  _toggleWorkItem(c.id, item.trim(), true);
+  _renderWorkCheckboxes(c);
+}
+
+// 車種・メーカー入力時にサイズを自動推測
+function _attachSizeAutoDetect(c){
+  // 既存サイズあればスキップ
+  const onChange = ()=>{
+    const makerEl = document.querySelector('input[onblur*="carMaker"]');
+    const modelEl = document.querySelector('input[onblur*="carModel"]');
+    const sizeSel = document.querySelector('select[onchange*="size"]');
+    const suggEl  = document.getElementById('size-suggest');
+    if(!modelEl || !sizeSel || !suggEl) return;
+    const maker = makerEl?.value || c.carMaker || '';
+    const model = modelEl.value || c.carModel || '';
+    if(!model){ suggEl.style.display='none'; return; }
+    const detected = detectSizeByModel(maker, model);
+    if(!detected){ suggEl.style.display='none'; return; }
+    if(sizeSel.value === detected){ suggEl.style.display='none'; return; }
+    // 提案表示
+    suggEl.style.display='block';
+    suggEl.innerHTML = `💡 「${esc(maker)} ${esc(model)}」のサイズは <b>${detected}</b> 想定です <button class="btn btn-secondary" style="margin-left:8px;padding:3px 8px;font-size:10px" onclick="document.querySelector('select[onchange*=size]').value='${detected}';inlineEdit('${esc(c.id)}','size','${detected}');document.getElementById('size-suggest').style.display='none';">適用</button>`;
+  };
+  // 一度走らせる + イベント設定（再描画される度に呼ばれる）
+  setTimeout(onChange, 200);
 }
 
 // 塗膜計測のサブフィールド インライン保存
@@ -1108,6 +1225,42 @@ function savePaintGauge(){
 const SIZE_OPTIONS = ['SS','S','M','L','LL','3L'];
 const STATUS_OPTIONS = ['予約','入庫済','作業中','作業完了','納車済','入金済','キャンセル'];
 const STAFF_DEFAULTS = ['川武','金城','大嶺'];
+
+// 作業項目マスター（カテゴリ別）
+const WORK_MASTER = [
+  // 外装
+  {cat:'外装', items:['鉄粉除去','水垢取り','ボディ磨き','ガラスコーティング','セラミックコーティング','樹脂パーツコーティング','ヘッドライト磨き','アルミくすみ取り','タイヤ洗浄','ホイール洗浄','虫汚れ除去','花粉・黄砂除去']},
+  // 内装
+  {cat:'内装', items:['車内クリーニング','シートクリーニング','天井クリーニング','ダッシュボード磨き','エアコン洗浄','フロアマット洗浄','ペット臭除去','タバコ臭除去']},
+  // その他
+  {cat:'その他', items:['ガラス撥水','下回り防錆','室内コーティング','ヘッドライトコーティング']}
+];
+
+// 車種→サイズ 自動判定データベース（主要モデル）
+const CAR_SIZE_DB = [
+  // SS: 軽自動車（小）
+  {match:/N-BOX|タント|スペーシア|ハスラー|ワゴンR|ムーヴ|N-WGN|ekワゴン|デイズ|フレア|S660|アルト|ミラ/i, size:'SS'},
+  // S: 軽 SUV / コンパクト
+  {match:/ジムニー|ハスラー|キャンバス|タフト|ekクロス|デリカミニ|ルークス|キャスト/i, size:'S'},
+  // S: コンパクトカー
+  {match:/アクア|フィット|ヤリス|ノート|マーチ|デミオ|スイフト|ヴィッツ|パッソ|ミラージュ|ブーン|ロッキー|ライズ/i, size:'S'},
+  // M: 普通乗用車・小型SUV
+  {match:/プリウス|カローラ|アクセラ|インプレッサ|レヴォーグ|シビック|シルフィ|シエンタ|フリード|ソリオ|ヤリスクロス|CX-3|CX-30|ヴェゼル|キックス|XV/i, size:'M'},
+  // L: 中型SUV / セダン / ミニバン
+  {match:/RAV4|ハリアー|エクストレイル|フォレスター|CX-5|CX-8|アウトランダー|エクリプスクロス|カムリ|レガシィ|マツダ6|デリカD:5|セレナ|ヴォクシー|ノア|ステップワゴン/i, size:'L'},
+  // LL: 大型SUV / ミニバン / ステーションワゴン
+  {match:/ランドクルーザー|ランクル|アルファード|ヴェルファイア|エルグランド|プラド|MX-30|エクスプローラー|ディスカバリー|レンジローバー|G-Class|X5|X7|Q7|Q8|GLE|GLS/i, size:'LL'},
+  // 3L: 商用車・大型バン
+  {match:/ハイエース|キャラバン|デリカD:5(?:L)|プロボックス|サクシード|アトラス|エルフ/i, size:'3L'}
+];
+function detectSizeByModel(maker, model){
+  const s = ((maker||'') + ' ' + (model||'')).trim();
+  if(!s) return null;
+  for(const rule of CAR_SIZE_DB){
+    if(rule.match.test(s)) return rule.size;
+  }
+  return null;
+}
 
 function _nextCaseId(){
   // -NNNN 形式で連番
@@ -1587,7 +1740,7 @@ function _buildPostPlan(c){
 
   // スライド構成
   const slides = [];
-  slides.push({type:'cover', data:{title:'BEFORE & AFTER', sub:c.customer||'お客様'}});
+  slides.push({type:'cover', data:{title:'BEFORE & AFTER', sub:c.carModel?`${c.carModel}${c.carYear?' '+c.carYear:''}`:'お客様'}});
   // Before
   (c.photos?.before||[]).slice(0,3).forEach((p,i)=>{
     slides.push({type:'photo', data:{photoIdx:i, kind:'before', label:'BEFORE'}});
@@ -1649,8 +1802,8 @@ function _buildReelPlan(c){
 
   // ━━━ 2. シーン構成 ━━━
   const scenes = [];
-  // タイトル
-  scenes.push({type:'title', duration:1.2, data:{label:'BEFORE & AFTER', sub:c.customer||''}});
+  // タイトル（個人名は出さない）
+  scenes.push({type:'title', duration:1.2, data:{label:'BEFORE & AFTER', sub:c.carModel?`${c.carModel}${c.carYear?' '+c.carYear:''}`:''}});
   // Before（短尺なら少なめ、長尺なら全部）
   const beforeSlide = totalPhotos<=3 ? 2.0 : 1.4;
   (c.photos?.before||[]).forEach((p,i)=>{
@@ -1671,9 +1824,9 @@ function _buildReelPlan(c){
   (c.photos?.after||[]).forEach((p,i)=>{
     scenes.push({type:'after', duration:afterSlide, data:{photoIdx:i, label:'AFTER', sub:`${i+1}/${afterCount}`}});
   });
-  // 顧客の声シーン（一般客 + SNS許可 + 高単価時のみ）
+  // 顧客の声シーン（一般客 + SNS許可 + 高単価時のみ。個人名は出さない）
   if(isConsumer && c.snsPermitted && isHighEnd){
-    scenes.push({type:'testimonial', duration:2.0, data:{customer:c.customer||''}});
+    scenes.push({type:'testimonial', duration:2.0, data:{customer:''}}); // 名前空でも「お客様」と表示
   }
   // エンディング
   scenes.push({type:'end', duration:2.0, data:{label:'THANK YOU', sub:'LIME DETAILING STUDIO'}});
@@ -1701,6 +1854,43 @@ async function _loadImageFromDropbox(path){
       img.src=URL.createObjectURL(blob);
     });
   }catch(e){ return null; }
+}
+
+// ロゴ画像を保持（一度ロードしたらキャッシュ）
+let _cachedLogoImg = null;
+let _cachedLogoSrc = '';
+function _getLogoImage(){
+  const src = localStorage.getItem(LS_KEY_LOGO);
+  if(!src) return null;
+  if(_cachedLogoImg && _cachedLogoSrc === src) return _cachedLogoImg;
+  // 同期で Image を返す（描画時に loaded を待つ）
+  const img = new Image();
+  img.src = src;
+  _cachedLogoImg = img;
+  _cachedLogoSrc = src;
+  return img;
+}
+// ロゴ描画（あれば画像、無ければ "LIME" テキスト）
+function _drawLogoHeader(ctx, W, cx, baseY){
+  const logo = _getLogoImage();
+  if(logo && logo.complete && logo.naturalWidth>0){
+    const maxH = 90;
+    const ratio = logo.naturalWidth/logo.naturalHeight;
+    const h = maxH;
+    const w = h*ratio;
+    ctx.drawImage(logo, cx-w/2, baseY-h+10, w, h);
+  } else {
+    ctx.fillStyle='#E8C96A';
+    ctx.font='300 76px Georgia, serif';
+    ctx.textAlign='center';
+    ctx.fillText('LIME', cx, baseY+5);
+    ctx.fillStyle='#C9A84C';
+    ctx.font='600 22px sans-serif';
+    ctx.fillText('DETAILING  STUDIO', cx, baseY+48);
+    ctx.strokeStyle='#C9A84C';
+    ctx.lineWidth=2.5;
+    ctx.beginPath(); ctx.moveTo(cx-180, baseY+78); ctx.lineTo(cx+180, baseY+78); ctx.stroke();
+  }
 }
 
 function _drawReelFrame(ctx, img, t, brand){
@@ -1733,18 +1923,8 @@ function _drawReelFrame(ctx, img, t, brand){
   const bottomG = ctx.createLinearGradient(0,H-360,0,H);
   bottomG.addColorStop(0,'rgba(15,15,26,0)'); bottomG.addColorStop(1,'rgba(15,15,26,0.96)');
   ctx.fillStyle=bottomG; ctx.fillRect(0,H-360,W,360);
-  // 上部ブランドテキスト
-  ctx.fillStyle='#E8C96A';
-  ctx.font='300 76px Georgia, serif';
-  ctx.textAlign='center';
-  ctx.fillText('LIME', W/2, 115);
-  ctx.fillStyle='#C9A84C';
-  ctx.font='600 22px sans-serif';
-  ctx.fillText('DETAILING  STUDIO', W/2, 158);
-  // ゴールドライン
-  ctx.strokeStyle='#C9A84C';
-  ctx.lineWidth=2.5;
-  ctx.beginPath(); ctx.moveTo(W/2-180, 188); ctx.lineTo(W/2+180, 188); ctx.stroke();
+  // 上部ブランド（ロゴあればそれ、無ければテキスト）
+  _drawLogoHeader(ctx, W, W/2, 115);
 
   // 下部ラベル（大きく目立つ）
   // タグ風背景
@@ -1860,7 +2040,7 @@ function _drawTestimonialFrame(ctx, t, customer){
   ctx.fillText('ございました', W/2, 820);
   ctx.font='600 48px sans-serif';
   ctx.fillStyle='#E8C96A';
-  ctx.fillText(`${customer} 様`, W/2, 980);
+  ctx.fillText('お客様', W/2, 980); // 個人名は載せない
   ctx.font='600 90px sans-serif';
   ctx.fillStyle='#F4E9C6';
   ctx.fillText('"', W/2, 1100);
@@ -2355,25 +2535,54 @@ async function generatePost(){
   }
 }
 
-// キャプション原稿を生成（テンプレート）
+// キャプション原稿を生成（バズる構成：フック→具体→共感→CTA）
+// 個人名は載せない
 function _generateCaption(c){
   const items = (c.workDetail||'').split(/[・\n]/).map(s=>s.trim()).filter(Boolean).slice(0,5);
-  const paintLine = (c.paintGauge&&c.paintGauge.measured&&c.paintGauge.measurements.length>0)
-    ? `📊 塗膜計測 ${c.paintGauge.measurements.length}箇所実施\n` : '';
+  const ms = (c.paintGauge?.measurements||[]).filter(m=>m.valueBefore||m.valueAfter);
+  // 塗膜計測ハイライト
+  let paintHook = '';
+  if(ms.length>0){
+    const firstWithBoth = ms.find(m=>m.valueBefore && m.valueAfter);
+    if(firstWithBoth){
+      paintHook = `📊 塗膜 ${firstWithBoth.position} ${firstWithBoth.valueBefore}μm → ${firstWithBoth.valueAfter}μm`;
+    } else {
+      paintHook = `📊 塗膜計測 ${ms.length}箇所実施済み`;
+    }
+  }
+  // フック行（最初の1行が重要）
+  const hooks = [
+    'スワイプして変化を見てください👉',
+    '同じ車とは思えない仕上がり✨',
+    'この差、3秒で分かります👀',
+    '本気のディテーリング、見せます🔥',
+    '塗装を蘇らせました...👇'
+  ];
+  const hook = hooks[Math.floor(Math.random()*hooks.length)];
+  // CTA行
+  const ctas = [
+    'ご質問・ご予約はプロフィールのDMから📩',
+    '愛車を蘇らせたい方、DMでご相談ください✉️',
+    '見積無料です、お気軽にDMどうぞ💬'
+  ];
+  const cta = ctas[Math.floor(Math.random()*ctas.length)];
+
   return [
-    `✨ 施工事例 ✨`,
+    hook,
     ``,
-    `🚗 ${c.carModel||''} ${c.carYear||''}`.trim(),
-    `📏 サイズ: ${c.size||'―'}`,
+    `🚗 ${c.carModel||''} ${c.carYear||''}`.trim() + (c.size?` (${c.size}サイズ)`:''),
     ``,
     `［施工内容］`,
-    ...items.map(i=>`・${i}`),
+    ...items.map(i=>`✓ ${i}`),
     ``,
-    paintLine,
-    `ご依頼ありがとうございました🙏`,
+    paintHook,
     ``,
-    `📍 LIME DETAILING STUDIO`,
-    `📞 ご予約・お問い合わせはプロフィールから`,
+    `「ディテーリング」って聞いたことありますか？`,
+    `洗車では落ちない汚れも、磨きとコーティングで`,
+    `新車以上の輝きに戻せます✨`,
+    ``,
+    cta,
+    `📍 沖縄 LIME DETAILING STUDIO`,
     ``,
     DEFAULT_HASHTAGS.join(' ')
   ].filter(s=>s!=='').join('\n').replace(/\n\n\n+/g,'\n\n');
@@ -3180,6 +3389,53 @@ function toggleDemoMode(){
   renderCaseList();
   toast(isDemoMode?'デモモードON':'デモモードOFF');
 }
+// システムセクション折りたたみ内のデモトグル
+function toggleDemoMode2(){
+  isDemoMode=document.getElementById('demo-toggle-2').checked;
+  localStorage.setItem(LS_KEY_DEMO, isDemoMode);
+  loadCases();
+  renderHome();
+  renderCaseList();
+  toast(isDemoMode?'デモモードON':'デモモードOFF');
+}
+
+// ロゴ画像アップロード（base64でlocalStorage保存）
+function _onLogoSelected(input){
+  const file = input.files && input.files[0];
+  if(!file) return;
+  if(!file.type.startsWith('image/')){ toast('画像ファイルを選んでください','error'); return; }
+  if(file.size > 5*1024*1024){ toast('5MB以下のファイルにしてください','error'); return; }
+  // 圧縮（最大長辺1024）
+  _compressImage(file, 1024, 0.92).then(blob=>{
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      localStorage.setItem(LS_KEY_LOGO, reader.result);
+      _cachedLogoImg = null; // キャッシュリセット
+      _cachedLogoSrc = '';
+      _refreshLogoPreview();
+      toast('✅ ロゴを保存しました');
+    };
+    reader.readAsDataURL(blob);
+  }).catch(e=>toast('画像処理失敗: '+e.message,'error'));
+}
+function _clearLogo(){
+  if(!confirm('ロゴを削除しますか？\n（再びデフォルトの "LIME" テキストロゴに戻ります）')) return;
+  localStorage.removeItem(LS_KEY_LOGO);
+  _cachedLogoImg = null;
+  _cachedLogoSrc = '';
+  _refreshLogoPreview();
+  toast('ロゴを削除しました');
+}
+function _refreshLogoPreview(){
+  const wrap = document.getElementById('logo-preview');
+  if(!wrap) return;
+  const src = localStorage.getItem(LS_KEY_LOGO);
+  if(src){
+    wrap.innerHTML = `<img src="${src}" style="max-height:90px;max-width:100%;object-fit:contain" alt="logo">`;
+  }else{
+    wrap.innerHTML = `<div style="text-align:center"><div style="font-family:Georgia,serif;font-size:36px;color:#E8C96A;letter-spacing:6px;font-weight:300">LIME</div><div style="font-size:10px;color:#C9A84C;letter-spacing:3px">DETAILING STUDIO</div><div style="font-size:9px;color:var(--text-dim);margin-top:4px">（デフォルト・テキストロゴ）</div></div>`;
+  }
+}
 
 // ─────────────────────────────────────────────
 // 🔔 トースト
@@ -3205,6 +3461,11 @@ function _registerSW(){
 function initSettingsUI(){
   const buildEl=document.getElementById('app-build');
   if(buildEl) buildEl.textContent = APP_BUILD;
+  // ロゴプレビュー
+  _refreshLogoPreview();
+  // デモトグル（折りたたみ内のもの）
+  const demo2 = document.getElementById('demo-toggle-2');
+  if(demo2) demo2.checked = isDemoMode;
   const connected = dbxIsConnected();
   const notC = document.getElementById('dbx-not-connected');
   const yesC = document.getElementById('dbx-connected');
