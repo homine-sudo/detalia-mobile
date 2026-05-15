@@ -3203,11 +3203,8 @@ async function generateDeliveryReport(){
                 : gridRows===2 ? 360
                 :                 300;
 
-    // 高さは余白が出ないよう最後に実コンテンツでクロップする。
-    // ここでは十分大きいキャンバスを確保しておく。
-    const H = 3200;
-
-    // 印刷・拡大に強いよう 2倍解像度で描画（座標系は論理1080のまま）
+    // === 報告書デザイン（プロフェッショナルA4・グリーンブランド版）===
+    const H = Math.round(W * 297 / 210);
     const RS = 2;
     const canvas = document.createElement('canvas');
     canvas.width = W * RS;
@@ -3215,342 +3212,230 @@ async function generateDeliveryReport(){
     const ctx = canvas.getContext('2d');
     ctx.scale(RS, RS);
 
-    // ─── 背景：純白 ───
-    ctx.fillStyle = COLOR_BG;
-    ctx.fillRect(0,0,W,H);
+    const BG='#FFFFFF', GREEN='#93C01F', GREEND='#6E9213', TINT='#F2F7E2',
+          INK='#23262B', SUB='#9AA0A8', LN='#E7E9EC', DARK='#1C1F24';
+    const PADX = 46;
+    ctx.fillStyle=BG; ctx.fillRect(0,0,W,H);
+    ctx.textBaseline='alphabetic';
 
-    let y = 50;
+    const _idDigits=((c.id||'').match(/\d+/)||['1'])[0];
+    const _seq=_idDigits.slice(-3).padStart(3,'0');
+    const _dlv=c.delivery?new Date(c.delivery):new Date();
+    const _dd=isNaN(_dlv.getTime())?new Date():_dlv;
+    const dlvStr=`${_dd.getFullYear()}/${String(_dd.getMonth()+1).padStart(2,'0')}/${String(_dd.getDate()).padStart(2,'0')}`;
+    const reportNo=`LIME-${String(_dd.getFullYear()).slice(2)}${String(_dd.getMonth()+1).padStart(2,'0')}${String(_dd.getDate()).padStart(2,'0')}-${_seq}`;
+    const wj=workItems.join(' ');
+    const courseName=/セラミック/.test(wj)?'プレミアムコース':(/ガラスコーティング/.test(wj)?'スタンダードコース':(workItems.length?'ベーシックコース':'—'));
+    const planBadge=(c.size||'S');
 
-    // ─── 1. ロゴ（上部・ヒーローサイズ・白背景パネル）───
-    const _logoW = logoImg2 ? (logoImg2.naturalWidth || logoImg2.width) : 0;
-    const _logoH = logoImg2 ? (logoImg2.naturalHeight || logoImg2.height) : 0;
-    if(logoImg2 && _logoW>0){
-      const ratio = _logoW/_logoH;
-      // 横幅いっぱい基準で大きく表示（高さは上限でクランプ）
-      let lw = W - 2*M;
-      let lh = lw / ratio;
-      const maxH = 560;
-      if(lh > maxH){ lh = maxH; lw = lh * ratio; }
-      const lx = W/2 - lw/2;
-      // 白背景パネル（ロゴ画像が透過/白縁取りでも常に白地に乗る）
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(lx-12, y-12, lw+24, lh+24);
-      ctx.drawImage(logoImg2, lx, y, lw, lh);
-      y += lh + 16;
+    const _lw0=logoImg2?(logoImg2.naturalWidth||logoImg2.width):0;
+    const _lh0=logoImg2?(logoImg2.naturalHeight||logoImg2.height):0;
+    if(logoImg2 && _lw0>0){
+      const hh=86, ww=Math.min(260, hh*(_lw0/_lh0));
+      ctx.drawImage(logoImg2, PADX, 34, ww, hh);
     } else {
-      ctx.fillStyle = COLOR_PRIMARY;
-      ctx.font = '300 200px Georgia, serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('LIME', W/2, y + 168);
-      y += 200;
-      ctx.fillStyle = COLOR_ACCENT;
-      ctx.font = '600 52px sans-serif';
-      ctx.fillText('DETAILING  STUDIO', W/2, y + 50);
-      y += 90;
+      ctx.fillStyle=GREEN; ctx.font='800 52px Georgia, serif'; ctx.textAlign='left';
+      ctx.fillText('LIME', PADX, 86);
     }
+    ctx.textAlign='left';
+    ctx.fillStyle=INK; ctx.font='800 33px sans-serif';
+    ctx.fillText('施工診断・納車報告書', 330, 74);
+    ctx.fillStyle=SUB; ctx.font='600 14px Georgia, serif';
+    ctx.fillText('D E T A I L I N G   R E P O R T', 332, 102);
+    ctx.fillStyle=GREEN;
+    ctx.beginPath();
+    ctx.moveTo(W-332,24); ctx.lineTo(W-302,24); ctx.lineTo(W-354,150); ctx.lineTo(W-384,150);
+    ctx.closePath(); ctx.fill();
+    ctx.textAlign='right';
+    ctx.fillStyle=SUB; ctx.font='600 13px sans-serif';
+    ctx.fillText('納車日', W-PADX, 52);
+    ctx.fillStyle=INK; ctx.font='800 24px sans-serif';
+    ctx.fillText(dlvStr, W-PADX, 84);
+    ctx.fillStyle=SUB; ctx.font='600 13px sans-serif';
+    ctx.fillText('報告書 No.', W-PADX, 118);
+    ctx.fillStyle=INK; ctx.font='700 18px sans-serif';
+    ctx.fillText(reportNo, W-PADX, 144);
+    ctx.strokeStyle=LN; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(PADX,168); ctx.lineTo(W-PADX,168); ctx.stroke();
 
-    // ─── タイトル ───
-    ctx.strokeStyle = COLOR_GOLD;
-    ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(W/2-220, y); ctx.lineTo(W/2+220, y); ctx.stroke();
-    y += 44;
-    ctx.fillStyle = COLOR_PRIMARY;
-    ctx.font = '400 40px Georgia, serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('施工診断・納車報告書', W/2, y);
-    y += 36;
+    const infoTop=168, infoBot=300, c1x=PADX, c2x=470, c3x=775;
+    ctx.strokeStyle=LN;
+    ctx.beginPath(); ctx.moveTo(450,infoTop+22); ctx.lineTo(450,infoBot-14); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(755,infoTop+22); ctx.lineTo(755,infoBot-14); ctx.stroke();
+    ctx.textAlign='left'; ctx.fillStyle=GREEND; ctx.font='700 14px sans-serif';
+    ctx.fillText('お客様名', c1x, infoTop+44);
+    ctx.fillText('お車', c2x, infoTop+44);
+    ctx.fillText('施工プラン', c3x, infoTop+44);
+    ctx.fillStyle=INK; ctx.font='800 38px sans-serif';
+    const _cust=(c.customer||'お客様');
+    ctx.fillText(_cust, c1x, infoTop+102);
+    const _cwn=ctx.measureText(_cust).width;
+    ctx.fillStyle=SUB; ctx.font='600 22px sans-serif';
+    ctx.fillText(' 様', c1x+_cwn+8, infoTop+102);
+    ctx.fillStyle=INK; ctx.font='800 31px sans-serif';
+    const carT=(`${c.carMaker||''} ${c.carModel||''}`).trim()||'—';
+    ctx.fillText(carT, c2x, infoTop+96);
+    ctx.fillStyle=SUB; ctx.font='500 16px sans-serif';
+    ctx.fillText(`年式 ${c.carYear||'–'}　/　車台番号 ${c.chassis||'–'}`, c2x, infoTop+126);
+    ctx.fillStyle=GREEN; _roundRect(ctx,c3x,infoTop+58,52,52,10); ctx.fill();
+    ctx.fillStyle='#fff'; ctx.font='800 28px sans-serif'; ctx.textAlign='center';
+    ctx.fillText(planBadge, c3x+26, infoTop+93);
+    ctx.textAlign='left'; ctx.fillStyle=INK; ctx.font='800 21px sans-serif';
+    ctx.fillText(courseName, c3x+66, infoTop+92);
+    ctx.strokeStyle=LN; ctx.beginPath(); ctx.moveTo(PADX,infoBot); ctx.lineTo(W-PADX,infoBot); ctx.stroke();
 
-    // ─── 2. 顧客＋納車日（大きく）───
-    ctx.strokeStyle = COLOR_BORDER;
-    ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(M, y); ctx.lineTo(W-M, y); ctx.stroke();
-    y += 36;
-    ctx.fillStyle = COLOR_ACCENT;
-    ctx.font = '600 22px sans-serif';
-    ctx.textAlign = 'right';
-    ctx.fillText('納車日', W-M, y);
-    y += 56;
-    ctx.fillStyle = COLOR_PRIMARY;
-    ctx.font = '800 64px sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText((c.customer||'お客様') + ' 様', M, y);
-    ctx.font = '700 44px Georgia, serif';
-    ctx.textAlign = 'right';
-    ctx.fillStyle = COLOR_ACCENT;
-    ctx.fillText(deliveryDate, W-M, y);
-    y += 50;
-
-    // ─── 3. 車両情報（1行・大きく）───
-    ctx.strokeStyle = COLOR_BORDER;
-    ctx.beginPath(); ctx.moveTo(M, y); ctx.lineTo(W-M, y); ctx.stroke();
-    y += 36;
-    ctx.fillStyle = COLOR_ACCENT;
-    ctx.font = '600 20px sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText('お車', M, y);
-    y += 44;
-    ctx.fillStyle = COLOR_PRIMARY;
-    ctx.font = '800 42px sans-serif';
-    const carTitle = `${c.carMaker||''} ${c.carModel||''}`.trim() || '―';
-    ctx.fillText(carTitle, M, y);
-    // サイズバッジ（右）
-    if(c.size){
-      ctx.fillStyle = COLOR_GOLD;
-      ctx.fillRect(W-M-110, y-42, 110, 54);
-      ctx.fillStyle = '#fff';
-      ctx.font = '800 34px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(c.size, W-M-55, y);
-    }
-    y += 36;
-    ctx.fillStyle = COLOR_SECONDARY;
-    ctx.font = '500 24px sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText(`年式 ${c.carYear||'―'}　／　車台 ${c.chassis||'―'}`, M, y);
-    y += 44;
-
-    // ─── 4. 写真 2×2 グリッド（Before上段 / After下段）───
-    ctx.fillStyle = COLOR_ACCENT;
-    ctx.font = '600 22px sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText('施工記録', M, y);
-    ctx.fillStyle = COLOR_SECONDARY;
-    ctx.font = '500 18px Georgia, serif';
-    ctx.textAlign = 'right';
-    ctx.fillText('BEFORE  →  AFTER', W-M, y);
-    y += 28;
-
-    const gridTop = y;
-
-    const drawCell = (img, cx, cy, isBefore)=>{
-      const labelColor = isBefore ? COLOR_BEFORE : COLOR_AFTER;
-      ctx.fillStyle = COLOR_PHOTO_BG;
-      ctx.fillRect(cx, cy, cellW, cellH);
-      if(img && img.naturalWidth>0){
-        const ratio = img.naturalWidth/img.naturalHeight;
-        const tgt = cellW/cellH;
-        let dw, dh;
-        if(ratio > tgt){ dh = cellH; dw = dh*ratio; }
-        else            { dw = cellW; dh = dw/ratio; }
-        const dx = cx + (cellW-dw)/2;
-        const dy = cy + (cellH-dh)/2;
-        ctx.save();
-        ctx.beginPath(); ctx.rect(cx, cy, cellW, cellH); ctx.clip();
-        try{ ctx.filter = isBefore ? 'saturate(0.72) contrast(1.12) brightness(0.93)' : 'saturate(1.16) contrast(1.05) brightness(1.02)'; }catch(e){}
-        ctx.drawImage(img, dx, dy, dw, dh);
-        ctx.filter='none';
-        ctx.restore();
-      }else{
-        ctx.fillStyle = '#AAA';
-        ctx.font = '400 22px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('（写真なし）', cx+cellW/2, cy+cellH/2);
+    let yy=infoBot+34;
+    ctx.fillStyle=INK; ctx.font='800 19px sans-serif'; ctx.textAlign='left';
+    ctx.fillText('施工記録', PADX, yy);
+    ctx.fillStyle=SUB; ctx.font='600 14px sans-serif'; ctx.textAlign='center';
+    const brTxt='BEFORE → AFTER';
+    ctx.fillText(brTxt, W/2, yy);
+    const _bw=ctx.measureText(brTxt).width;
+    ctx.strokeStyle=LN;
+    ctx.beginPath(); ctx.moveTo(PADX+92, yy-5); ctx.lineTo(W/2-_bw/2-16, yy-5); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(W/2+_bw/2+16, yy-5); ctx.lineTo(W-PADX, yy-5); ctx.stroke();
+    const gTop=yy+22, gGap=14, gWall=W-2*PADX, cH=214;
+    const bArr=photoCells.filter(p=>p.isBefore).slice(0,2);
+    const aArr=photoCells.filter(p=>!p.isBefore).slice(0,2);
+    if(!bArr.length) bArr.push({img:null,isBefore:true});
+    if(!aArr.length) aArr.push({img:null,isBefore:false});
+    const drawPhoto=(im,x,yp,w,h,isB)=>{
+      ctx.fillStyle='#EFEFEF'; ctx.fillRect(x,yp,w,h);
+      if(im && (im.naturalWidth||im.width)>0){
+        const iw=im.naturalWidth||im.width, ih=im.naturalHeight||im.height;
+        const r=iw/ih, tg=w/h; let dw,dh;
+        if(r>tg){dh=h;dw=h*r;} else {dw=w;dh=w/r;}
+        ctx.save(); ctx.beginPath(); ctx.rect(x,yp,w,h); ctx.clip();
+        try{ctx.filter=isB?'saturate(.8) brightness(.95)':'saturate(1.12) brightness(1.02)';}catch(e){}
+        ctx.drawImage(im, x+(w-dw)/2, yp+(h-dh)/2, dw, dh);
+        ctx.filter='none'; ctx.restore();
+      } else {
+        ctx.fillStyle='#B5B5B5'; ctx.font='400 18px sans-serif'; ctx.textAlign='center';
+        ctx.fillText('（写真なし）', x+w/2, yp+h/2);
       }
-      ctx.strokeStyle = labelColor;
-      ctx.lineWidth = 2;
-      ctx.strokeRect(cx, cy, cellW, cellH);
-      // 左上ラベルバッジ（コンパクト）
-      const lblW = 132, lblH = 42;
-      ctx.fillStyle = labelColor;
-      ctx.fillRect(cx, cy, lblW, lblH);
-      ctx.fillStyle = '#fff';
-      ctx.font = '800 24px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(isBefore?'BEFORE':'AFTER', cx + lblW/2, cy + 30);
+      const bgw=120,bgh=38;
+      ctx.fillStyle=isB?DARK:GREEN;
+      _roundRect(ctx,x+14,yp+14,bgw,bgh,7); ctx.fill();
+      ctx.fillStyle='#fff'; ctx.font='800 18px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(isB?'BEFORE':'AFTER', x+14+bgw/2, yp+14+bgh/2+1);
+      ctx.textBaseline='alphabetic';
     };
+    const drawRow=(arr,yp)=>{
+      if(arr.length>=2){
+        const w=(gWall-gGap)/2;
+        drawPhoto(arr[0].img,PADX,yp,w,cH,arr[0].isBefore);
+        drawPhoto(arr[1].img,PADX+w+gGap,yp,w,cH,arr[1].isBefore);
+      } else {
+        drawPhoto(arr[0].img,PADX,yp,gWall,cH,arr[0].isBefore);
+      }
+    };
+    drawRow(bArr,gTop);
+    drawRow(aArr,gTop+cH+gGap);
+    const gBot=gTop+cH*2+gGap;
 
-    // 実在写真だけを最適レイアウトで配置（重複表示しない）
-    photoCells.forEach((pc, idx)=>{
-      const col = idx % photoCols;
-      const row = Math.floor(idx / photoCols);
-      // 端数行のセンタリング（最終行が1枚なら中央寄せ）
-      const inThisRow = Math.min(photoCols, nCells - row*photoCols);
-      const rowW = inThisRow*cellW + (inThisRow-1)*cellGap;
-      const rowX0 = (W - rowW) / 2;
-      const cx = rowX0 + col*(cellW+cellGap);
-      const cy = gridTop + row*(cellH+cellGap);
-      drawCell(pc.img, cx, cy, pc.isBefore);
+    const secTop=gBot+36;
+    const leftX=PADX, leftW=566, rX=leftX+leftW+40;
+    ctx.textAlign='left'; ctx.fillStyle=INK; ctx.font='800 19px sans-serif';
+    ctx.fillText('施工内容', leftX, secTop);
+    const _siw=ctx.measureText('施工内容').width;
+    ctx.fillStyle=GREEND; ctx.font='700 14px sans-serif';
+    ctx.fillText('/ SERVICE', leftX+_siw+12, secTop);
+    ctx.strokeStyle=LN; ctx.beginPath(); ctx.moveTo(leftX,secTop+16); ctx.lineTo(leftX+leftW,secTop+16); ctx.stroke();
+    const sItems=workItems.slice(0,8);
+    const scolW=leftW/2, sRowH=52;
+    sItems.forEach((it,i)=>{
+      const col=i%2, row=Math.floor(i/2);
+      const ix=leftX+col*scolW, iy=secTop+46+row*sRowH;
+      ctx.fillStyle=GREEN; ctx.beginPath(); ctx.arc(ix+13,iy-6,13,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#fff'; ctx.font='800 15px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText('✓', ix+13, iy-5);
+      ctx.textBaseline='alphabetic';
+      ctx.fillStyle=INK; ctx.font='600 18px sans-serif'; ctx.textAlign='left';
+      ctx.fillText(it, ix+36, iy);
+      ctx.strokeStyle=LN; ctx.beginPath(); ctx.moveTo(ix, iy+20); ctx.lineTo(ix+scolW-22, iy+20); ctx.stroke();
+    });
+    const mBoxX=rX, mBoxW=W-PADX-rX, mBoxY=secTop-18, mBoxH=300;
+    ctx.fillStyle=TINT; _roundRect(ctx,mBoxX,mBoxY,mBoxW,mBoxH,16); ctx.fill();
+    ctx.strokeStyle='#D8E6AE'; ctx.lineWidth=1.5; _roundRect(ctx,mBoxX,mBoxY,mBoxW,mBoxH,16); ctx.stroke();
+    ctx.fillStyle=GREEND; ctx.font='700 16px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('次回メンテナンスのご案内', mBoxX+mBoxW/2, mBoxY+38);
+    const calx=mBoxX+mBoxW/2-26, caly=mBoxY+56;
+    ctx.fillStyle=GREEN; _roundRect(ctx,calx,caly,52,50,8); ctx.fill();
+    ctx.fillStyle=TINT; ctx.fillRect(calx+6,caly+16,40,28);
+    ctx.fillStyle=GREEN; for(let r2=0;r2<2;r2++){for(let c2=0;c2<3;c2++){ctx.fillRect(calx+11+c2*12,caly+21+r2*10,7,7);}}
+    const md=c.nextMaintenance?new Date(c.nextMaintenance):null;
+    if(md && !isNaN(md.getTime())){
+      ctx.fillStyle=INK; ctx.font='800 30px sans-serif'; ctx.textAlign='center';
+      ctx.fillText(`${md.getFullYear()}年`, mBoxX+mBoxW/2, mBoxY+150);
+      ctx.fillText(`${md.getMonth()+1}月${md.getDate()}日`, mBoxX+mBoxW/2, mBoxY+188);
+      if(c.maintenanceType){
+        ctx.font='700 15px sans-serif';
+        const pw=Math.min(mBoxW-44, ctx.measureText(c.maintenanceType).width+44);
+        ctx.fillStyle=GREEN; _roundRect(ctx,mBoxX+mBoxW/2-pw/2,mBoxY+206,pw,34,17); ctx.fill();
+        ctx.fillStyle='#fff'; ctx.textAlign='center';
+        ctx.fillText(c.maintenanceType, mBoxX+mBoxW/2, mBoxY+229);
+      }
+      ctx.fillStyle=SUB; ctx.font='400 13px sans-serif';
+      ctx.fillText('美しい状態を維持するための', mBoxX+mBoxW/2, mBoxY+266);
+      ctx.fillText('メンテナンス日です。', mBoxX+mBoxW/2, mBoxY+285);
+    } else {
+      ctx.fillStyle=SUB; ctx.font='400 14px sans-serif'; ctx.textAlign='center';
+      ctx.fillText('次回メンテナンス時期は', mBoxX+mBoxW/2, mBoxY+168);
+      ctx.fillText('スタッフへご相談ください。', mBoxX+mBoxW/2, mBoxY+194);
+    }
+
+    const obTop=Math.max(secTop+46+4*52, mBoxY+mBoxH)+34;
+    const obH=210, obW=480;
+    ctx.strokeStyle=LN; ctx.lineWidth=1.5; _roundRect(ctx,PADX,obTop,obW,obH,12); ctx.stroke();
+    ctx.fillStyle=GREEND; ctx.font='800 18px sans-serif'; ctx.textAlign='left';
+    ctx.fillText('オーナー様へ', PADX+26, obTop+40);
+    const ownerMsg=(c.afterComment&&c.afterComment.trim())?c.afterComment.trim():'この度はLIME DETAILING STUDIOに大切なお車をお任せいただき、誠にありがとうございました。細部まで丁寧に仕上げ、ベストな状態でご納車いたしました。今後も美しさを長く保つためのサポートをさせていただきます。';
+    ctx.fillStyle=INK; ctx.font='400 15px sans-serif'; ctx.textAlign='left';
+    _drawWrappedText(ctx, ownerMsg, PADX+26, obTop+72, obW-52, 26);
+    ctx.fillStyle=GREEND; ctx.font='700 italic 24px Georgia, serif'; ctx.textAlign='right';
+    ctx.fillText('Thank you !', PADX+obW-26, obTop+obH-22);
+    const qX=PADX+obW+44;
+    ctx.textAlign='left'; ctx.fillStyle=GREEND; ctx.font='800 16px sans-serif';
+    ctx.fillText('LIME QUALITY', qX, obTop+16);
+    const qrows=[
+      ['sparkle','美しさの維持','定期的な洗車・メンテナンスでコーティング効果を長持ちさせます。'],
+      ['shield','保護性能の向上','撥水・防汚効果が日常のお手入れを楽にします。'],
+      ['car','価値の維持','常にベストな状態を保つことで愛車の価値を守ります。']
+    ];
+    qrows.forEach((q,i)=>{
+      const ry=obTop+54+i*58;
+      ctx.save(); ctx.translate(qX+6, ry-6); ctx.strokeStyle=GREEN; ctx.fillStyle=GREEN; ctx.lineWidth=2;
+      if(q[0]==='sparkle'){ ctx.beginPath(); ctx.moveTo(0,-13); ctx.lineTo(4,-4); ctx.lineTo(13,0); ctx.lineTo(4,4); ctx.lineTo(0,13); ctx.lineTo(-4,4); ctx.lineTo(-13,0); ctx.lineTo(-4,-4); ctx.closePath(); ctx.fill(); }
+      else if(q[0]==='shield'){ ctx.beginPath(); ctx.moveTo(0,-13); ctx.lineTo(12,-7); ctx.lineTo(12,3); ctx.quadraticCurveTo(12,12,0,15); ctx.quadraticCurveTo(-12,12,-12,3); ctx.lineTo(-12,-7); ctx.closePath(); ctx.stroke(); }
+      else { _roundRect(ctx,-13,-3,26,11,3); ctx.stroke(); ctx.beginPath(); ctx.moveTo(-9,-3); ctx.lineTo(-5,-11); ctx.lineTo(7,-11); ctx.lineTo(10,-3); ctx.stroke(); ctx.beginPath(); ctx.arc(-7,9,3,0,Math.PI*2); ctx.stroke(); ctx.beginPath(); ctx.arc(7,9,3,0,Math.PI*2); ctx.stroke(); }
+      ctx.restore();
+      ctx.fillStyle=INK; ctx.font='700 17px sans-serif'; ctx.textAlign='left';
+      ctx.fillText(q[1], qX+36, ry-2);
+      ctx.fillStyle=SUB; ctx.font='400 13px sans-serif';
+      _drawWrappedText(ctx, q[2], qX+36, ry+18, W-PADX-(qX+36), 18);
     });
 
-    y = gridTop + gridRows*cellH + (gridRows-1)*cellGap + cellGap;
-
-    // ─── 5. 施工内容（通常セクション・白背景・2列チェックリスト）───
-    if(workItems.length){
-      y += 18;
-      ctx.fillStyle = COLOR_ACCENT;
-      ctx.font = '600 20px sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillText('施工内容 / SERVICE', M, y);
-      y += 14;
-      ctx.strokeStyle = COLOR_GOLD;
-      ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.moveTo(M, y); ctx.lineTo(W-M, y); ctx.stroke();
-      y += 36;
-      const items = workItems.slice(0,10);
-      const colX = [M, M + (W-2*M)/2 + 10];
-      const rowH = 44;
-      items.forEach((it,i)=>{
-        const col = i % 2;
-        const row = Math.floor(i / 2);
-        const ix = colX[col];
-        const iy = y + row * rowH;
-        ctx.fillStyle = COLOR_GOLD;
-        ctx.font = '800 22px sans-serif';
-        ctx.textAlign = 'left';
-        ctx.fillText('✓', ix, iy);
-        ctx.fillStyle = COLOR_PRIMARY;
-        ctx.font = '500 24px sans-serif';
-        ctx.fillText(it, ix + 34, iy);
-      });
-      y += Math.ceil(items.length/2) * rowH + 12;
+    const fY=H-80;
+    ctx.strokeStyle=GREEN; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(PADX,fY); ctx.lineTo(W-PADX,fY); ctx.stroke();
+    if(logoImg2 && _lw0>0){
+      const fh=30, fw=Math.min(110, fh*(_lw0/_lh0));
+      ctx.drawImage(logoImg2, PADX, fY+18, fw, fh);
+    } else { ctx.fillStyle=GREEN; ctx.font='800 24px Georgia, serif'; ctx.textAlign='left'; ctx.fillText('LIME', PADX, fY+44); }
+    ctx.fillStyle=SUB; ctx.font='500 14px sans-serif'; ctx.textAlign='left';
+    ctx.fillText('📍 '+shopAddr, PADX+128, fY+32);
+    ctx.fillText('📞 TEL. '+shopTel+(c.workStaff?('　👤 担当 / '+c.workStaff):''), PADX+128, fY+56);
+    const qrImg=instaImg||lineImg;
+    let frx=W-PADX;
+    if(qrImg && (qrImg.naturalWidth||qrImg.width)>0){
+      const qs=58; ctx.drawImage(qrImg, W-PADX-qs, fY+14, qs, qs); frx=W-PADX-qs-14;
     }
+    ctx.fillStyle=SUB; ctx.font='600 12px sans-serif'; ctx.textAlign='right';
+    ctx.fillText('FOLLOW US', frx, fY+32);
+    ctx.fillStyle=GREEN; ctx.font='700 13px sans-serif';
+    ctx.fillText('LINE  /  Instagram', frx, fY+54);
 
-    // ─── 6. 塗膜計測（コンパクト表・最大5行）───
-    if(ms.length){
-      y += 18;
-      ctx.fillStyle = COLOR_ACCENT;
-      ctx.font = '600 20px sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillText('塗膜計測 / PAINT THICKNESS', M, y);
-      if(c.paintGauge?.deviceModel){
-        ctx.fillStyle = COLOR_SECONDARY;
-        ctx.font = '400 14px sans-serif';
-        ctx.textAlign = 'right';
-        ctx.fillText(`計測器: ${c.paintGauge.deviceModel}`, W-M, y);
-      }
-      y += 14;
-      ctx.strokeStyle = COLOR_GOLD;
-      ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.moveTo(M, y); ctx.lineTo(W-M, y); ctx.stroke();
-      y += 30;
-      ms.slice(0,5).forEach(m=>{
-        ctx.fillStyle = COLOR_PRIMARY;
-        ctx.font = '600 22px sans-serif';
-        ctx.textAlign = 'left';
-        ctx.fillText(m.position||'―', M, y);
-        ctx.fillStyle = COLOR_SECONDARY;
-        ctx.font = '400 22px sans-serif';
-        ctx.textAlign = 'right';
-        ctx.fillText((m.valueBefore||'―')+(m.valueBefore?'μm':''), W-M-220, y);
-        ctx.fillStyle = COLOR_ACCENT;
-        ctx.font = '600 22px sans-serif';
-        ctx.fillText('→', W-M-150, y);
-        ctx.fillStyle = COLOR_AFTER;
-        ctx.font = '800 24px sans-serif';
-        ctx.fillText((m.valueAfter||'―')+(m.valueAfter?'μm':''), W-M, y);
-        y += 16;
-        ctx.strokeStyle = '#EEE';
-        ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(M, y); ctx.lineTo(W-M, y); ctx.stroke();
-        y += 22;
-      });
-    }
-
-    // ─── 7. 次回メンテナンス（ゴールドBOX・コンパクト）───
-    if(c.nextMaintenance){
-      y += 10;
-      const boxH = 130;
-      ctx.fillStyle = COLOR_MAINT_BG;
-      _roundRect(ctx, M, y, W-2*M, boxH, 10); ctx.fill();
-      ctx.strokeStyle = COLOR_GOLD;
-      ctx.lineWidth = 1.5;
-      _roundRect(ctx, M, y, W-2*M, boxH, 10); ctx.stroke();
-      ctx.fillStyle = COLOR_GOLD;
-      ctx.fillRect(M, y, 6, boxH);
-      ctx.fillStyle = COLOR_ACCENT;
-      ctx.font = '600 18px sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillText('🔧 次回メンテナンスのご案内', M+30, y+38);
-      const md = new Date(c.nextMaintenance);
-      if(!isNaN(md.getTime())){
-        ctx.fillStyle = COLOR_PRIMARY;
-        ctx.font = '800 40px sans-serif';
-        ctx.fillText(`${md.getFullYear()}年${md.getMonth()+1}月${md.getDate()}日`, M+30, y+86);
-      }
-      if(c.maintenanceType){
-        ctx.fillStyle = COLOR_ACCENT;
-        ctx.font = '600 22px sans-serif';
-        ctx.textAlign = 'right';
-        ctx.fillText(c.maintenanceType, W-M-30, y+86);
-      }
-      ctx.fillStyle = COLOR_SECONDARY;
-      ctx.font = '400 14px sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillText('時期が近づきましたらこちらからご案内いたします。', M+30, y+114);
-      y += boxH + 30;
-    }
-
-    // ─── 8. フッタ（店舗情報＋QR）───
-    y += 20;
-    ctx.strokeStyle = COLOR_GOLD;
-    ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(M, y); ctx.lineTo(W-M, y); ctx.stroke();
-    y += 40;
-
-    // 左：店舗情報
-    ctx.fillStyle = COLOR_PRIMARY;
-    ctx.font = '600 26px Georgia, serif';
-    ctx.textAlign = 'left';
-    ctx.fillText('LIME DETAILING STUDIO', M, y);
-    let yL = y + 36;
-    ctx.fillStyle = COLOR_SECONDARY;
-    ctx.font = '400 18px sans-serif';
-    ctx.fillText('📍 ' + shopAddr, M, yL);
-    yL += 30;
-    ctx.fillText('📞 TEL: ' + shopTel, M, yL);
-    yL += 30;
-    if(c.workStaff){
-      ctx.fillStyle = COLOR_ACCENT;
-      ctx.font = '500 18px sans-serif';
-      ctx.fillText('👤 担当 / ' + c.workStaff, M, yL);
-      yL += 30;
-    }
-    ctx.fillStyle = '#999';
-    ctx.font = '400 14px Georgia, serif';
-    ctx.fillText('Hand-detailed in Okinawa, with care.', M, yL+6);
-    const footLeftBottom = yL + 20;
-
-    // 右：QR コード（Insta + LINE）
-    const qrSize = 150;
-    const qrAreaW = qrSize * 2 + 24;
-    const qrX = W - M - qrAreaW;
-    const qrY = y - 18;
-    if(instaImg && instaImg.naturalWidth>0){
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(qrX, qrY, qrSize, qrSize);
-      ctx.strokeStyle = COLOR_BORDER;
-      ctx.lineWidth = 1;
-      ctx.strokeRect(qrX, qrY, qrSize, qrSize);
-      ctx.drawImage(instaImg, qrX+8, qrY+8, qrSize-16, qrSize-16);
-      ctx.fillStyle = COLOR_PRIMARY;
-      ctx.font = '600 15px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('📱 Instagram', qrX + qrSize/2, qrY + qrSize + 24);
-    }
-    if(lineImg && lineImg.naturalWidth>0){
-      const lineX = qrX + qrSize + 24;
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(lineX, qrY, qrSize, qrSize);
-      ctx.strokeStyle = COLOR_BORDER;
-      ctx.lineWidth = 1;
-      ctx.strokeRect(lineX, qrY, qrSize, qrSize);
-      ctx.drawImage(lineImg, lineX+8, qrY+8, qrSize-16, qrSize-16);
-      ctx.fillStyle = COLOR_PRIMARY;
-      ctx.font = '600 15px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('💬 LINE', lineX + qrSize/2, qrY + qrSize + 24);
-    }
-
-    // === 実コンテンツでクロップ（下部の余白を解消・印刷バランス最適化）===
-    const contentBottom = Math.ceil(Math.max(footLeftBottom, qrY + qrSize + 40)) + 50;
-    const cropH = Math.min(contentBottom, H);
-    const cropCanvas = document.createElement('canvas');
-    cropCanvas.width = W * RS;
-    cropCanvas.height = cropH * RS;
-    const cropCtx = cropCanvas.getContext('2d');
-    cropCtx.fillStyle = COLOR_BG;
-    cropCtx.fillRect(0, 0, cropCanvas.width, cropCanvas.height);
-    cropCtx.drawImage(canvas, 0, 0, W*RS, cropH*RS, 0, 0, W*RS, cropH*RS);
+    const cropCanvas = canvas;
 
     // === 書き出し ===
     const blob = await new Promise(res=>cropCanvas.toBlob(res, 'image/jpeg', 0.92));
