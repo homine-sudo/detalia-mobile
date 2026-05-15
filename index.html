@@ -536,6 +536,8 @@ function init(){
 // 既存案件にα-1モバイル特化フィールドを補完（マイグレーション）
 function _migrateMobileCase(c){
   if(typeof c.carMaker!=='string') c.carMaker='';
+  if(typeof c.beforeComment!=='string') c.beforeComment='';
+  if(typeof c.afterComment!=='string')  c.afterComment='';
   if(!c.photos || typeof c.photos!=='object') c.photos={before:[],after:[],paint:[],other:[]};
   ['before','after','paint','other'].forEach(k=>{ if(!Array.isArray(c.photos[k])) c.photos[k]=[]; });
   if(!c.paintGauge||typeof c.paintGauge!=='object') c.paintGauge={measured:false,deviceModel:'',measurements:[],notes:''};
@@ -904,24 +906,35 @@ function renderCaseDetail(c){
     </div>
   `;
 
-  // 塗膜計測ブロック（共通）
-  const paintBlock = `
+  // 塗膜計測：Before専用ブロック（After列はグレーアウト・参照のみ）
+  const paintBlockBefore = `
     <div style="margin-bottom:10px">
       <label style="font-size:10px;color:var(--gold-deep);letter-spacing:1px;display:block;margin-bottom:3px">計測器</label>
       <input type="text" value="${esc(c.paintGauge?.deviceModel||'')}" placeholder="Defelsko PosiTector 6000" onblur="_savePaintDevice('${cid}',this.value)" style="font-size:13px;padding:8px 10px">
     </div>
-    <div style="display:grid;grid-template-columns:1.3fr 1fr 1fr 28px;gap:6px;align-items:center;font-size:10px;color:var(--gold-deep);letter-spacing:1px;padding:0 4px 4px;border-bottom:1px solid var(--border);margin-bottom:6px">
-      <span>位置</span><span style="text-align:center">Before</span><span style="text-align:center;color:var(--lime-deep)">After</span><span></span>
+    <div style="display:grid;grid-template-columns:1.3fr 1fr 28px;gap:6px;align-items:center;font-size:10px;color:var(--gold-deep);letter-spacing:1px;padding:0 4px 4px;border-bottom:1px solid var(--border);margin-bottom:6px">
+      <span>位置</span><span style="text-align:center">Before</span><span></span>
     </div>
-    <div class="paint-grid" id="d-paint-rows">
-      ${expanded.map((m,i)=>paintRowHtmlMobile(m,i)).join('')}
+    <div class="paint-grid" id="d-paint-rows-before">
+      ${expanded.map((m,i)=>paintRowHtmlBefore(m,i)).join('')}
     </div>
     <button class="btn btn-secondary" style="margin-top:10px;width:100%;font-size:12px;padding:8px" onclick="addPaintRowMobile()">＋ 計測位置を追加</button>
     <div style="margin-top:10px">
-      <label style="font-size:10px;color:var(--gold-deep);letter-spacing:1px;display:block;margin-bottom:3px">所見</label>
-      <textarea rows="2" placeholder="例: ボンネットに補修痕" onblur="_savePaintNotes('${cid}',this.value)" style="font-size:13px;padding:8px 10px">${esc(c.paintGauge?.notes||'')}</textarea>
+      <label style="font-size:10px;color:var(--gold-deep);letter-spacing:1px;display:block;margin-bottom:3px">所見（Before）</label>
+      <textarea rows="2" placeholder="例: ボンネットに補修痕、塗膜が薄い" onblur="_savePaintNotes('${cid}',this.value)" style="font-size:13px;padding:8px 10px">${esc(c.paintGauge?.notes||'')}</textarea>
     </div>
-    <button class="btn btn-primary btn-full" style="margin-top:10px" onclick="savePaintGauge()">💾 塗膜データを保存</button>
+    <button class="btn btn-primary btn-full" style="margin-top:10px" onclick="savePaintGaugeBefore()">💾 Before値を保存</button>
+  `;
+
+  // 塗膜計測：After専用ブロック（Before列は読み取り専用で参照表示）
+  const paintBlockAfter = `
+    <div style="display:grid;grid-template-columns:1.3fr 1fr 1fr 28px;gap:6px;align-items:center;font-size:10px;color:var(--gold-deep);letter-spacing:1px;padding:0 4px 4px;border-bottom:1px solid var(--border);margin-bottom:6px">
+      <span>位置</span><span style="text-align:center;opacity:.5">Before（参考）</span><span style="text-align:center;color:var(--lime-deep)">After</span><span></span>
+    </div>
+    <div class="paint-grid" id="d-paint-rows-after">
+      ${expanded.map((m,i)=>paintRowHtmlAfter(m,i)).join('')}
+    </div>
+    <button class="btn btn-primary btn-full" style="margin-top:10px" onclick="savePaintGaugeAfter()">💾 After値を保存</button>
   `;
 
   // ===== 本体レンダリング =====
@@ -985,23 +998,40 @@ function renderCaseDetail(c){
       </details>
     `)}
 
-    ${sCard(4, 'Before写真＋塗膜', `
+    ${sCard(4, 'Before：写真＋塗膜＋コメント', `
       <button class="btn btn-primary btn-full" style="margin-bottom:10px;padding:14px;font-size:15px" onclick="document.getElementById('photo-input-before').click()">📷 Before を撮影</button>
       <div style="font-size:10px;color:var(--text-dim);line-height:1.6;margin-bottom:8px;padding:6px 8px;background:var(--bg2);border-radius:4px">
         📐 推奨アングル：①正面 ②斜め前（運転席側） ③ボンネット俯瞰 ④気になる箇所アップ
       </div>
       ${photoSec('before','Before（施工前）')}
-      <details style="margin-top:10px"><summary style="font-size:12px;color:var(--gold-deep);cursor:pointer;padding:8px;background:var(--bg2);border-radius:6px">🎨 塗膜計測（Before / After）</summary>
-        <div style="margin-top:10px">${paintBlock}</div>
-      </details>
+      <!-- 塗膜：Before値の入力に集中 -->
+      <div style="margin-top:14px;padding:10px 12px;background:var(--bg2);border:1px solid var(--gold-border);border-radius:8px">
+        <div style="font-size:11px;letter-spacing:2px;color:var(--gold-deep);margin-bottom:8px">🎨 塗膜計測（Before値）</div>
+        ${paintBlockBefore}
+      </div>
+      <!-- スタッフコメント -->
+      <div style="margin-top:14px">
+        <label style="font-size:10px;color:var(--gold-deep);letter-spacing:2px;display:block;margin-bottom:4px">📝 Before スタッフコメント（SNSキャプションに使用）</label>
+        <textarea rows="3" placeholder="例: ボンネットに鉄粉が固着、運転席側に小キズ多数。塗膜は薄め。" onblur="inlineEdit('${cid}','beforeComment',this.value)" style="font-size:13px;padding:10px;resize:vertical">${esc(c.beforeComment||'')}</textarea>
+      </div>
     `)}
 
-    ${sCard(5, 'After写真', `
+    ${sCard(5, 'After：写真＋塗膜＋コメント', `
       <button class="btn btn-primary btn-full" style="margin-bottom:10px;padding:14px;font-size:15px" onclick="document.getElementById('photo-input-after').click()">📷 After を撮影</button>
       <div style="font-size:10px;color:var(--text-dim);line-height:1.6;margin-bottom:8px;padding:6px 8px;background:var(--bg2);border-radius:4px">
         📐 推奨：Beforeと <b>同じアングル</b> で撮影 → 比較効果UP
       </div>
       ${photoSec('after','After（施工後）')}
+      <!-- 塗膜：After値の入力 -->
+      <div style="margin-top:14px;padding:10px 12px;background:var(--bg2);border:1px solid rgba(184,233,134,.3);border-radius:8px">
+        <div style="font-size:11px;letter-spacing:2px;color:var(--lime-deep);margin-bottom:8px">🎨 塗膜計測（After値）</div>
+        ${paintBlockAfter}
+      </div>
+      <!-- スタッフコメント -->
+      <div style="margin-top:14px">
+        <label style="font-size:10px;color:var(--gold-deep);letter-spacing:2px;display:block;margin-bottom:4px">📝 After スタッフコメント（SNSキャプションに使用）</label>
+        <textarea rows="3" placeholder="例: 鉄粉除去・ガラスコーティング施工。深い艶と撥水性が復活、新車以上の輝きに。" onblur="inlineEdit('${cid}','afterComment',this.value)" style="font-size:13px;padding:10px;resize:vertical">${esc(c.afterComment||'')}</textarea>
+      </div>
     `)}
 
     ${sCard(6, '納車', `
@@ -1155,6 +1185,83 @@ function _savePaintNotes(caseId, value){
   saveCases();
   clearTimeout(window._inlineEditTimer);
   window._inlineEditTimer = setTimeout(()=>syncPush(true), 800);
+}
+
+// Before専用行：Before値だけ編集可能
+function paintRowHtmlBefore(m,i){
+  const vB=Number(m.valueBefore);
+  const isAbn=v=>!isNaN(v)&&v>0&&(v<30||v>200);
+  return `<div class="paint-row" data-idx="${i}" style="display:grid;grid-template-columns:1.3fr 1fr 28px;gap:6px;align-items:center;padding:6px 4px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;margin-bottom:4px">
+    <span class="pos" style="font-size:12px;color:var(--text);padding-left:4px">${esc(m.position||'―')}</span>
+    <input class="val-before" type="number" inputmode="numeric" min="0" step="1" value="${m.valueBefore||''}" placeholder="―" oninput="onPaintValChange(this,'before')" style="width:100%;padding:6px;font-size:14px;text-align:center;${isAbn(vB)?'border-color:var(--red);color:var(--red)':''}">
+    <button type="button" onclick="_removePaintRowMobile(${i})" title="削除" style="background:transparent;border:1px solid var(--border);color:var(--red);width:24px;height:24px;border-radius:4px;font-size:12px;padding:0">✕</button>
+  </div>`;
+}
+
+// After専用行：Before値は参考表示、After値だけ編集可能
+function paintRowHtmlAfter(m,i){
+  const vA=Number(m.valueAfter);
+  const isAbn=v=>!isNaN(v)&&v>0&&(v<30||v>200);
+  return `<div class="paint-row" data-idx="${i}" style="display:grid;grid-template-columns:1.3fr 1fr 1fr 28px;gap:6px;align-items:center;padding:6px 4px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;margin-bottom:4px">
+    <span class="pos" style="font-size:12px;color:var(--text);padding-left:4px">${esc(m.position||'―')}</span>
+    <span style="font-size:13px;color:var(--text-dim);text-align:center;opacity:.7">${esc(m.valueBefore||'―')}${m.valueBefore?'μm':''}</span>
+    <input class="val-after" type="number" inputmode="numeric" min="0" step="1" value="${m.valueAfter||''}" placeholder="―" oninput="onPaintValChange(this,'after')" style="width:100%;padding:6px;font-size:14px;text-align:center;color:var(--lime-deep);${isAbn(vA)?'border-color:var(--red);color:var(--red)':''}">
+    <button type="button" onclick="_removePaintRowMobile(${i})" title="削除" style="background:transparent;border:1px solid var(--border);color:var(--red);width:24px;height:24px;border-radius:4px;font-size:12px;padding:0">✕</button>
+  </div>`;
+}
+
+// Before値だけ保存
+function savePaintGaugeBefore(){
+  const c=cases.find(c=>c.id===currentCaseId);
+  if(!c) return;
+  const rows=Array.from(document.querySelectorAll('#d-paint-rows-before .paint-row'));
+  if(!c.paintGauge) c.paintGauge={measured:false,deviceModel:'',measurements:[],notes:''};
+  // 既存 measurements に Before値だけ反映
+  rows.forEach(r=>{
+    const pos = r.querySelector('.pos').textContent.trim();
+    const vB = r.querySelector('.val-before')?.value || '';
+    if(!pos||pos==='―') return;
+    let existing = c.paintGauge.measurements.find(m=>m && m.position===pos);
+    if(!existing){
+      existing = {position:pos, valueBefore:'', valueAfter:'', note:''};
+      c.paintGauge.measurements.push(existing);
+    }
+    existing.valueBefore = vB;
+  });
+  // 空行は削除
+  c.paintGauge.measurements = c.paintGauge.measurements.filter(m=>m.position && (m.valueBefore||m.valueAfter));
+  c.paintGauge.deviceModel = document.querySelector('[onblur*="_savePaintDevice"]')?.value || c.paintGauge.deviceModel || '';
+  c.paintGauge.notes = document.querySelector('[onblur*="_savePaintNotes"]')?.value || c.paintGauge.notes || '';
+  c.paintGauge.measured = c.paintGauge.measurements.some(m=>m.valueBefore||m.valueAfter);
+  c.updatedAt = new Date().toISOString();
+  saveCases();
+  setTimeout(()=>syncPush(true), 300);
+  toast(`✅ Before値 保存（${c.paintGauge.measurements.filter(m=>m.valueBefore).length}箇所）`);
+}
+
+// After値だけ保存
+function savePaintGaugeAfter(){
+  const c=cases.find(c=>c.id===currentCaseId);
+  if(!c) return;
+  const rows=Array.from(document.querySelectorAll('#d-paint-rows-after .paint-row'));
+  if(!c.paintGauge) c.paintGauge={measured:false,deviceModel:'',measurements:[],notes:''};
+  rows.forEach(r=>{
+    const pos = r.querySelector('.pos').textContent.trim();
+    const vA = r.querySelector('.val-after')?.value || '';
+    if(!pos||pos==='―') return;
+    let existing = c.paintGauge.measurements.find(m=>m && m.position===pos);
+    if(!existing){
+      existing = {position:pos, valueBefore:'', valueAfter:'', note:''};
+      c.paintGauge.measurements.push(existing);
+    }
+    existing.valueAfter = vA;
+  });
+  c.paintGauge.measurements = c.paintGauge.measurements.filter(m=>m.position && (m.valueBefore||m.valueAfter));
+  c.paintGauge.measured = c.paintGauge.measurements.some(m=>m.valueBefore||m.valueAfter);
+  c.updatedAt = new Date().toISOString();
+  saveCases();
+  setTimeout(()=>syncPush(true), 300);
+  toast(`✅ After値 保存（${c.paintGauge.measurements.filter(m=>m.valueAfter).length}箇所）`);
 }
 
 function paintRowHtmlMobile(m,i){
@@ -1542,8 +1649,10 @@ function _photoFolderPath(caseId, kind){
 // 写真をDropboxにアップロード（Blob → API）
 async function _uploadPhotoBlob(caseId, kind, blob){
   if(!_dbxToken()) throw new Error('Dropbox 未接続');
-  const ts = new Date().toISOString().replace(/[:.]/g,'').replace('T','-').substring(0,15);
-  const path = `${_photoFolderPath(caseId, kind)}/${ts}.jpg`;
+  // タイムスタンプ + ランダム5文字でユニーク化（同秒内アップロード対応）
+  const ts = new Date().toISOString().replace(/[:.]/g,'').replace('T','-').substring(0,18);
+  const rand = Math.random().toString(36).substring(2,7);
+  const path = `${_photoFolderPath(caseId, kind)}/${ts}_${rand}.jpg`;
   await dbxUpload(path, blob);
   return path;
 }
@@ -1745,6 +1854,10 @@ function _buildPostPlan(c){
   (c.photos?.before||[]).slice(0,3).forEach((p,i)=>{
     slides.push({type:'photo', data:{photoIdx:i, kind:'before', label:'BEFORE'}});
   });
+  // ★ Before スタッフコメント
+  if(c.beforeComment){
+    slides.push({type:'comment', data:{title:'BEFORE',subtitle:'施工前の状態',text:c.beforeComment,color:'#F87171'}});
+  }
   // 塗膜計測スライド
   if(hasPaint){
     slides.push({type:'paint', data:{paintGauge:c.paintGauge}});
@@ -1759,6 +1872,10 @@ function _buildPostPlan(c){
   (c.photos?.after||[]).slice(0,3).forEach((p,i)=>{
     slides.push({type:'photo', data:{photoIdx:i, kind:'after', label:'AFTER'}});
   });
+  // ★ After スタッフコメント
+  if(c.afterComment){
+    slides.push({type:'comment', data:{title:'AFTER',subtitle:'施工後',text:c.afterComment,color:'#B8E986'}});
+  }
   // エンディングカード
   slides.push({type:'end', data:{title:'THANK YOU', sub:'LIME DETAILING STUDIO'}});
 
@@ -1809,11 +1926,15 @@ function _buildReelPlan(c){
   (c.photos?.before||[]).forEach((p,i)=>{
     scenes.push({type:'before', duration:beforeSlide, data:{photoIdx:i, label:'BEFORE', sub:`${i+1}/${beforeCount}`}});
   });
-  // 塗膜計測シーン（あれば挿入：Before と After の間）
+  // ★ Before スタッフコメントシーン（あれば）
+  if(c.beforeComment){
+    scenes.push({type:'comment', duration:3.0, data:{title:'BEFORE', subtitle:'施工前の状態', text:c.beforeComment, color:'#F87171'}});
+  }
+  // 塗膜計測シーン（あれば挿入）
   if(hasPaint){
     scenes.push({type:'paint', duration:2.5, data:{paintGauge:c.paintGauge}});
   }
-  // 車両情報シーン（必ず挿入）
+  // 車両情報シーン
   scenes.push({type:'vehicle', duration:2.5, data:{
     carLine:`${c.carModel||''} ${c.carYear||''}`.trim(),
     sizeBadge: c.size?`[${c.size}]`:'',
@@ -1824,6 +1945,10 @@ function _buildReelPlan(c){
   (c.photos?.after||[]).forEach((p,i)=>{
     scenes.push({type:'after', duration:afterSlide, data:{photoIdx:i, label:'AFTER', sub:`${i+1}/${afterCount}`}});
   });
+  // ★ After スタッフコメントシーン（あれば）
+  if(c.afterComment){
+    scenes.push({type:'comment', duration:3.0, data:{title:'AFTER', subtitle:'施工後', text:c.afterComment, color:'#B8E986'}});
+  }
   // 顧客の声シーン（一般客 + SNS許可 + 高単価時のみ。個人名は出さない）
   if(isConsumer && c.snsPermitted && isHighEnd){
     scenes.push({type:'testimonial', duration:2.0, data:{customer:''}}); // 名前空でも「お客様」と表示
@@ -1947,6 +2072,63 @@ function _drawReelFrame(ctx, img, t, brand){
     ctx.font='500 28px sans-serif';
     ctx.fillText(brand.sub, W/2, H-110);
   }
+}
+
+// スタッフコメントスライド（Before/After 用、長文対応）
+function _drawCommentFrame(ctx, t, title, subtitle, text, accentColor){
+  const W=1080, H=1920;
+  const grad = ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0,'#0F0F1A'); grad.addColorStop(1,'#1A1A2A');
+  ctx.fillStyle=grad; ctx.fillRect(0,0,W,H);
+  // 上下装飾
+  ctx.strokeStyle=accentColor;
+  ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(80,260); ctx.lineTo(W-80,260); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(80,H-260); ctx.lineTo(W-80,H-260); ctx.stroke();
+  // ロゴ
+  _drawLogoHeader(ctx, W, W/2, 110);
+  // タイトル
+  ctx.fillStyle=accentColor;
+  ctx.font='800 80px sans-serif';
+  ctx.textAlign='center';
+  ctx.fillText(title, W/2, 400);
+  ctx.fillStyle='rgba(232,201,106,0.7)';
+  ctx.font='400 28px Georgia, serif';
+  ctx.fillText(subtitle, W/2, 450);
+  // 本文（フェードイン）
+  const fade = Math.min(1, t*2);
+  ctx.globalAlpha = fade;
+  ctx.fillStyle='#F4E9C6';
+  ctx.font='500 42px sans-serif';
+  ctx.textAlign='left';
+  // 改行・自動折り返し
+  const maxWidth = W-160;
+  const lineHeight = 60;
+  const startY = 600;
+  const lines = [];
+  text.split('\n').forEach(paragraph=>{
+    const words = paragraph.split('');
+    let line = '';
+    for(let i=0;i<words.length;i++){
+      const test = line + words[i];
+      if(ctx.measureText(test).width > maxWidth){
+        lines.push(line);
+        line = words[i];
+      } else {
+        line = test;
+      }
+    }
+    if(line) lines.push(line);
+  });
+  lines.slice(0,12).forEach((ln,i)=>{
+    ctx.fillText(ln, 80, startY + i*lineHeight);
+  });
+  ctx.globalAlpha = 1;
+  // 下部
+  ctx.fillStyle='#A38A36';
+  ctx.font='500 26px sans-serif';
+  ctx.textAlign='center';
+  ctx.fillText('LIME DETAILING STUDIO', W/2, H-180);
 }
 
 // 塗膜計測スライド（数値を大きく見せる）
@@ -2194,6 +2376,9 @@ async function generateReel(){
           case 'testimonial':
             _drawTestimonialFrame(ctx, t, sc.data.customer);
             break;
+          case 'comment':
+            _drawCommentFrame(ctx, t, sc.data.title, sc.data.subtitle, sc.data.text, sc.data.color);
+            break;
           case 'end':
             _drawReelFrame(ctx, null, t, {label:sc.data.label, sub:sc.data.sub});
             break;
@@ -2430,6 +2615,45 @@ function _drawPostSlide(ctx, slide, beforeImgs, afterImgs){
       drawFooter();
       break;
     }
+    case 'comment': {
+      drawHeader();
+      ctx.strokeStyle=slide.data.color;
+      ctx.lineWidth=3;
+      ctx.beginPath(); ctx.moveTo(80,200); ctx.lineTo(W-80,200); ctx.stroke();
+      ctx.fillStyle=slide.data.color;
+      ctx.font='800 70px sans-serif';
+      ctx.textAlign='center';
+      ctx.fillText(slide.data.title, W/2, 310);
+      ctx.fillStyle='rgba(232,201,106,0.7)';
+      ctx.font='400 24px Georgia, serif';
+      ctx.fillText(slide.data.subtitle, W/2, 355);
+      ctx.fillStyle='#F4E9C6';
+      ctx.font='500 38px sans-serif';
+      ctx.textAlign='left';
+      const maxWidth = W-160;
+      const lineHeight = 56;
+      const startY = 450;
+      const lines = [];
+      (slide.data.text||'').split('\n').forEach(paragraph=>{
+        const words = paragraph.split('');
+        let line = '';
+        for(let i=0;i<words.length;i++){
+          const test = line + words[i];
+          if(ctx.measureText(test).width > maxWidth){
+            lines.push(line);
+            line = words[i];
+          } else {
+            line = test;
+          }
+        }
+        if(line) lines.push(line);
+      });
+      lines.slice(0,12).forEach((ln,i)=>{
+        ctx.fillText(ln, 80, startY + i*lineHeight);
+      });
+      drawFooter();
+      break;
+    }
   }
 }
 
@@ -2572,10 +2796,14 @@ function _generateCaption(c){
     ``,
     `🚗 ${c.carModel||''} ${c.carYear||''}`.trim() + (c.size?` (${c.size}サイズ)`:''),
     ``,
+    c.beforeComment?`【施工前の状態】\n${c.beforeComment}`:'',
+    ``,
     `［施工内容］`,
     ...items.map(i=>`✓ ${i}`),
     ``,
     paintHook,
+    ``,
+    c.afterComment?`【施工後】\n${c.afterComment}`:'',
     ``,
     `「ディテーリング」って聞いたことありますか？`,
     `洗車では落ちない汚れも、磨きとコーティングで`,
