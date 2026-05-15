@@ -73,11 +73,11 @@ a{color:var(--gold-light);text-decoration:none}
 .m-header{
   background:linear-gradient(135deg,#0F0F1A 0%,#1A1A2A 60%,#0F0F1A 100%);
   border-bottom:1px solid var(--gold-border);
-  color:var(--text);height:54px;display:flex;align-items:center;
-  padding:0 14px;gap:10px;flex-shrink:0;position:relative;z-index:10;
+  color:var(--text);height:60px;display:flex;align-items:center;
+  padding:0 16px;gap:10px;flex-shrink:0;position:relative;z-index:10;
 }
 .m-header::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent 0%,var(--gold) 50%,transparent 100%);opacity:.5}
-.m-title{font-family:'Georgia',serif;font-size:16px;letter-spacing:3px;color:var(--gold-light);font-weight:300;flex:1}
+.m-title{font-family:'Georgia',serif;font-size:16px;letter-spacing:3px;color:var(--gold-light);font-weight:300;flex:1;line-height:1.1}
 .m-title b{font-weight:600;color:var(--text)}
 .m-header-btn{
   width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;
@@ -85,7 +85,7 @@ a{color:var(--gold-light);text-decoration:none}
 }
 .m-header-btn:active{background:rgba(201,168,76,.18)}
 
-.m-main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 12px 88px}
+.m-main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 14px 100px}
 .page{display:none;animation:fadeIn .25s}
 .page.active{display:block}
 @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
@@ -93,61 +93,66 @@ a{color:var(--gold-light);text-decoration:none}
 /* ───── ボトムナビ ───── */
 .m-bottomnav{
   position:fixed;bottom:0;left:0;right:0;
-  background:rgba(15,15,26,0.92);
+  background:rgba(10,10,15,0.96);
   backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
   border-top:1px solid var(--gold-border);
-  display:grid;grid-template-columns:repeat(5,1fr);
-  padding:4px 0 calc(var(--safe-bottom) + 4px);
+  display:grid;grid-template-columns:repeat(4,1fr);
+  padding:6px 0 calc(var(--safe-bottom) + 6px);
   z-index:20;
+  box-shadow:0 -4px 16px rgba(0,0,0,.4);
 }
 .m-tab{
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
-  padding:8px 4px;font-size:10px;color:var(--text-dim);
-  transition:color .15s;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  padding:8px 4px;font-size:11px;color:var(--text-dim);
+  transition:color .15s, transform .12s;min-height:54px;
 }
+.m-tab:active{transform:scale(.92)}
 .m-tab.active{color:var(--gold-light)}
-.m-tab .icon{font-size:22px;line-height:1}
-.m-tab .label{font-size:10px;letter-spacing:.5px}
+.m-tab.active .icon{transform:scale(1.08)}
+.m-tab .icon{font-size:22px;line-height:1;transition:transform .15s}
+.m-tab .label{font-size:11px;letter-spacing:.8px;font-weight:500}
 
 /* ───── カード ───── */
 .card{
   background:var(--card);border:1px solid var(--border);border-radius:12px;
-  padding:14px 16px;margin-bottom:10px;box-shadow:var(--shadow-md);
+  padding:16px 18px;margin-bottom:12px;box-shadow:var(--shadow-md);
 }
-.card-title{font-size:11px;letter-spacing:3px;color:var(--gold-deep);text-transform:uppercase;margin-bottom:8px}
-.card-title .ja{font-size:13px;color:var(--text);margin-left:8px;letter-spacing:2px}
+.card-title{font-size:11px;letter-spacing:3px;color:var(--gold-deep);text-transform:uppercase;margin-bottom:12px;display:flex;align-items:baseline;gap:8px}
+.card-title .ja{font-size:13px;color:var(--text);letter-spacing:2px}
 
 /* ───── KPI ───── */
-.kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
 .kpi{
-  background:var(--card);border:1px solid var(--border);border-radius:10px;
-  padding:10px 12px;
+  background:var(--card);border:1px solid var(--border);border-radius:12px;
+  padding:14px 16px;box-shadow:var(--shadow-md);
 }
-.kpi-lbl{font-size:10px;color:var(--text-dim);letter-spacing:2px}
-.kpi-val{font-family:'Georgia',serif;font-size:22px;color:var(--gold-light);margin-top:2px}
-.kpi-sub{font-size:10px;color:var(--muted);margin-top:1px}
+.kpi-lbl{font-size:10px;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase}
+.kpi-val{font-family:'Georgia',serif;font-size:26px;color:var(--gold-light);margin-top:4px;line-height:1.1}
+.kpi-sub{font-size:10px;color:var(--muted);margin-top:3px}
 
 /* ───── 案件カード ───── */
 .case-card{
   background:var(--card);border:1px solid var(--border);border-left:3px solid var(--gold);
-  border-radius:8px;padding:12px 14px;margin-bottom:8px;
+  border-radius:10px;padding:14px 16px;margin-bottom:10px;
+  transition:background .15s;
 }
-.case-card:active{background:var(--card2)}
-.case-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px}
-.case-id{font-family:'Georgia',serif;font-size:11px;color:var(--gold);letter-spacing:1px}
-.case-status{font-size:10px;padding:2px 8px;border-radius:10px;background:var(--gold-dim);color:var(--gold-light)}
-.case-customer{font-size:15px;color:var(--text);font-weight:500}
-.case-meta{font-size:11px;color:var(--text-dim);margin-top:3px}
-.case-size{display:inline-block;background:#0F0F1A;color:var(--gold-light);padding:1px 6px;border-radius:3px;font-size:9px;letter-spacing:1px;font-weight:bold;margin-right:6px}
+.case-card:active{background:var(--card2);transform:scale(.99)}
+.case-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+.case-id{font-family:'Georgia',serif;font-size:11px;color:var(--gold);letter-spacing:1.5px}
+.case-status{font-size:10px;padding:3px 10px;border-radius:12px;background:var(--gold-dim);color:var(--gold-light);font-weight:600}
+.case-customer{font-size:16px;color:var(--text);font-weight:600;letter-spacing:.3px}
+.case-meta{font-size:11px;color:var(--text-dim);margin-top:5px;line-height:1.5}
+.case-size{display:inline-block;background:#0F0F1A;color:var(--gold-light);padding:2px 8px;border-radius:4px;font-size:10px;letter-spacing:1px;font-weight:bold;margin-right:8px}
 
 /* ───── ボタン ───── */
 .btn{
   display:inline-flex;align-items:center;justify-content:center;gap:6px;
-  padding:11px 18px;border-radius:10px;font-size:14px;font-weight:600;
-  transition:transform .1s;
+  padding:13px 20px;border-radius:10px;font-size:14px;font-weight:600;
+  transition:transform .1s, box-shadow .15s;min-height:44px;
 }
 .btn:active{transform:scale(.97)}
-.btn-primary{background:linear-gradient(135deg,var(--gold) 0%,var(--gold-light) 100%);color:#0F0F1A}
+.btn-primary{background:linear-gradient(135deg,var(--gold) 0%,var(--gold-light) 100%);color:#0F0F1A;box-shadow:0 2px 8px rgba(201,168,76,.25)}
+.btn-primary:active{box-shadow:0 1px 4px rgba(201,168,76,.4)}
 .btn-secondary{background:var(--card2);color:var(--text);border:1px solid var(--border)}
 .btn-danger{background:var(--red);color:#fff}
 .btn-full{width:100%}
@@ -286,6 +291,11 @@ a{color:var(--gold-light);text-decoration:none}
           <button class="btn btn-primary" style="font-size:12px;padding:10px 4px" onclick="newCase()">＋ 案件</button>
           <button class="btn btn-secondary" style="font-size:12px;padding:10px 4px" onclick="showPage('cases')">📋 一覧</button>
         </div>
+      </div>
+
+      <div class="card" id="card-upcoming-maint" style="display:none;border-left:3px solid var(--gold)">
+        <div class="card-title">Upcoming Maintenance <span class="ja">🔧 近日メンテナンス予定</span></div>
+        <div id="upcoming-maint-list"></div>
       </div>
 
       <div class="card">
@@ -541,6 +551,9 @@ function _migrateMobileCase(c){
   if(typeof c.carMaker!=='string') c.carMaker='';
   if(typeof c.beforeComment!=='string') c.beforeComment='';
   if(typeof c.afterComment!=='string')  c.afterComment='';
+  if(typeof c.nextMaintenance!=='string') c.nextMaintenance='';
+  if(typeof c.maintenanceType!=='string') c.maintenanceType='';
+  if(typeof c.maintenanceNote!=='string') c.maintenanceNote='';
   if(!c.photos || typeof c.photos!=='object') c.photos={before:[],after:[],paint:[],other:[]};
   ['before','after','paint','other'].forEach(k=>{ if(!Array.isArray(c.photos[k])) c.photos[k]=[]; });
   if(!c.paintGauge||typeof c.paintGauge!=='object') c.paintGauge={measured:false,deviceModel:'',measurements:[],notes:''};
@@ -643,6 +656,42 @@ function renderHome(){
   document.getElementById('recent-cases').innerHTML=recent.length
     ? recent.map(c=>caseCardHtml(c)).join('')
     : '<div class="empty"><div class="icon">📭</div><div class="msg">案件がまだありません</div></div>';
+
+  // 近日メンテナンス予定（30日以内 or 1ヶ月以内に過ぎたもの）
+  const today=new Date(); today.setHours(0,0,0,0);
+  const upcomingDate=new Date(today); upcomingDate.setDate(upcomingDate.getDate()+30);
+  const recentlyPast=new Date(today); recentlyPast.setDate(recentlyPast.getDate()-30);
+  const upcoming = cases.filter(c=>{
+    if(c.deleted || !c.nextMaintenance) return false;
+    const m = new Date(c.nextMaintenance);
+    return !isNaN(m.getTime()) && m >= recentlyPast && m <= upcomingDate;
+  }).sort((a,b)=>(a.nextMaintenance||'').localeCompare(b.nextMaintenance||''));
+
+  const card = document.getElementById('card-upcoming-maint');
+  const list = document.getElementById('upcoming-maint-list');
+  if(card && list){
+    if(upcoming.length>0){
+      card.style.display='block';
+      list.innerHTML = upcoming.map(c=>{
+        const d = new Date(c.nextMaintenance);
+        const diff = Math.round((d - today)/86400000);
+        const status = diff < 0 ? `🔴 ${-diff}日経過` : diff===0 ? '🟡 本日' : diff<=7 ? `🟠 あと${diff}日` : `🟢 あと${diff}日`;
+        const dateStr = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
+        return `<div class="case-card" onclick="openCase('${esc(c.id)}')" style="border-left-color:${diff<0?'var(--red)':diff<=7?'var(--orange)':'var(--lime)'}">
+          <div class="case-row">
+            <span class="case-id">${esc(c.id)}</span>
+            <span style="font-size:10px;color:var(--gold-light);font-weight:bold">${status}</span>
+          </div>
+          <div class="case-customer">${esc(c.customer||'―')}</div>
+          <div class="case-meta">
+            📅 ${dateStr} ${c.maintenanceType?'· '+esc(c.maintenanceType):''}
+          </div>
+        </div>`;
+      }).join('');
+    } else {
+      card.style.display='none';
+    }
+  }
 }
 
 function caseCardHtml(c){
@@ -1037,18 +1086,30 @@ function renderCaseDetail(c){
       </div>
     `)}
 
-    ${sCard(6, '納車', `
+    ${sCard(6, '納車・次回メンテ・報告書', `
       ${E('delivery','✅ 納車日（実際）','',{type:'date'})}
       ${ESel('paymentMethod','支払方法',['振込','現金','クレジット'])}
       ${E('paymentDeadline','支払期限','',{type:'date'})}
-      <div style="margin-top:14px;padding:12px;background:linear-gradient(135deg,rgba(201,168,76,.12) 0%,rgba(232,201,106,.06) 100%);border:1px solid var(--gold-border);border-radius:8px">
-        <div style="font-size:11px;color:var(--gold-deep);letter-spacing:2px;margin-bottom:6px">🎁 お客様へのお渡し物</div>
-        <div style="font-size:11px;color:var(--text-dim);line-height:1.6;margin-bottom:10px">
-          施工内容・Before/After写真・塗膜計測結果を1枚にまとめた<br>
-          <b style="color:var(--gold-light)">プロ仕様の納車報告書</b>を自動生成。<br>
-          → iPhone から印刷・LINE・メール・AirDrop で送付
+      <!-- 次回メンテナンス -->
+      <div style="margin-top:16px;padding:14px;background:var(--bg2);border:1px solid var(--gold-border);border-radius:10px">
+        <div style="font-size:11px;letter-spacing:2px;color:var(--gold-deep);margin-bottom:10px">🔧 次回メンテナンス予定</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
+          <button class="btn btn-secondary" style="font-size:11px;padding:8px 4px" onclick="_suggestMaintenance('${cid}',3)">3ヶ月後</button>
+          <button class="btn btn-secondary" style="font-size:11px;padding:8px 4px" onclick="_suggestMaintenance('${cid}',6)">6ヶ月後</button>
+          <button class="btn btn-secondary" style="font-size:11px;padding:8px 4px" onclick="_suggestMaintenance('${cid}',12)">1年後</button>
+          <button class="btn btn-secondary" style="font-size:11px;padding:8px 4px" onclick="_suggestMaintenance('${cid}',24)">2年後</button>
         </div>
-        <button class="btn btn-primary btn-full" style="padding:14px;font-size:14px;background:linear-gradient(135deg,#C9A84C,#E8C96A);color:#0F0F1A" onclick="generateDeliveryReport()">📄 納車報告書を生成 → 共有</button>
+        ${E('nextMaintenance','次回メンテ予定日','',{type:'date'})}
+        ${ESel('maintenanceType','メンテナンス種別',['軽メンテ（洗車・点検）','コーティング点検','再施工（コーティング）','劣化部位リフレッシュ'])}
+        ${E('maintenanceNote','備考','コーティング保証点検時期など')}
+      </div>
+      <!-- 納車報告書 -->
+      <div style="margin-top:14px;padding:14px;background:linear-gradient(135deg,rgba(201,168,76,.12) 0%,rgba(232,201,106,.06) 100%);border:1px solid var(--gold-border);border-radius:10px">
+        <div style="font-size:11px;letter-spacing:2px;color:var(--gold-deep);margin-bottom:8px">🎁 お客様へのお渡し物</div>
+        <div style="font-size:11px;color:var(--text-dim);line-height:1.7;margin-bottom:10px">
+          施工内容・Before/After写真・塗膜計測・<b style="color:var(--gold-light)">次回メンテ予定</b>を1枚にまとめたプロ仕様報告書を自動生成。
+        </div>
+        <button class="btn btn-primary btn-full" style="padding:14px;font-size:15px;background:linear-gradient(135deg,#C9A84C,#E8C96A);color:#0F0F1A;font-weight:bold" onclick="generateDeliveryReport()">📄 納車報告書を生成 → 共有</button>
       </div>
     `)}
 
@@ -1416,6 +1477,31 @@ function _newCaseInline(kind){
 }
 function newCase(){ _newCaseInline('case'); }
 function newQuoteCase(){ _newCaseInline('quote'); }
+
+// 次回メンテナンス候補日を自動入力
+function _suggestMaintenance(caseId, months){
+  const c = cases.find(c=>c.id===caseId);
+  if(!c) return;
+  // 納車日 or 今日 から N ヶ月後
+  const base = c.delivery ? new Date(c.delivery.substring(0,10)) : new Date();
+  if(isNaN(base.getTime())){ toast('納車日を先に入力してください','error'); return; }
+  const next = new Date(base);
+  next.setMonth(next.getMonth() + months);
+  const dateStr = next.getFullYear()+'-'+String(next.getMonth()+1).padStart(2,'0')+'-'+String(next.getDate()).padStart(2,'0');
+  c.nextMaintenance = dateStr;
+  // 種別もデフォルト推測
+  if(!c.maintenanceType){
+    if(months <= 3) c.maintenanceType='軽メンテ（洗車・点検）';
+    else if(months <= 6) c.maintenanceType='コーティング点検';
+    else if(months <= 12) c.maintenanceType='コーティング点検';
+    else c.maintenanceType='再施工（コーティング）';
+  }
+  c.updatedAt = new Date().toISOString();
+  saveCases();
+  setTimeout(()=>syncPush(true), 500);
+  toast(`✅ ${months}ヶ月後（${dateStr}）に設定`);
+  renderCaseDetail(c);
+}
 let _newCaseKind = 'case'; // 旧フォーム用に残存（使われない予定）
 
 function editCase(id){
@@ -2685,6 +2771,7 @@ async function generateDeliveryReport(){
     if(workItems.length) H += 80 + Math.ceil(workItems.length/2) * 56; // 施工内容
     if(c.afterComment)  H += 280; // Afterコメント
     if(ms.length)       H += 100 + ms.length * 56;
+    if(c.nextMaintenance) H += 240; // 次回メンテ
     H += 240;             // フッタ
     H += 60;              // 下マージン
 
@@ -2982,6 +3069,48 @@ async function generateDeliveryReport(){
         ctx.beginPath(); ctx.moveTo(80, y-12); ctx.lineTo(W-80, y-12); ctx.stroke();
       });
       y += 20;
+    }
+
+    // ─── 8.5. 次回メンテナンス ───
+    if(c.nextMaintenance){
+      ctx.strokeStyle='rgba(201,168,76,0.5)';
+      ctx.lineWidth=3;
+      ctx.beginPath(); ctx.moveTo(80, y); ctx.lineTo(180, y); ctx.stroke();
+      ctx.lineWidth=1;
+      y += 20;
+      ctx.fillStyle='#E8C96A';
+      ctx.font='600 22px sans-serif';
+      ctx.textAlign='left';
+      ctx.fillText('次回メンテナンスのご案内', 80, y);
+      ctx.fillStyle='rgba(232,201,106,0.5)';
+      ctx.font='400 16px Georgia, serif';
+      ctx.fillText('Next maintenance', 320, y);
+      y += 40;
+      // 大きく日付を表示
+      const md = new Date(c.nextMaintenance);
+      if(!isNaN(md.getTime())){
+        const dateStr = `${md.getFullYear()}年${md.getMonth()+1}月${md.getDate()}日`;
+        ctx.fillStyle='#F4E9C6';
+        ctx.font='700 48px sans-serif';
+        ctx.textAlign='left';
+        ctx.fillText('📅 '+dateStr, 80, y);
+        y += 50;
+      }
+      if(c.maintenanceType){
+        ctx.fillStyle='rgba(232,201,106,0.8)';
+        ctx.font='500 24px sans-serif';
+        ctx.fillText('▸ '+c.maintenanceType, 80, y);
+        y += 36;
+      }
+      if(c.maintenanceNote){
+        ctx.fillStyle='rgba(244,233,198,0.7)';
+        ctx.font='400 18px sans-serif';
+        y = _drawWrappedText(ctx, c.maintenanceNote, 80, y+10, W-160, 28) + 10;
+      }
+      ctx.fillStyle='rgba(163,138,54,0.7)';
+      ctx.font='400 16px sans-serif';
+      ctx.fillText('時期が近づきましたらこちらからご案内いたします。', 80, y);
+      y += 40;
     }
 
     // ─── 9. フッタ：店舗情報 ───
