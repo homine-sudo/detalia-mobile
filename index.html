@@ -3021,23 +3021,67 @@ async function generateDeliveryReport(){
 
     toast(`✅ 報告書 生成完了（${(blob.size/1024).toFixed(0)}KB）`);
 
-    // 共有
+    // ★ プレビュー画面を表示 → ユーザーが確認後に共有
+    _showReportPreview(blob, file, filename, c);
+  }catch(e){
+    toast('❌ 報告書生成失敗: '+e.message, 'error');
+  }
+}
+
+// 納車報告書プレビュー画面（共有前に確認）
+function _showReportPreview(blob, file, filename, c){
+  const url = URL.createObjectURL(blob);
+  const overlay = document.createElement('div');
+  overlay.id = 'report-preview-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:3000;display:flex;flex-direction:column;backdrop-filter:blur(10px)';
+  overlay.innerHTML = `
+    <!-- 上部バー -->
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;padding-top:max(14px, env(safe-area-inset-top));background:rgba(15,15,26,.9);border-bottom:1px solid var(--gold-border);flex-shrink:0">
+      <div>
+        <div style="font-size:10px;letter-spacing:3px;color:var(--gold-deep)">PREVIEW</div>
+        <div style="font-size:14px;color:var(--gold-light);font-weight:bold">納車報告書</div>
+      </div>
+      <button class="btn btn-secondary" style="padding:8px 14px;font-size:13px" onclick="document.getElementById('report-preview-overlay')?.remove()">✕ 閉じる</button>
+    </div>
+    <!-- スクロール可能な画像エリア -->
+    <div style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 0">
+      <img src="${url}" style="width:100%;display:block" alt="納車報告書プレビュー">
+    </div>
+    <!-- 下部アクションバー -->
+    <div style="padding:12px 14px;padding-bottom:max(12px, env(safe-area-inset-bottom));background:rgba(15,15,26,.95);border-top:1px solid var(--gold-border);flex-shrink:0">
+      <div style="font-size:10px;color:var(--text-dim);text-align:center;margin-bottom:8px">内容を確認して、共有方法を選んでください</div>
+      <button class="btn btn-primary btn-full" id="btn-preview-share" style="padding:14px;font-size:15px;background:linear-gradient(135deg,#C9A84C,#E8C96A);color:#0F0F1A">📤 共有する（AirDrop / プリント / メール 等）</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  // 共有ボタン
+  const shareBtn = overlay.querySelector('#btn-preview-share');
+  shareBtn.addEventListener('click', async ()=>{
     if(navigator.canShare && navigator.canShare({files:[file]})){
       try{
         await navigator.share({files:[file], title:`${c.customer||'お客様'} 様 施工報告書`});
         toast('📤 共有しました');
+        overlay.remove();
       }catch(e){
-        if(e.name !== 'AbortError') console.warn('share failed', e);
+        if(e.name !== 'AbortError'){
+          console.warn('share failed', e);
+          toast('共有失敗、ダウンロードに切替','error');
+          // フォールバック
+          const a = document.createElement('a');
+          a.href=url; a.download=filename;
+          document.body.appendChild(a); a.click(); a.remove();
+        }
       }
     } else {
-      const url = URL.createObjectURL(blob);
+      // Web Share非対応 → ダウンロード
       const a = document.createElement('a');
       a.href=url; a.download=filename;
       document.body.appendChild(a); a.click(); a.remove();
+      toast('📥 ダウンロードしました');
+      overlay.remove();
     }
-  }catch(e){
-    toast('❌ 報告書生成失敗: '+e.message, 'error');
-  }
+  });
 }
 
 // テキスト折り返し描画ヘルパ（戻り値は次の Y）
