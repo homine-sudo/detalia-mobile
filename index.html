@@ -2894,23 +2894,30 @@ async function generateDeliveryReport(){
 
     let y = 50;
 
-    // ─── 1. ロゴ（上部1回・コンパクト）───
+    // ─── 1. ロゴ（上部・ヒーローサイズ・白背景パネル）───
     if(logoImg2 && logoImg2.naturalWidth>0){
-      const maxH = 100;
       const ratio = logoImg2.naturalWidth/logoImg2.naturalHeight;
-      const lw = maxH * ratio;
-      ctx.drawImage(logoImg2, W/2 - lw/2, y, lw, maxH);
-      y += maxH + 8;
+      // 横幅いっぱい基準で大きく表示（高さは上限でクランプ）
+      let lw = W - 2*M;
+      let lh = lw / ratio;
+      const maxH = 560;
+      if(lh > maxH){ lh = maxH; lw = lh * ratio; }
+      const lx = W/2 - lw/2;
+      // 白背景パネル（ロゴ画像が透過/白縁取りでも常に白地に乗る）
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(lx-12, y-12, lw+24, lh+24);
+      ctx.drawImage(logoImg2, lx, y, lw, lh);
+      y += lh + 16;
     } else {
       ctx.fillStyle = COLOR_PRIMARY;
-      ctx.font = '300 76px Georgia, serif';
+      ctx.font = '300 200px Georgia, serif';
       ctx.textAlign = 'center';
-      ctx.fillText('LIME', W/2, y + 64);
-      y += 78;
+      ctx.fillText('LIME', W/2, y + 168);
+      y += 200;
       ctx.fillStyle = COLOR_ACCENT;
-      ctx.font = '600 22px sans-serif';
-      ctx.fillText('DETAILING  STUDIO', W/2, y + 26);
-      y += 44;
+      ctx.font = '600 52px sans-serif';
+      ctx.fillText('DETAILING  STUDIO', W/2, y + 50);
+      y += 90;
     }
 
     // ─── タイトル ───
@@ -2931,8 +2938,6 @@ async function generateDeliveryReport(){
     y += 36;
     ctx.fillStyle = COLOR_ACCENT;
     ctx.font = '600 22px sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText('お客様', M, y);
     ctx.textAlign = 'right';
     ctx.fillText('納車日', W-M, y);
     y += 56;
