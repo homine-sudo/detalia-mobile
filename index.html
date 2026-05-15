@@ -1980,8 +1980,8 @@ function deleteCaseMobile(id){
 // ─────────────────────────────────────────────
 // 📸 写真ワークフロー（Phase α-3）
 // ─────────────────────────────────────────────
-// 画像を Canvas で圧縮（最大長辺1920px、JPEG quality 0.8）
-function _compressImage(file, maxLong=1920, quality=0.82){
+// 画像を Canvas で圧縮（最大長辺2560px、JPEG quality 0.90 = 高画質）
+function _compressImage(file, maxLong=2560, quality=0.90){
   return new Promise((resolve, reject)=>{
     const img = new Image();
     const url = URL.createObjectURL(file);
@@ -3002,7 +3002,7 @@ async function generateReel(){
     }
     if(!mimeType) throw new Error('動画録画非対応のブラウザです');
     const isMp4 = mimeType.startsWith('video/mp4');
-    const recorder = new MediaRecorder(stream, {mimeType, videoBitsPerSecond:4_000_000});
+    const recorder = new MediaRecorder(stream, {mimeType, videoBitsPerSecond:10_000_000});
     const chunks=[];
     recorder.ondataavailable = e=>{ if(e.data.size>0) chunks.push(e.data); };
 
@@ -3189,10 +3189,13 @@ async function generateDeliveryReport(){
     // ここでは十分大きいキャンバスを確保しておく。
     const H = 3200;
 
+    // 印刷・拡大に強いよう 2倍解像度で描画（座標系は論理1080のまま）
+    const RS = 2;
     const canvas = document.createElement('canvas');
-    canvas.width = W;
-    canvas.height = H;
+    canvas.width = W * RS;
+    canvas.height = H * RS;
     const ctx = canvas.getContext('2d');
+    ctx.scale(RS, RS);
 
     // ─── 背景：純白 ───
     ctx.fillStyle = COLOR_BG;
@@ -3522,13 +3525,14 @@ async function generateDeliveryReport(){
 
     // === 実コンテンツでクロップ（下部の余白を解消・印刷バランス最適化）===
     const contentBottom = Math.ceil(Math.max(footLeftBottom, qrY + qrSize + 40)) + 50;
+    const cropH = Math.min(contentBottom, H);
     const cropCanvas = document.createElement('canvas');
-    cropCanvas.width = W;
-    cropCanvas.height = Math.min(contentBottom, H);
+    cropCanvas.width = W * RS;
+    cropCanvas.height = cropH * RS;
     const cropCtx = cropCanvas.getContext('2d');
     cropCtx.fillStyle = COLOR_BG;
     cropCtx.fillRect(0, 0, cropCanvas.width, cropCanvas.height);
-    cropCtx.drawImage(canvas, 0, 0);
+    cropCtx.drawImage(canvas, 0, 0, W*RS, cropH*RS, 0, 0, W*RS, cropH*RS);
 
     // === 書き出し ===
     const blob = await new Promise(res=>cropCanvas.toBlob(res, 'image/jpeg', 0.92));
@@ -3915,9 +3919,11 @@ async function generatePost(){
     const files = [];
     for(let i=0;i<plan.slides.length;i++){
       prog.textContent=`スライド生成中... ${i+1}/${plan.slides.length}`;
+      const PS = 2; // 2倍解像度（高精細）
       const canvas = document.createElement('canvas');
-      canvas.width=1080; canvas.height=1350;
+      canvas.width=1080*PS; canvas.height=1350*PS;
       const ctx = canvas.getContext('2d');
+      ctx.scale(PS, PS);
       _drawPostSlide(ctx, plan.slides[i], beforeImgs, afterImgs);
       // canvas → Blob (JPEG)
       const blob = await new Promise(res=>canvas.toBlob(res, 'image/jpeg', 0.92));
