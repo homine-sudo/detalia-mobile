@@ -205,7 +205,8 @@ a{color:var(--gold-light);text-decoration:none}
   <header class="m-header">
     <button class="m-header-btn" onclick="goBack()" id="btn-back" style="display:none">←</button>
     <div class="m-title" id="header-title"><b>DETALIA</b> <span style="opacity:.6;font-size:11px">Mobile</span></div>
-    <button class="m-header-btn" onclick="reloadData()" title="再読込">⟳</button>
+    <div id="header-sync-indicator" style="font-size:14px;color:var(--text-dim);margin-right:4px;min-width:14px;text-align:center" title="同期ステータス">○</div>
+    <button class="m-header-btn" onclick="syncBoth()" title="今すぐ同期">⟳</button>
   </header>
 
   <!-- メイン -->
@@ -482,6 +483,8 @@ const PAINT_POSITIONS = [
 // ─────────────────────────────────────────────
 const LS_KEY_CASES    = 'detalia_mobile_cases_v1';
 const LS_KEY_LOGO     = 'detalia_mobile_logo_b64'; // 店舗ロゴ画像（base64）
+const LS_KEY_REV      = 'detalia_mobile_dbx_rev';      // Dropbox file rev
+const LS_KEY_SNAPSHOT = 'detalia_mobile_sync_snapshot'; // 直近同期スナップショット
 const LS_KEY_TOKEN    = 'detalia_mobile_dbx_token';
 const LS_KEY_REFRESH  = 'detalia_mobile_dbx_refresh';
 const LS_KEY_VERIFIER = 'detalia_mobile_dbx_verifier'; // sessionStorage
@@ -497,7 +500,7 @@ let cases = [];
 let currentCaseId = null;
 let pageHistory = ['home'];
 let isDemoMode = localStorage.getItem(LS_KEY_DEMO) === 'true' || new URLSearchParams(location.search).has('demo');
-let isSyncing = false;
+// （注）_isSyncing / _saveInFlight は LIME One 方式同期セクションで定義
 
 // デモデータ（Phase α-1 では Dropbox 接続前でも動くように）
 const DEMO_CASES = [
@@ -4120,105 +4123,306 @@ async function dbxUpload(path, content){
   return await r.json();
 }
 
-// id 単位の3-wayマージ（updatedAt 新しい方を採用）
-function mergeById(local, remote){
-  const map = new Map();
-  (remote||[]).forEach(r => { if(r && r.id) map.set(r.id, r); });
-  (local||[]).forEach(l => {
-    if(!l || !l.id) return;
-    const r = map.get(l.id);
-    if(!r){ map.set(l.id, l); return; }
-    const lt = l.updatedAt || '';
-    const rt = r.updatedAt || '';
-    if(lt > rt) map.set(l.id, l);
-  });
-  return Array.from(map.values());
+// ─────────────────────────────────────────────
+// 🔄 LIME One 方式: 3-way フィールドレベルマージ + Atomic Save
+// ─────────────────────────────────────────────
+let _lastDbxRev = null;
+let _lastSyncSnapshot = null;
+let _isSyncing = false;
+let _saveInFlight = false;
+let _saveQueued = false;
+
+// 起動時にスナップショット復元
+(function loadSnapshotOnInit(){
+  try{
+    const raw = localStorage.getItem(LS_KEY_SNAPSHOT);
+    if(raw) _lastSyncSnapshot = JSON.parse(raw);
+    _lastDbxRev = localStorage.getItem(LS_KEY_REV) || null;
+  }catch(e){ _lastSyncSnapshot = null; }
+})();
+
+// 同期成功時にスナップショット記録（次回マージで「変更なし」判定に使う）
+function captureSyncSnapshot(casesArr){
+  if(!casesArr){ _lastSyncSnapshot = null; return; }
+  const snap = {};
+  (casesArr||[]).forEach(c=>{ if(c && c.id) snap[c.id] = JSON.stringify(c); });
+  _lastSyncSnapshot = snap;
+  try{ localStorage.setItem(LS_KEY_SNAPSHOT, JSON.stringify(snap)); }catch(e){}
 }
 
-// Pull（Dropbox→ローカル）
-async function syncPull(){
-  if(isDemoMode){ toast('デモモードでは同期しません'); return; }
-  if(isSyncing){ return; }
-  isSyncing = true;
-  _updateSyncStatus('⬇️ Pull中...');
+// フィールドレベル 3-way マージ（snap=L=D=ない時の最終手段はupdatedAt比較）
+function _mergeRecordFieldLevel(L, D, snapObj){
+  if(!snapObj){
+    return (new Date(L.updatedAt||0).getTime() >= new Date(D.updatedAt||0).getTime()) ? L : D;
+  }
+  const merged = {};
+  const allKeys = new Set([...Object.keys(L), ...Object.keys(D), ...Object.keys(snapObj)]);
+  const lt = new Date(L.updatedAt||0).getTime();
+  const dt = new Date(D.updatedAt||0).getTime();
+  for(const k of allKeys){
+    const lv = L[k], dv = D[k], sv = snapObj[k];
+    const lStr = JSON.stringify(lv), dStr = JSON.stringify(dv), sStr = JSON.stringify(sv);
+    let pick;
+    if(lStr === dStr) pick = lv;             // 同じ → どちらでも
+    else if(lStr === sStr) pick = dv;        // ローカル変化なし → リモート採用
+    else if(dStr === sStr) pick = lv;        // リモート変化なし → ローカル採用
+    else pick = (lt >= dt) ? lv : dv;        // 両方変化 → updatedAt 新しい方
+    if(pick !== undefined) merged[k] = pick;
+  }
+  return merged;
+}
+
+// id 単位でコレクションをマージ
+function mergeCollection(localArr, diskArr, snapMap){
+  const localById = Object.fromEntries((localArr||[]).map(x=>[x.id,x]).filter(([id])=>id));
+  const diskById  = Object.fromEntries((diskArr ||[]).map(x=>[x.id,x]).filter(([id])=>id));
+  const allIds = new Set([...Object.keys(localById), ...Object.keys(diskById)]);
+  const merged = [];
+  allIds.forEach(id=>{
+    const L = localById[id], D = diskById[id];
+    const snapStr = snapMap ? snapMap[id] : null;
+    if(L && D){
+      const Ls = JSON.stringify(L), Ds = JSON.stringify(D);
+      if(Ls === Ds){ merged.push(L); return; }
+      if(Ls === snapStr){ merged.push(D); return; } // ローカル変化なし
+      if(Ds === snapStr){ merged.push(L); return; } // リモート変化なし
+      let snapObj = null;
+      try{ snapObj = snapStr ? JSON.parse(snapStr) : null; }catch(e){}
+      merged.push(_mergeRecordFieldLevel(L, D, snapObj));
+    } else if(L) merged.push(L);
+    else if(D) merged.push(D);
+  });
+  return merged;
+}
+
+// 旧 API 互換用（外部から呼ばれている場合）
+function mergeById(local, remote){
+  return mergeCollection(local, remote, _lastSyncSnapshot);
+}
+
+// Dropbox: メタデータ取得（rev だけ確認したい時に軽量）
+async function dbxGetMeta(path){
+  const r = await fetch('https://api.dropboxapi.com/2/files/get_metadata',{
+    method:'POST',
+    headers:{'Authorization':'Bearer '+_dbxToken(), 'Content-Type':'application/json'},
+    body: _asciiSafeJson({path})
+  });
+  if(!r.ok) return null;
+  return await r.json();
+}
+
+// Dropbox: ダウンロード（rev 付きで返す）
+async function dbxDownloadWithRev(path){
+  const r = await fetch('https://content.dropboxapi.com/2/files/download',{
+    method:'POST',
+    headers:{
+      'Authorization':'Bearer '+_dbxToken(),
+      'Dropbox-API-Arg': _asciiSafeJson({path})
+    }
+  });
+  if(r.status === 409) return {text:null, rev:null}; // ファイル無し
+  if(!r.ok){ throw new Error('download '+r.status); }
+  let rev = null;
+  const apiResult = r.headers.get('Dropbox-API-Result');
+  if(apiResult){
+    try{ rev = JSON.parse(apiResult).rev; }catch(e){}
+  }
+  const text = await r.text();
+  return { text, rev };
+}
+
+// Dropbox: 原子的アップロード（rev 一致時のみ書き込み）
+async function dbxUploadAtomic(path, content, expectedRev){
+  const args = {
+    path,
+    mode: expectedRev ? {'.tag':'update', update:expectedRev} : {'.tag':'overwrite'},
+    autorename: false,
+    mute: true
+  };
+  const r = await fetch('https://content.dropboxapi.com/2/files/upload',{
+    method:'POST',
+    headers:{
+      'Authorization':'Bearer '+_dbxToken(),
+      'Content-Type':'application/octet-stream',
+      'Dropbox-API-Arg': _asciiSafeJson(args)
+    },
+    body: content
+  });
+  if(!r.ok){
+    if(r.status === 409){
+      const e = new Error('rev_conflict'); e.code='rev_conflict'; throw e;
+    }
+    const t = await r.text();
+    throw new Error('upload '+r.status+' '+t.slice(0,80));
+  }
+  const meta = await r.json();
+  return meta.rev;
+}
+
+// Pull（Dropbox→ローカル）スナップショット使った 3-way マージ
+async function syncPull(silent){
+  if(isDemoMode){ if(!silent) toast('デモモードでは同期しません'); return; }
+  if(_isSyncing){ return; }
+  _isSyncing = true;
+  _updateSyncStatus('syncing');
   try{
-    const text = await dbxDownload(_dbxPath());
+    const { text, rev } = await dbxDownloadWithRev(_dbxPath());
     if(!text){
-      toast('Dropbox にデータがありません（初回）','info');
+      if(!silent) toast('Dropbox にデータがありません（初回）','info');
+      _updateSyncStatus('ok');
       return;
     }
     const data = JSON.parse(text);
     const remoteCases = Array.isArray(data.cases) ? data.cases : [];
     const before = cases.length;
-    cases = mergeById(cases, remoteCases);
+    const merged = mergeCollection(cases, remoteCases, _lastSyncSnapshot);
+    cases = merged;
+    cases.forEach(_migrateMobileCase);
     localStorage.setItem(LS_KEY_CASES, JSON.stringify(cases));
     localStorage.setItem(LS_KEY_LAST_SYNC, new Date().toISOString());
+    _lastDbxRev = rev || _lastDbxRev;
+    if(rev) localStorage.setItem(LS_KEY_REV, rev);
+    captureSyncSnapshot(merged);
     renderHome();
     renderCaseList();
-    toast(`⬇️ ${remoteCases.length}件 取得（ローカル ${before}→${cases.length}）`);
+    _updateSyncStatus('ok');
+    if(!silent && merged.length !== before){
+      toast(`⬇️ 同期完了（${before}→${merged.length}件）`);
+    }
   }catch(e){
-    toast('❌ Pull失敗: '+e.message, 'error');
+    _updateSyncStatus('error');
+    if(!silent) toast('❌ Pull失敗: '+e.message, 'error');
   }finally{
-    isSyncing = false;
-    _updateSyncStatus();
+    _isSyncing = false;
   }
 }
 
-// Push（先にPullしてマージ→Dropboxへ書き戻し）
+// Push（先にPullしてマージ→Dropboxへ Atomic 書き戻し、rev_conflict時はリトライ）
 async function syncPush(silent){
   if(isDemoMode){ if(!silent) toast('デモモードでは同期しません'); return; }
-  if(isSyncing){ return; }
-  isSyncing = true;
-  _updateSyncStatus('⬆️ Push中...');
-  try{
-    // 既存ファイル取得（あれば他キーを保持）
-    let remoteData = {};
-    let remoteCases = [];
+  if(_saveInFlight){ _saveQueued = true; return; }
+  _saveInFlight = true;
+  _updateSyncStatus('syncing');
+  let attempts = 0;
+  const MAX = 3;
+  let lastErr = null;
+  while(attempts < MAX){
+    attempts++;
     try{
-      const text = await dbxDownload(_dbxPath());
-      if(text){
-        remoteData = JSON.parse(text);
-        if(Array.isArray(remoteData.cases)) remoteCases = remoteData.cases;
+      let mergedCases = cases;
+      let revToUse = _lastDbxRev;
+      let remoteData = {};
+      try{
+        const { text, rev } = await dbxDownloadWithRev(_dbxPath());
+        if(text){
+          remoteData = JSON.parse(text);
+          const remoteCases = Array.isArray(remoteData.cases) ? remoteData.cases : [];
+          mergedCases = mergeCollection(cases, remoteCases, _lastSyncSnapshot);
+          revToUse = rev;
+        }
+      }catch(e){ /* ファイル未作成 */ }
+      const out = Object.assign({}, remoteData, {
+        cases: mergedCases,
+        lastModified: new Date().toISOString(),
+        _source: 'detalia_mobile'
+      });
+      const jsonStr = JSON.stringify(out, null, 2);
+      const newRev = await dbxUploadAtomic(_dbxPath(), jsonStr, revToUse);
+      cases = mergedCases;
+      cases.forEach(_migrateMobileCase);
+      localStorage.setItem(LS_KEY_CASES, JSON.stringify(cases));
+      localStorage.setItem(LS_KEY_LAST_SYNC, new Date().toISOString());
+      _lastDbxRev = newRev;
+      localStorage.setItem(LS_KEY_REV, newRev||'');
+      captureSyncSnapshot(mergedCases);
+      _updateSyncStatus('ok');
+      lastErr = null;
+      break;
+    }catch(e){
+      lastErr = e;
+      if(e.code === 'rev_conflict' && attempts < MAX){
+        // 競合 → 200ms 待って再試行（自動的にPull→Mergeから再開）
+        await new Promise(r=>setTimeout(r,200));
+        continue;
       }
-    }catch(_){}
-    const merged = mergeById(cases, remoteCases);
-    const out = Object.assign({}, remoteData, {
-      cases: merged,
-      updatedAt: new Date().toISOString(),
-      _source: 'detalia_mobile'
-    });
-    await dbxUpload(_dbxPath(), JSON.stringify(out, null, 2));
-    cases = merged;
-    localStorage.setItem(LS_KEY_CASES, JSON.stringify(cases));
-    localStorage.setItem(LS_KEY_LAST_SYNC, new Date().toISOString());
-    if(!silent) toast(`⬆️ ${merged.length}件 送信`);
-  }catch(e){
-    toast('❌ Push失敗: '+e.message, 'error');
-  }finally{
-    isSyncing = false;
-    _updateSyncStatus();
+      break;
+    }
+  }
+  _saveInFlight = false;
+  if(lastErr){
+    _updateSyncStatus('error');
+    if(!silent) toast('❌ 保存エラー: '+lastErr.message, 'error');
+  } else if(!silent){
+    toast('✅ 同期完了');
+  }
+  if(_saveQueued){
+    _saveQueued = false;
+    setTimeout(()=>syncPush(silent), 100);
   }
 }
 
 async function syncBoth(){
-  await syncPull();
-  await syncPush();
-  toast('🔄 同期完了');
+  await syncPull(false);
+  await syncPush(false);
 }
 
-function _updateSyncStatus(working){
+function _updateSyncStatus(state){
+  // 設定画面のステータステキスト
   const el=document.getElementById('sync-status');
-  if(!el) return;
-  if(working){ el.textContent=working; el.style.color='var(--gold-light)'; return; }
-  const ts=localStorage.getItem(LS_KEY_LAST_SYNC);
-  if(ts){
-    const d=new Date(ts);
-    el.textContent=`最終同期: ${d.toLocaleString('ja-JP',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}`;
-    el.style.color='var(--text-dim)';
-  }else{
-    el.textContent='未同期';
-    el.style.color='var(--text-dim)';
+  if(el){
+    if(state==='syncing'){ el.textContent='⟳ 同期中...'; el.style.color='var(--gold-light)'; }
+    else if(state==='error'){ el.textContent='⚠ 同期エラー'; el.style.color='var(--red)'; }
+    else {
+      const ts=localStorage.getItem(LS_KEY_LAST_SYNC);
+      if(ts){
+        const d=new Date(ts);
+        el.textContent=`✓ 最終同期: ${d.toLocaleString('ja-JP',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}`;
+        el.style.color='var(--lime)';
+      }else{
+        el.textContent='未同期';
+        el.style.color='var(--text-dim)';
+      }
+    }
   }
+  // ヘッダの小アイコン
+  const ind = document.getElementById('header-sync-indicator');
+  if(ind){
+    const icons={ok:'●',syncing:'◐',error:'✕'};
+    const colors={ok:'var(--lime)',syncing:'var(--gold-light)',error:'var(--red)'};
+    ind.textContent = icons[state] || '○';
+    ind.style.color = colors[state] || 'var(--text-dim)';
+  }
+}
+
+// バックグラウンド自動ポーリング（リモート変更を検知して Pull）
+let _syncPollTimer = null;
+function _startAutoSync(){
+  if(_syncPollTimer) clearInterval(_syncPollTimer);
+  // 30秒ごとに rev だけチェック（軽量）
+  _syncPollTimer = setInterval(async ()=>{
+    if(isDemoMode || !_dbxToken() || _isSyncing || _saveInFlight) return;
+    if(document.hidden) return; // 非表示時はスキップ（バッテリー節約）
+    try{
+      const meta = await dbxGetMeta(_dbxPath());
+      if(meta && meta.rev && meta.rev !== _lastDbxRev){
+        await syncPull(true); // サイレント Pull
+      }
+    }catch(e){}
+  }, 30000);
+  // アプリ復帰時にも即チェック
+  document.addEventListener('visibilitychange', async ()=>{
+    if(document.hidden) return;
+    if(isDemoMode || !_dbxToken() || _isSyncing || _saveInFlight) return;
+    try{
+      const meta = await dbxGetMeta(_dbxPath());
+      if(meta && meta.rev && meta.rev !== _lastDbxRev){
+        await syncPull(true);
+      }
+    }catch(e){}
+  });
+}
+function _stopAutoSync(){
+  if(_syncPollTimer){ clearInterval(_syncPollTimer); _syncPollTimer=null; }
 }
 
 function saveManualToken(){
@@ -4456,9 +4660,10 @@ function _showOnboardOrApp(){
   _startProactiveRefresh();
   // 4) 初期表示判定（オンボーディング or 本体）
   _showOnboardOrApp();
-  // 5) 連携済なら起動時 Pull
+  // 5) 連携済なら起動時 Pull + バックグラウンド自動同期開始
   if(!isDemoMode && _dbxToken()){
-    setTimeout(()=>{ syncPull(); }, 800);
+    setTimeout(()=>{ syncPull(true); }, 800);
+    _startAutoSync();
   }
 })();
 
