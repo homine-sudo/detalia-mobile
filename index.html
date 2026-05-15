@@ -579,6 +579,7 @@ function _migrateMobileCase(c){
   if(typeof c.nextMaintenance!=='string') c.nextMaintenance='';
   if(typeof c.maintenanceType!=='string') c.maintenanceType='';
   if(typeof c.maintenanceNote!=='string') c.maintenanceNote='';
+  if(typeof c.maintenanceNoticeSent!=='string') c.maintenanceNoticeSent='';
   if(!c.photos || typeof c.photos!=='object') c.photos={before:[],after:[],paint:[],other:[]};
   ['before','after','paint','other'].forEach(k=>{ if(!Array.isArray(c.photos[k])) c.photos[k]=[]; });
   if(!c.paintGauge||typeof c.paintGauge!=='object') c.paintGauge={measured:false,deviceModel:'',measurements:[],notes:''};
@@ -702,6 +703,13 @@ function renderHome(){
         const diff = Math.round((d - todayD)/86400000);
         const status = diff < 0 ? `🔴 ${-diff}日経過` : diff===0 ? '🟡 本日' : diff<=7 ? `🟠 あと${diff}日` : `🟢 あと${diff}日`;
         const dateStr = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
+        // 1ヶ月前になったら「予約案内」を出す（diff<=30 で未案内）
+        const needNotice = diff<=30 && !c.maintenanceNoticeSent;
+        const noticeRow = c.maintenanceNoticeSent
+          ? `<div style="margin-top:8px;font-size:11px;color:var(--lime);font-weight:bold">✅ 予約案内 送付済（${esc(fmtDate(c.maintenanceNoticeSent))}）</div>`
+          : needNotice
+            ? `<button class="btn btn-primary btn-full" style="margin-top:8px;padding:9px;font-size:12px;background:linear-gradient(135deg,#C9A84C,#E8C96A);color:#0F0F1A;font-weight:bold" onclick="event.stopPropagation();_maintenanceNotice('${esc(c.id)}')">📨 予約案内を作成（1ヶ月前）</button>`
+            : '';
         return `<div class="case-card" onclick="openCase('${esc(c.id)}')" style="border-left-color:${diff<0?'var(--red)':diff<=7?'var(--orange)':'var(--lime)'}">
           <div class="case-row">
             <span class="case-id">${esc(c.id)}</span>
@@ -711,6 +719,7 @@ function renderHome(){
           <div class="case-meta">
             📅 ${dateStr} ${c.maintenanceType?'· '+esc(c.maintenanceType):''}
           </div>
+          ${noticeRow}
         </div>`;
       }).join('');
     } else {
@@ -983,7 +992,7 @@ function renderCaseDetail(c){
         <span id="photo-count-${kind}" style="font-size:10px;color:var(--gold-deep)">${(c.photos?.[kind]||[]).length}枚</span>
       </div>
       <div class="photo-grid" id="photo-grid-${kind}"></div>
-      <input type="file" id="photo-input-${kind}" accept="image/*" capture="environment" multiple style="display:none" onchange="_onPhotoSelected('${kind}',this)">
+      <input type="file" id="photo-input-${kind}" accept="image/*" multiple style="display:none" onchange="_onPhotoSelected('${kind}',this)">
     </div>
   `;
 
@@ -1677,6 +1686,57 @@ function _suggestMaintenance(caseId, months){
   toast(`✅ ${months}ヶ月後（${dateStr}）に設定`);
 }
 
+// 1ヶ月前：お客様への予約案内メッセージを作成して共有
+async function _maintenanceNotice(caseId){
+  const c = cases.find(c=>c.id===caseId);
+  if(!c){ toast('案件が見つかりません','error'); return; }
+  const shopAddr = localStorage.getItem(LS_KEY_SHOP_ADDR) || '沖縄県豊見城市字与根326-6';
+  const shopTel  = localStorage.getItem(LS_KEY_SHOP_TEL)  || '098-0901-3817';
+  const car = `${c.carMaker||''} ${c.carModel||''}`.trim();
+  const mtype = c.maintenanceType || 'メンテナンス';
+  const mdate = c.nextMaintenance ? fmtDate(c.nextMaintenance) : '';
+  const msg =
+`${c.customer||'お客様'} 様
+
+LIME DETAILING STUDIO です。
+いつもご利用いただきありがとうございます。
+
+${car?`お車（${car}）の`:'お車の'}次回${mtype}の時期（${mdate}頃）が
+1ヶ月後に近づいてまいりましたので、ご予約のご案内をいたします。
+
+ご都合のよい日程が決まりましたら、
+お気軽にご連絡くださいませ。
+
+▼ ご予約・お問い合わせ
+TEL: ${shopTel}
+${shopAddr}
+
+LIME DETAILING STUDIO`;
+
+  let shared = false;
+  try{
+    if(navigator.share){ await navigator.share({title:'次回メンテナンス予約のご案内', text:msg}); shared = true; }
+  }catch(e){ /* キャンセル時はフォールバックへ */ }
+  if(!shared){
+    try{ await navigator.clipboard.writeText(msg); toast('📋 案内文をコピーしました'); }
+    catch(e){
+      const ov = document.createElement('div');
+      ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:3000;display:flex;flex-direction:column;padding:18px;gap:12px';
+      ov.innerHTML = `<div style="color:var(--gold-light);font-size:14px;font-weight:bold">予約案内メッセージ（コピーしてLINE/SMSで送信）</div>
+        <textarea readonly style="flex:1;font-size:13px;padding:12px;border-radius:8px;background:#111;color:#eee;border:1px solid var(--gold-border)">${esc(msg)}</textarea>
+        <button class="btn btn-secondary" onclick="this.parentElement.remove()">✕ 閉じる</button>`;
+      document.body.appendChild(ov);
+    }
+  }
+  // 案内済みとして記録
+  c.maintenanceNoticeSent = new Date().toISOString();
+  c.updatedAt = new Date().toISOString();
+  saveCases();
+  setTimeout(()=>syncPush(true), 500);
+  toast('✅ 予約案内を送付済みにしました');
+  renderHome();
+}
+
 // 次回メンテ設定状況インジケータを更新
 function _updateMaintStatus(c){
   const el = document.getElementById('maint-status');
@@ -1942,13 +2002,29 @@ function _photoFolderPath(caseId, kind){
   return `${baseFolder}/photos/${caseId}/${kind}`;
 }
 
+// アップロード連番（同一ミリ秒内でも衝突しないようにする単調増加カウンタ）
+let _photoUploadSeq = 0;
 // 写真をDropboxにアップロード（Blob → API）
 async function _uploadPhotoBlob(caseId, kind, blob){
   if(!_dbxToken()) throw new Error('Dropbox 未接続');
-  // タイムスタンプ + ランダム5文字でユニーク化（同秒内アップロード対応）
-  const ts = new Date().toISOString().replace(/[:.]/g,'').replace('T','-').substring(0,18);
-  const rand = Math.random().toString(36).substring(2,7);
-  const path = `${_photoFolderPath(caseId, kind)}/${ts}_${rand}.jpg`;
+  // 日時 + 単調連番 + 強ランダムで完全ユニーク化
+  // （dbxUpload は overwrite モードのため、パス衝突＝写真の上書き＝「同じ写真」になる事故を確実に防ぐ）
+  const now = new Date();
+  const stamp = now.getFullYear()
+    + String(now.getMonth()+1).padStart(2,'0')
+    + String(now.getDate()).padStart(2,'0') + '-'
+    + String(now.getHours()).padStart(2,'0')
+    + String(now.getMinutes()).padStart(2,'0')
+    + String(now.getSeconds()).padStart(2,'0');
+  const seq = String(++_photoUploadSeq).padStart(4,'0');
+  let rand;
+  try{
+    const a = new Uint8Array(6); crypto.getRandomValues(a);
+    rand = Array.from(a).map(b=>b.toString(36)).join('').substring(0,9);
+  }catch(e){
+    rand = (Math.random().toString(36)+Math.random().toString(36)).replace(/[^a-z0-9]/g,'').substring(0,9);
+  }
+  const path = `${_photoFolderPath(caseId, kind)}/${stamp}_${seq}_${rand}.jpg`;
   await dbxUpload(path, blob);
   return path;
 }
