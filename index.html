@@ -980,17 +980,22 @@ function renderCaseDetail(c){
       ${E('paymentDeadline','支払期限','',{type:'date'})}
     `)}
 
-    ${sCard(8, 'SNS投稿（Canva）', `
+    ${sCard(8, 'SNS自動投稿', `
       ${!c.snsPermitted ? '<div style="font-size:11px;color:var(--orange);padding:8px;background:rgba(251,191,36,.1);border-radius:6px;margin-bottom:10px">⚠️ STEP 4 でお客様の掲載許可を取ってください</div>' : ''}
-      <button class="btn btn-primary btn-full" style="padding:14px;font-size:15px" onclick="openCanvaWorkflow('${cid}')" ${c.snsPermitted?'':'disabled'} ${c.snsPermitted?'':'style="opacity:.5"'}">🎨 Canvaワークフロー</button>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
-        <button class="btn btn-secondary" style="font-size:12px;padding:10px" onclick="copyInstaCaption()" ${c.snsPermitted?'':'disabled'}>📋 キャプション</button>
+      <div style="font-size:11px;color:var(--text-dim);line-height:1.6;margin-bottom:10px">
+        Before/After 写真 + 車両情報から MP4 リール動画を <b>自動生成</b>。<br>
+        生成後、iPhone の共有メニューから Instagram に直行できます。
+      </div>
+      <button class="btn btn-primary btn-full" id="btn-gen-reel" style="padding:16px;font-size:16px" onclick="generateReel()" ${c.snsPermitted?'':'disabled'} ${c.snsPermitted?'':'style="opacity:.5"'}">🎬 自動リール生成 → 共有</button>
+      <div id="reel-progress" style="display:none;font-size:11px;color:var(--gold-light);margin-top:6px;text-align:center"></div>
+      ${c.reel?.videoPath?`<div style="font-size:11px;color:var(--lime);margin-top:8px">✅ 生成済: ${esc((c.reel.videoPath||'').split('/').pop())}</div>`:''}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
+        <button class="btn btn-secondary" style="font-size:12px;padding:10px" onclick="copyInstaCaption()" ${c.snsPermitted?'':'disabled'}>📋 キャプションのみコピー</button>
         <button class="btn btn-secondary" style="font-size:12px;padding:10px" onclick="markInstaPosted()" ${c.snsPermitted?'':'disabled'}>${c.reel?.instagramPosted?'✅ 投稿済':'📱 投稿記録'}</button>
       </div>
       ${photoSec('other','📁 その他写真（任意）')}
-      <details style="margin-top:10px"><summary style="font-size:11px;color:var(--text-dim);cursor:pointer">🎬 WebM動画生成（旧機能）</summary>
-        <button class="btn btn-secondary btn-full" id="btn-gen-reel" onclick="generateReel()" style="font-size:12px;margin-top:6px">🎬 リール動画を生成</button>
-        <div id="reel-progress" style="display:none;font-size:11px;color:var(--gold-light);margin-top:6px;text-align:center"></div>
+      <details style="margin-top:12px"><summary style="font-size:11px;color:var(--text-dim);cursor:pointer">🎨 Canva で手動編集する場合</summary>
+        <button class="btn btn-secondary btn-full" style="font-size:12px;margin-top:6px" onclick="openCanvaWorkflow('${cid}')" ${c.snsPermitted?'':'disabled'}>🎨 Canva ワークフロー</button>
       </details>
     `)}
   `;
@@ -1511,45 +1516,124 @@ function _drawReelFrame(ctx, img, t, brand){
   const grad = ctx.createLinearGradient(0,0,0,H);
   grad.addColorStop(0,'#0F0F1A'); grad.addColorStop(1,'#000');
   ctx.fillStyle=grad; ctx.fillRect(0,0,W,H);
-  // 画像（Ken Burns: 1.0→1.1 ズーム、わずかにパン）
+  // 画像（Ken Burns: 1.0→1.12 ズーム + 左右にパン）
   if(img){
-    const scale = 1 + 0.1*t;
+    const scale = 1 + 0.12*t;
     const ratio = img.naturalWidth/img.naturalHeight;
     let dw, dh;
     if(ratio > W/H){ dh = H*scale; dw = dh*ratio; }
     else            { dw = W*scale; dh = dw/ratio; }
-    const dx = (W-dw)/2;
+    const panX = (t-0.5)*60;
+    const dx = (W-dw)/2 + panX;
     const dy = (H-dh)/2;
     ctx.drawImage(img, dx, dy, dw, dh);
+    // BEFORE時は色を少し沈める、AFTERは元のまま明るく
+    if(brand.dim){
+      ctx.fillStyle='rgba(15,15,26,0.18)'; ctx.fillRect(0,0,W,H);
+    }
   }
   // 上部グラデーション帯（ロゴ用）
-  const topG = ctx.createLinearGradient(0,0,0,260);
-  topG.addColorStop(0,'rgba(15,15,26,0.85)'); topG.addColorStop(1,'rgba(15,15,26,0)');
-  ctx.fillStyle=topG; ctx.fillRect(0,0,W,260);
+  const topG = ctx.createLinearGradient(0,0,0,290);
+  topG.addColorStop(0,'rgba(15,15,26,0.92)'); topG.addColorStop(1,'rgba(15,15,26,0)');
+  ctx.fillStyle=topG; ctx.fillRect(0,0,W,290);
   // 下部グラデーション帯
-  const bottomG = ctx.createLinearGradient(0,H-300,0,H);
-  bottomG.addColorStop(0,'rgba(15,15,26,0)'); bottomG.addColorStop(1,'rgba(15,15,26,0.92)');
-  ctx.fillStyle=bottomG; ctx.fillRect(0,H-300,W,300);
+  const bottomG = ctx.createLinearGradient(0,H-360,0,H);
+  bottomG.addColorStop(0,'rgba(15,15,26,0)'); bottomG.addColorStop(1,'rgba(15,15,26,0.96)');
+  ctx.fillStyle=bottomG; ctx.fillRect(0,H-360,W,360);
   // 上部ブランドテキスト
   ctx.fillStyle='#E8C96A';
-  ctx.font='300 56px Georgia, serif';
+  ctx.font='300 76px Georgia, serif';
   ctx.textAlign='center';
-  ctx.fillText('LIME', W/2, 100);
+  ctx.fillText('LIME', W/2, 115);
   ctx.fillStyle='#C9A84C';
-  ctx.font='400 18px sans-serif';
-  ctx.fillText('DETAILING STUDIO', W/2, 140);
+  ctx.font='600 22px sans-serif';
+  ctx.fillText('DETAILING  STUDIO', W/2, 158);
   // ゴールドライン
   ctx.strokeStyle='#C9A84C';
+  ctx.lineWidth=2.5;
+  ctx.beginPath(); ctx.moveTo(W/2-180, 188); ctx.lineTo(W/2+180, 188); ctx.stroke();
+
+  // 下部ラベル（大きく目立つ）
+  // タグ風背景
+  ctx.fillStyle='rgba(201,168,76,0.18)';
+  ctx.beginPath();
+  const labelW = brand.label.length * 50 + 80;
+  ctx.roundRect(W/2-labelW/2, H-250, labelW, 90, 12);
+  ctx.fill();
+  ctx.strokeStyle='rgba(232,201,106,0.6)';
   ctx.lineWidth=2;
-  ctx.beginPath(); ctx.moveTo(W/2-150, 170); ctx.lineTo(W/2+150, 170); ctx.stroke();
-  // 下部キャプション
+  ctx.stroke();
+  // ラベル
+  ctx.fillStyle='#F4E9C6';
+  ctx.font='800 64px sans-serif';
+  ctx.textAlign='center';
+  ctx.fillText(brand.label, W/2, H-188);
+  // サブ
+  if(brand.sub){
+    ctx.fillStyle='#A38A36';
+    ctx.font='500 28px sans-serif';
+    ctx.fillText(brand.sub, W/2, H-110);
+  }
+}
+
+// 車両情報・施工内容スライド
+function _drawInfoFrame(ctx, t, carLine, sizeBadge, items){
+  const W=1080, H=1920;
+  // 黒×ゴールド背景
+  const grad = ctx.createLinearGradient(0,0,W,H);
+  grad.addColorStop(0,'#0F0F1A'); grad.addColorStop(0.5,'#1A1A2A'); grad.addColorStop(1,'#0F0F1A');
+  ctx.fillStyle=grad; ctx.fillRect(0,0,W,H);
+  // 装飾：ゴールドライン
+  ctx.strokeStyle='rgba(201,168,76,0.45)';
+  ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(80,240); ctx.lineTo(W-80,240); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(80,H-260); ctx.lineTo(W-80,H-260); ctx.stroke();
+  // ロゴ部
+  ctx.fillStyle='#E8C96A';
+  ctx.font='300 70px Georgia, serif';
+  ctx.textAlign='center';
+  ctx.fillText('LIME', W/2, 145);
+  ctx.fillStyle='#C9A84C';
+  ctx.font='600 20px sans-serif';
+  ctx.fillText('DETAILING  STUDIO', W/2, 190);
+  // 中央タイトル「CASE DETAIL」
+  ctx.fillStyle='rgba(232,201,106,0.85)';
+  ctx.font='400 28px Georgia, serif';
+  ctx.fillText('CASE  DETAIL', W/2, 350);
+  // 車両ライン
+  ctx.fillStyle='#F4E9C6';
+  ctx.font='800 70px sans-serif';
+  // フェードイン演出
+  const fade = Math.min(1, t*3);
+  ctx.globalAlpha = fade;
+  ctx.fillText(carLine || '―', W/2, 480);
+  ctx.globalAlpha = 1;
+  // サイズバッジ
+  if(sizeBadge){
+    ctx.fillStyle='#C9A84C';
+    ctx.font='600 36px sans-serif';
+    ctx.fillText(sizeBadge, W/2, 555);
+  }
+  // 施工内容ラベル
+  ctx.fillStyle='rgba(232,201,106,0.6)';
+  ctx.font='400 24px Georgia, serif';
+  ctx.fillText('SERVICE', W/2, 720);
+  // 施工項目（最大4つを縦並びでフェードイン）
   ctx.fillStyle='#F4E9C6';
   ctx.font='600 44px sans-serif';
-  ctx.textAlign='center';
-  ctx.fillText(brand.label, W/2, H-180);
+  items.slice(0,4).forEach((it,i)=>{
+    const delay = 0.25 + i*0.15;
+    const a = Math.max(0, Math.min(1, (t-delay)*4));
+    if(a>0){
+      ctx.globalAlpha = a;
+      ctx.fillText('•  ' + it, W/2, 820 + i*90);
+      ctx.globalAlpha = 1;
+    }
+  });
+  // 下部
   ctx.fillStyle='#A38A36';
-  ctx.font='400 28px sans-serif';
-  ctx.fillText(brand.sub, W/2, H-130);
+  ctx.font='500 26px sans-serif';
+  ctx.fillText('Hand-detailed in Okinawa', W/2, H-190);
 }
 
 async function generateReel(){
@@ -1580,11 +1664,21 @@ async function generateReel(){
     canvas.width=1080; canvas.height=1920;
     const ctx = canvas.getContext('2d');
     const stream = canvas.captureStream(30);
-    // ブラウザに応じた codec を試す
-    let mimeType = 'video/webm;codecs=vp9';
-    if(!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm;codecs=vp8';
-    if(!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
-    const recorder = new MediaRecorder(stream, {mimeType, videoBitsPerSecond:2_500_000});
+    // 優先順位: MP4 (iOS互換) → WebM(VP9) → WebM(VP8) → WebM
+    const candidates = [
+      'video/mp4;codecs=avc1.42E01E',
+      'video/mp4',
+      'video/webm;codecs=vp9',
+      'video/webm;codecs=vp8',
+      'video/webm'
+    ];
+    let mimeType = '';
+    for(const c of candidates){
+      if(MediaRecorder.isTypeSupported(c)){ mimeType = c; break; }
+    }
+    if(!mimeType) throw new Error('動画録画非対応のブラウザです');
+    const isMp4 = mimeType.startsWith('video/mp4');
+    const recorder = new MediaRecorder(stream, {mimeType, videoBitsPerSecond:4_000_000});
     const chunks=[];
     recorder.ondataavailable = e=>{ if(e.data.size>0) chunks.push(e.data); };
 
@@ -1602,38 +1696,43 @@ async function generateReel(){
     for(let i=0;i<beforeImgs.length;i++){
       const img = beforeImgs[i];
       for(let f=0;f<45;f++){
-        _drawReelFrame(ctx, img, f/45, {label:'BEFORE', sub:`${i+1} / ${beforeImgs.length}`});
+        _drawReelFrame(ctx, img, f/45, {label:'BEFORE', sub:`${i+1} / ${beforeImgs.length}`, dim:true});
         await frameDelay(33);
       }
       prog.textContent=`Before ${i+1}/${beforeImgs.length}...`;
+    }
+    // 中間: 車両情報スライド（2秒）
+    const carLine = `${c.carModel||''} ${c.carYear||''}`.trim();
+    const sizeBadge = c.size ? `[${c.size}]` : '';
+    for(let f=0;f<60;f++){
+      _drawInfoFrame(ctx, f/60, carLine, sizeBadge, (c.workDetail||'').split(/[・\n]/).map(s=>s.trim()).filter(Boolean).slice(0,4));
+      await frameDelay(33);
     }
     // After セクション
     for(let i=0;i<afterImgs.length;i++){
       const img = afterImgs[i];
       for(let f=0;f<45;f++){
-        _drawReelFrame(ctx, img, f/45, {label:'AFTER', sub:`${i+1} / ${afterImgs.length}`});
+        _drawReelFrame(ctx, img, f/45, {label:'AFTER', sub:`${i+1} / ${afterImgs.length}`, dim:false});
         await frameDelay(33);
       }
       prog.textContent=`After ${i+1}/${afterImgs.length}...`;
     }
     // エンディング
-    for(let f=0;f<30;f++){
-      _drawReelFrame(ctx, null, f/30, {label:'THANK YOU', sub:'LIME DETAILING STUDIO'});
+    for(let f=0;f<60;f++){
+      _drawReelFrame(ctx, null, f/60, {label:'THANK YOU', sub:'LIME DETAILING STUDIO'});
       await frameDelay(33);
     }
     recorder.stop();
     await stopped;
 
-    // 4) Blob 化 → ダウンロード
-    const blob = new Blob(chunks, {type:'video/webm'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href=url; a.download=`${c.id}_reel.webm`;
-    document.body.appendChild(a); a.click(); a.remove();
-    // Dropbox にもアップロード
+    // 4) Blob 化
+    const ext = isMp4 ? 'mp4' : 'webm';
+    const blob = new Blob(chunks, {type: isMp4 ? 'video/mp4' : 'video/webm'});
+    const filename = `${c.id}_reel.${ext}`;
+    // Dropbox にもアップロード（バックアップ）
     prog.textContent='Dropboxに保存中...';
     try{
-      const remotePath = `${_photoFolderPath(c.id,'reel').replace(/\/reel$/,'')}/reel_${Date.now()}.webm`;
+      const remotePath = `${_photoFolderPath(c.id,'reel').replace(/\/reel$/,'')}/reel_${Date.now()}.${ext}`;
       await dbxUpload(remotePath, blob);
       if(!c.reel) c.reel={generated:false,videoPath:'',captionDraft:'',hashtags:[],instagramPosted:false,instagramUrl:'',postedAt:''};
       c.reel.videoPath = remotePath;
@@ -1649,7 +1748,34 @@ async function generateReel(){
     prog.textContent='';
     prog.style.display='none';
     btn.disabled=false; btn.style.opacity='1';
-    toast(`✅ リール生成完了（${(blob.size/1024/1024).toFixed(1)}MB）`);
+    const sizeMb = (blob.size/1024/1024).toFixed(1);
+    toast(`✅ リール生成完了（${sizeMb}MB / ${isMp4?'MP4':'WebM'}）`);
+
+    // 5) iOS Web Share API で iPhone 写真ライブラリ・Instagram に直送
+    const file = new File([blob], filename, {type: isMp4 ? 'video/mp4' : 'video/webm'});
+    let shared = false;
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      try{
+        // キャプションも同時に渡す
+        await navigator.share({
+          files:[file],
+          title:'DETALIA 施工事例',
+          text: c.reel.captionDraft
+        });
+        shared = true;
+        toast('📤 共有完了（写真ライブラリ/SNS）');
+      }catch(e){
+        // ユーザーがキャンセル or 失敗
+        if(e.name !== 'AbortError') console.warn('share failed', e);
+      }
+    }
+    // 共有がなかった場合は通常ダウンロード
+    if(!shared){
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href=url; a.download=filename;
+      document.body.appendChild(a); a.click(); a.remove();
+    }
     // 案件詳細を再描画してキャプション表示
     renderCaseDetail(c);
   }catch(e){
