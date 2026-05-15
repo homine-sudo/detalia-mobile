@@ -982,10 +982,18 @@ function renderCaseDetail(c){
 
     ${sCard(8, 'SNS自動投稿', `
       ${!c.snsPermitted ? '<div style="font-size:11px;color:var(--orange);padding:8px;background:rgba(251,191,36,.1);border-radius:6px;margin-bottom:10px">⚠️ STEP 4 でお客様の掲載許可を取ってください</div>' : ''}
-      <div style="font-size:11px;color:var(--text-dim);line-height:1.6;margin-bottom:10px">
-        Before/After 写真 + 車両情報から MP4 リール動画を <b>自動生成</b>。<br>
-        生成後、iPhone の共有メニューから Instagram に直行できます。
-      </div>
+      ${(()=>{
+        // この案件の推奨スタイルを表示
+        try{
+          const plan = _buildReelPlan(c);
+          return `<div style="padding:10px 12px;background:linear-gradient(135deg,rgba(201,168,76,.12) 0%,rgba(232,201,106,.06) 100%);border:1px solid var(--gold-border);border-radius:8px;margin-bottom:10px">
+            <div style="font-size:10px;letter-spacing:2px;color:var(--gold-deep);margin-bottom:4px">🎯 AI 推奨スタイル</div>
+            <div style="font-size:13px;color:var(--text);font-weight:bold;margin-bottom:4px">${esc(plan.style)}</div>
+            <div style="font-size:10px;color:var(--text-dim);line-height:1.6">${esc(plan.reason)}</div>
+            <div style="font-size:9px;color:var(--gold-deep);margin-top:6px;letter-spacing:1px">推定 ${plan.totalDuration.toFixed(0)}秒 ／ ${plan.scenes.length}シーン</div>
+          </div>`;
+        }catch(e){ return ''; }
+      })()}
       <button class="btn btn-primary btn-full" id="btn-gen-reel" style="padding:16px;font-size:16px" onclick="generateReel()" ${c.snsPermitted?'':'disabled'} ${c.snsPermitted?'':'style="opacity:.5"'}">🎬 自動リール生成 → 共有</button>
       <div id="reel-progress" style="display:none;font-size:11px;color:var(--gold-light);margin-top:6px;text-align:center"></div>
       ${c.reel?.videoPath?`<div style="font-size:11px;color:var(--lime);margin-top:8px">✅ 生成済: ${esc((c.reel.videoPath||'').split('/').pop())}</div>`:''}
@@ -1485,9 +1493,79 @@ function _openPhoto(path){
 }
 
 // ─────────────────────────────────────────────
-// 🎬 リール動画生成（Phase α-4）
+// 🎬 リール動画生成（Phase α-4 強化版）
 // ─────────────────────────────────────────────
 const DEFAULT_HASHTAGS = ['#沖縄ディテーリング','#セラミックコーティング','#ガラスコーティング','#洗車','#沖縄市','#コーティング専門店','#LIME','#LIMEDETAILINGSTUDIO'];
+
+// 案件の属性から「最適なリール構成」を自動判定
+function _buildReelPlan(c){
+  const beforeCount = (c.photos?.before||[]).length;
+  const afterCount  = (c.photos?.after||[]).length;
+  const totalPhotos = beforeCount + afterCount;
+  const hasPaint = c.paintGauge?.measured && (c.paintGauge?.measurements||[]).filter(m=>m.valueBefore||m.valueAfter).length > 0;
+  const totalAmt = totalAmount(c)||0;
+  const isPremium  = totalAmt >= 200000;
+  const isHighEnd  = totalAmt >= 100000;
+  const isWholesale= c.category==='業販';
+  const isConsumer = c.category==='一般';
+  const workItems = (c.workDetail||'').split(/[・\n]/).map(s=>s.trim()).filter(Boolean);
+
+  // ━━━ 1. スタイル判定（推奨スタイル）━━━
+  let style, reason;
+  if(hasPaint){
+    style = '🔬 専門性アピール';
+    reason = `塗膜計測${c.paintGauge.measurements.filter(m=>m.valueBefore||m.valueAfter).length}箇所実施 → 数値で差別化、業販獲得に強い`;
+  } else if(totalPhotos >= 6 && isPremium){
+    style = '🎥 施工プロセス（高単価案件向け）';
+    reason = `写真${totalPhotos}枚 + ${fmt(totalAmt)} の高単価 → 施工の価値を見える化`;
+  } else if(isWholesale && isHighEnd){
+    style = '🔬 専門性アピール（業販向け）';
+    reason = `業販${fmt(totalAmt)} → 信頼性アピールで他業者と差別化`;
+  } else if(isConsumer && isHighEnd){
+    style = '💬 顧客の声寄り（口コミ狙い）';
+    reason = `一般客${fmt(totalAmt)} → 紹介・口コミにつながる`;
+  } else if(totalPhotos <= 3){
+    style = '⚡ クイック対比（バズ狙い）';
+    reason = `写真${totalPhotos}枚 → 短尺で劇的変化を見せて保存数最大化`;
+  } else {
+    style = '⚡ クイック対比';
+    reason = '標準パターン。汎用バズ狙い・保存数最強';
+  }
+
+  // ━━━ 2. シーン構成 ━━━
+  const scenes = [];
+  // タイトル
+  scenes.push({type:'title', duration:1.2, data:{label:'BEFORE & AFTER', sub:c.customer||''}});
+  // Before（短尺なら少なめ、長尺なら全部）
+  const beforeSlide = totalPhotos<=3 ? 2.0 : 1.4;
+  (c.photos?.before||[]).forEach((p,i)=>{
+    scenes.push({type:'before', duration:beforeSlide, data:{photoIdx:i, label:'BEFORE', sub:`${i+1}/${beforeCount}`}});
+  });
+  // 塗膜計測シーン（あれば挿入：Before と After の間）
+  if(hasPaint){
+    scenes.push({type:'paint', duration:2.5, data:{paintGauge:c.paintGauge}});
+  }
+  // 車両情報シーン（必ず挿入）
+  scenes.push({type:'vehicle', duration:2.5, data:{
+    carLine:`${c.carModel||''} ${c.carYear||''}`.trim(),
+    sizeBadge: c.size?`[${c.size}]`:'',
+    items: workItems.slice(0,4)
+  }});
+  // After
+  const afterSlide = totalPhotos<=3 ? 2.0 : 1.4;
+  (c.photos?.after||[]).forEach((p,i)=>{
+    scenes.push({type:'after', duration:afterSlide, data:{photoIdx:i, label:'AFTER', sub:`${i+1}/${afterCount}`}});
+  });
+  // 顧客の声シーン（一般客 + SNS許可 + 高単価時のみ）
+  if(isConsumer && c.snsPermitted && isHighEnd){
+    scenes.push({type:'testimonial', duration:2.0, data:{customer:c.customer||''}});
+  }
+  // エンディング
+  scenes.push({type:'end', duration:2.0, data:{label:'THANK YOU', sub:'LIME DETAILING STUDIO'}});
+
+  const totalDuration = scenes.reduce((s,sc)=>s+sc.duration, 0);
+  return { style, reason, scenes, totalDuration, hasPaint, beforeCount, afterCount };
+}
 
 async function _loadImageFromDropbox(path){
   if(!_dbxToken()) return null;
@@ -1576,6 +1654,108 @@ function _drawReelFrame(ctx, img, t, brand){
   }
 }
 
+// 塗膜計測スライド（数値を大きく見せる）
+function _drawPaintFrame(ctx, t, paintGauge){
+  const W=1080, H=1920;
+  const grad = ctx.createLinearGradient(0,0,W,H);
+  grad.addColorStop(0,'#0F0F1A'); grad.addColorStop(0.5,'#1A1A2A'); grad.addColorStop(1,'#0F0F1A');
+  ctx.fillStyle=grad; ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle='rgba(201,168,76,0.4)';
+  ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(80,260); ctx.lineTo(W-80,260); ctx.stroke();
+  // ヘッダ
+  ctx.fillStyle='#E8C96A';
+  ctx.font='300 70px Georgia, serif';
+  ctx.textAlign='center';
+  ctx.fillText('LIME', W/2, 145);
+  ctx.fillStyle='#C9A84C';
+  ctx.font='600 20px sans-serif';
+  ctx.fillText('DETAILING  STUDIO', W/2, 190);
+  // 中央タイトル
+  ctx.fillStyle='rgba(232,201,106,0.85)';
+  ctx.font='400 32px Georgia, serif';
+  ctx.fillText('PAINT  THICKNESS', W/2, 370);
+  ctx.fillStyle='#A38A36';
+  ctx.font='400 22px sans-serif';
+  ctx.fillText('塗膜計測（μm）', W/2, 410);
+  // 計測値リスト（最大5箇所、フェードイン）
+  const ms = (paintGauge?.measurements||[]).filter(m=>m.valueBefore||m.valueAfter).slice(0,5);
+  const startY = 500;
+  ms.forEach((m,i)=>{
+    const delay = 0.1 + i*0.13;
+    const a = Math.max(0, Math.min(1, (t-delay)*5));
+    if(a<=0) return;
+    ctx.globalAlpha = a;
+    const y = startY + i*150;
+    // 位置ラベル
+    ctx.fillStyle='#A38A36';
+    ctx.font='500 26px sans-serif';
+    ctx.textAlign='left';
+    ctx.fillText(m.position||'―', 120, y+10);
+    // Before値
+    ctx.fillStyle='#F4E9C6';
+    ctx.font='600 36px sans-serif';
+    ctx.textAlign='right';
+    ctx.fillText((m.valueBefore||'―')+(m.valueBefore?'μm':''), W-440, y+10);
+    // 矢印
+    ctx.fillStyle='#C9A84C';
+    ctx.font='400 28px sans-serif';
+    ctx.textAlign='center';
+    ctx.fillText('→', W-340, y+10);
+    // After値
+    ctx.fillStyle='#B8E986';
+    ctx.font='800 40px sans-serif';
+    ctx.textAlign='right';
+    ctx.fillText((m.valueAfter||'―')+(m.valueAfter?'μm':''), W-120, y+10);
+  });
+  ctx.globalAlpha = 1;
+  // 説明テキスト下部
+  ctx.fillStyle='rgba(244,233,198,0.7)';
+  ctx.font='400 24px sans-serif';
+  ctx.textAlign='center';
+  ctx.fillText('数値で施工効果を可視化', W/2, H-180);
+  ctx.fillStyle='#A38A36';
+  ctx.font='500 20px sans-serif';
+  ctx.fillText('Hand-detailed in Okinawa, with Data.', W/2, H-130);
+}
+
+// 顧客の声スライド
+function _drawTestimonialFrame(ctx, t, customer){
+  const W=1080, H=1920;
+  const grad = ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0,'#0F0F1A'); grad.addColorStop(1,'#1A1A2A');
+  ctx.fillStyle=grad; ctx.fillRect(0,0,W,H);
+  // 中央装飾
+  ctx.strokeStyle='rgba(232,201,106,0.5)';
+  ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(W/2-100,260); ctx.lineTo(W/2+100,260); ctx.stroke();
+  // タイトル
+  ctx.fillStyle='#E8C96A';
+  ctx.font='300 80px Georgia, serif';
+  ctx.textAlign='center';
+  ctx.fillText('Customer  Voice', W/2, 380);
+  // クォート（フェードイン）
+  const a = Math.min(1, t*2);
+  ctx.globalAlpha = a;
+  ctx.fillStyle='#F4E9C6';
+  ctx.font='600 90px sans-serif';
+  ctx.fillText('"', W/2, 600);
+  ctx.font='500 56px sans-serif';
+  ctx.fillText('ありがとう', W/2, 740);
+  ctx.fillText('ございました', W/2, 820);
+  ctx.font='600 48px sans-serif';
+  ctx.fillStyle='#E8C96A';
+  ctx.fillText(`${customer} 様`, W/2, 980);
+  ctx.font='600 90px sans-serif';
+  ctx.fillStyle='#F4E9C6';
+  ctx.fillText('"', W/2, 1100);
+  ctx.globalAlpha = 1;
+  // 下部
+  ctx.fillStyle='#A38A36';
+  ctx.font='500 26px sans-serif';
+  ctx.fillText('お任せいただき、ありがとうございます', W/2, H-180);
+}
+
 // 車両情報・施工内容スライド
 function _drawInfoFrame(ctx, t, carLine, sizeBadge, items){
   const W=1080, H=1920;
@@ -1649,10 +1829,16 @@ async function generateReel(){
   const btn = document.getElementById('btn-gen-reel');
   const prog = document.getElementById('reel-progress');
   btn.disabled=true; btn.style.opacity='.5';
-  prog.style.display='block'; prog.textContent='画像ダウンロード中...';
+  prog.style.display='block'; prog.textContent='構成判定中...';
 
   try{
+    // ★ 0) 案件属性から最適なリール構成を判定
+    const plan = _buildReelPlan(c);
+    prog.textContent=`スタイル決定: ${plan.style}`;
+    await new Promise(r=>setTimeout(r,600));
+
     // 1) 全画像をダウンロード
+    prog.textContent='画像ダウンロード中...';
     const beforeImgs=[], afterImgs=[];
     for(const p of before){ const img=await _loadImageFromDropbox(p.path); if(img) beforeImgs.push(img); }
     for(const p of after){ const img=await _loadImageFromDropbox(p.path); if(img) afterImgs.push(img); }
@@ -1685,42 +1871,40 @@ async function generateReel(){
     const stopped = new Promise(r=>recorder.onstop=r);
     recorder.start();
 
-    // 3) フレーム描画（最初の1秒タイトル、各画像1.5秒、最後にロゴ1秒）
+    // 3) シーンプランに沿ってフレーム描画
+    const FPS = 30;
     const frameDelay = ms => new Promise(r=>setTimeout(r,ms));
-    // タイトル
-    for(let f=0;f<30;f++){
-      _drawReelFrame(ctx, null, f/30, {label:'BEFORE & AFTER', sub:c.customer||''});
-      await frameDelay(33);
-    }
-    // Before セクション
-    for(let i=0;i<beforeImgs.length;i++){
-      const img = beforeImgs[i];
-      for(let f=0;f<45;f++){
-        _drawReelFrame(ctx, img, f/45, {label:'BEFORE', sub:`${i+1} / ${beforeImgs.length}`, dim:true});
+    for(let si=0; si<plan.scenes.length; si++){
+      const sc = plan.scenes[si];
+      const frames = Math.round(sc.duration * FPS);
+      prog.textContent = `[${si+1}/${plan.scenes.length}] ${sc.type} ...`;
+      for(let f=0; f<frames; f++){
+        const t = f/frames;
+        switch(sc.type){
+          case 'title':
+            _drawReelFrame(ctx, null, t, {label:sc.data.label, sub:sc.data.sub});
+            break;
+          case 'before':
+            _drawReelFrame(ctx, beforeImgs[sc.data.photoIdx], t, {label:sc.data.label, sub:sc.data.sub, dim:true});
+            break;
+          case 'after':
+            _drawReelFrame(ctx, afterImgs[sc.data.photoIdx], t, {label:sc.data.label, sub:sc.data.sub, dim:false});
+            break;
+          case 'paint':
+            _drawPaintFrame(ctx, t, sc.data.paintGauge);
+            break;
+          case 'vehicle':
+            _drawInfoFrame(ctx, t, sc.data.carLine, sc.data.sizeBadge, sc.data.items);
+            break;
+          case 'testimonial':
+            _drawTestimonialFrame(ctx, t, sc.data.customer);
+            break;
+          case 'end':
+            _drawReelFrame(ctx, null, t, {label:sc.data.label, sub:sc.data.sub});
+            break;
+        }
         await frameDelay(33);
       }
-      prog.textContent=`Before ${i+1}/${beforeImgs.length}...`;
-    }
-    // 中間: 車両情報スライド（2秒）
-    const carLine = `${c.carModel||''} ${c.carYear||''}`.trim();
-    const sizeBadge = c.size ? `[${c.size}]` : '';
-    for(let f=0;f<60;f++){
-      _drawInfoFrame(ctx, f/60, carLine, sizeBadge, (c.workDetail||'').split(/[・\n]/).map(s=>s.trim()).filter(Boolean).slice(0,4));
-      await frameDelay(33);
-    }
-    // After セクション
-    for(let i=0;i<afterImgs.length;i++){
-      const img = afterImgs[i];
-      for(let f=0;f<45;f++){
-        _drawReelFrame(ctx, img, f/45, {label:'AFTER', sub:`${i+1} / ${afterImgs.length}`, dim:false});
-        await frameDelay(33);
-      }
-      prog.textContent=`After ${i+1}/${afterImgs.length}...`;
-    }
-    // エンディング
-    for(let f=0;f<60;f++){
-      _drawReelFrame(ctx, null, f/60, {label:'THANK YOU', sub:'LIME DETAILING STUDIO'});
-      await frameDelay(33);
     }
     recorder.stop();
     await stopped;
