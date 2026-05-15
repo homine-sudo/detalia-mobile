@@ -598,6 +598,10 @@ function _migrateMobileCase(c){
   });
   if(!c.reel||typeof c.reel!=='object') c.reel={generated:false,videoPath:'',captionDraft:'',hashtags:[],instagramPosted:false,instagramUrl:'',postedAt:''};
   if(!Array.isArray(c.reel.hashtags)) c.reel.hashtags=[];
+  // 通常投稿（カルーセル）専用の記録 — リールと独立して管理
+  if(!c.post||typeof c.post!=='object') c.post={generated:false,slidePaths:[],captionDraft:'',hashtags:[],instagramPosted:false,instagramUrl:'',postedAt:'',generatedAt:''};
+  if(!Array.isArray(c.post.slidePaths)) c.post.slidePaths=[];
+  if(!Array.isArray(c.post.hashtags)) c.post.hashtags=[];
   if(typeof c.snsPermitted!=='boolean') c.snsPermitted=false;
   if(typeof c.snsNote!=='string') c.snsNote='';
   return c;
@@ -1194,10 +1198,15 @@ function renderCaseDetail(c){
       <button class="btn btn-primary btn-full" id="btn-gen-reel" style="padding:16px;font-size:16px" onclick="generateReel()" ${c.snsPermitted?'':'disabled'} ${c.snsPermitted?'':'style="opacity:.5"'}">🎬 自動リール生成 → 共有</button>
       <button class="btn btn-primary btn-full" id="btn-gen-post" style="padding:16px;font-size:16px;display:none" onclick="generatePost()" ${c.snsPermitted?'':'disabled'} ${c.snsPermitted?'':'style="opacity:.5"'}">📸 自動カルーセル生成 → 共有</button>
       <div id="reel-progress" style="display:none;font-size:11px;color:var(--gold-light);margin-top:6px;text-align:center"></div>
-      ${c.reel?.videoPath?`<div style="font-size:11px;color:var(--lime);margin-top:8px">✅ 生成済: ${esc((c.reel.videoPath||'').split('/').pop())}</div>`:''}
+      <button class="btn btn-secondary btn-full" id="btn-save-post-device" style="display:none;margin-top:8px;font-size:12px;padding:10px" onclick="_savePostToDevice()">💾 通常投稿の画像を端末に保存</button>
+      <!-- 生成/投稿ステータス（リール・通常投稿を独立管理）-->
+      <div style="margin-top:10px;font-size:11px;line-height:2;background:var(--bg2);border-radius:8px;padding:8px 12px">
+        <div>🎬 リール：${c.reel?.videoPath?`<span style="color:var(--lime);font-weight:bold">✅ 生成済</span>${c.reel?.instagramPosted?` / <span style="color:var(--lime)">📱投稿済</span>${c.reel.postedAt?'（'+fmtDate(c.reel.postedAt)+'）':''}`:''}`:'<span style="color:var(--text-dim)">未生成</span>'}</div>
+        <div>📸 通常投稿：${c.post?.generated?`<span style="color:var(--lime);font-weight:bold">✅ 生成済</span>${c.post.slidePaths?.length?`（${c.post.slidePaths.length}枚）`:''}${c.post?.instagramPosted?` / <span style="color:var(--lime)">📱投稿済</span>${c.post.postedAt?'（'+fmtDate(c.post.postedAt)+'）':''}`:''}`:'<span style="color:var(--text-dim)">未生成</span>'}</div>
+      </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
         <button class="btn btn-secondary" style="font-size:12px;padding:10px" onclick="copyInstaCaption()" ${c.snsPermitted?'':'disabled'}>📋 キャプションのみコピー</button>
-        <button class="btn btn-secondary" style="font-size:12px;padding:10px" onclick="markInstaPosted()" ${c.snsPermitted?'':'disabled'}>${c.reel?.instagramPosted?'✅ 投稿済':'📱 投稿記録'}</button>
+        <button class="btn btn-secondary" style="font-size:12px;padding:10px" onclick="markInstaPosted()" ${c.snsPermitted?'':'disabled'}>📱 投稿記録</button>
       </div>
       ${photoSec('other','📁 その他写真（任意）')}
       <details style="margin-top:12px"><summary style="font-size:11px;color:var(--text-dim);cursor:pointer">🎨 Canva で手動編集する場合</summary>
@@ -2138,6 +2147,51 @@ function _openPhoto(path){
 // ─────────────────────────────────────────────
 const DEFAULT_HASHTAGS = ['#沖縄ディテーリング','#セラミックコーティング','#ガラスコーティング','#洗車','#沖縄市','#コーティング専門店','#LIME','#LIMEDETAILINGSTUDIO'];
 
+// 端末保存用：直近に生成した通常投稿スライド
+let _lastPostFiles = [];
+let _lastPostCaseId = '';
+
+// 通常投稿スライドを端末に保存（iOSは共有シート経由で「写真に保存」）
+async function _savePostToDevice(){
+  const c = cases.find(c=>c.id===currentCaseId);
+  let files = _lastPostFiles;
+  // 生成直後でなければ Dropbox 記録から復元
+  if((!files || !files.length) && c && c.post && c.post.slidePaths && c.post.slidePaths.length){
+    toast('Dropboxから画像を取得中...');
+    files = [];
+    for(let i=0;i<c.post.slidePaths.length;i++){
+      try{
+        const img = await _loadImageFromDropbox(c.post.slidePaths[i]);
+        if(!img) continue;
+        const cv = document.createElement('canvas');
+        cv.width = img.naturalWidth; cv.height = img.naturalHeight;
+        cv.getContext('2d').drawImage(img,0,0);
+        const blob = await new Promise(r=>cv.toBlob(r,'image/jpeg',0.92));
+        if(blob) files.push(new File([blob], `${c.id}_slide_${String(i+1).padStart(2,'0')}.jpg`, {type:'image/jpeg'}));
+      }catch(e){ /* skip */ }
+    }
+  }
+  if(!files || !files.length){ toast('先に「通常投稿」を生成してください','error'); return; }
+  // iOS等：共有シートで「画像を保存」
+  if(navigator.canShare && navigator.canShare({files})){
+    try{
+      await navigator.share({ files, title:'通常投稿スライド' });
+      toast('📤 共有シートから「画像を保存」できます');
+      return;
+    }catch(e){ if(e.name==='AbortError') return; }
+  }
+  // 非対応：ダウンロード
+  for(const f of files){
+    const url = URL.createObjectURL(f);
+    const a = document.createElement('a');
+    a.href=url; a.download=f.name;
+    document.body.appendChild(a); a.click(); a.remove();
+    await new Promise(r=>setTimeout(r,300));
+    URL.revokeObjectURL(url);
+  }
+  toast('📥 端末に保存しました');
+}
+
 // 投稿形式（reel | post）切替
 let _currentFormat = 'reel';
 function _selectFormat(fmt){
@@ -2156,6 +2210,7 @@ function _selectFormat(fmt){
     postBtn.style.fontWeight='normal';
     if(genReel) genReel.style.display='';
     if(genPost) genPost.style.display='none';
+    const svBtn0=document.getElementById('btn-save-post-device'); if(svBtn0) svBtn0.style.display='none';
     // リール用の推奨スタイル
     const c = cases.find(c=>c.id===currentCaseId);
     if(c && styleCard){
@@ -2178,6 +2233,7 @@ function _selectFormat(fmt){
     reelBtn.style.fontWeight='normal';
     if(genReel) genReel.style.display='none';
     if(genPost) genPost.style.display='';
+    const svBtn1=document.getElementById('btn-save-post-device'); if(svBtn1) svBtn1.style.display='';
     // 通常投稿用の推奨構成
     const c = cases.find(c=>c.id===currentCaseId);
     if(c && styleCard){
@@ -3871,19 +3927,31 @@ async function generatePost(){
       }
     }
 
-    // Dropbox に保存（バックアップ）
+    // Dropbox に保存（将来の Meta 自動投稿の土台：公開リンクを発行できる場所に保存し、パスを記録）
     prog.textContent='Dropboxに保存中...';
+    const slidePaths = [];
+    const postStamp = Date.now();
     try{
       for(let i=0;i<files.length;i++){
-        const remotePath = `${_photoFolderPath(c.id,'reel').replace(/\/reel$/,'')}/post_${Date.now()}_${String(i+1).padStart(2,'0')}.jpg`;
+        const remotePath = `${_photoFolderPath(c.id,'reel').replace(/\/reel$/,'')}/post_${postStamp}_${String(i+1).padStart(2,'0')}.jpg`;
         await dbxUpload(remotePath, files[i]);
+        slidePaths.push(remotePath);
       }
     }catch(e){ console.warn('post slides upload failed', e); }
 
-    // キャプション生成
-    if(!c.reel) c.reel={generated:false,videoPath:'',captionDraft:'',hashtags:[],instagramPosted:false,instagramUrl:'',postedAt:''};
-    c.reel.captionDraft = _generateCaption(c);
-    c.reel.hashtags = DEFAULT_HASHTAGS.slice();
+    // 端末保存用に生成ファイルを保持
+    _lastPostFiles = files.slice();
+    _lastPostCaseId = c.id;
+
+    // 通常投稿の記録（リールとは独立）
+    const caption = _generateCaption(c);
+    c.post = Object.assign({}, c.post||{}, {
+      generated: true,
+      slidePaths: slidePaths,
+      captionDraft: caption,
+      hashtags: DEFAULT_HASHTAGS.slice(),
+      generatedAt: new Date().toISOString()
+    });
     c.updatedAt = new Date().toISOString();
     saveCases();
     setTimeout(()=>syncPush(true), 500);
@@ -3898,7 +3966,7 @@ async function generatePost(){
         await navigator.share({
           files,
           title:'DETALIA 施工事例',
-          text: c.reel.captionDraft
+          text: c.post.captionDraft
         });
         toast('📤 共有完了');
       }catch(e){
@@ -4144,43 +4212,45 @@ async function _copyCaption(){
 async function copyInstaCaption(){
   const c = cases.find(c=>c.id===currentCaseId);
   if(!c){ return; }
-  if(!c.reel) c.reel={generated:false,videoPath:'',captionDraft:'',hashtags:[],instagramPosted:false,instagramUrl:'',postedAt:''};
-  // キャプションがなければ生成
-  if(!c.reel.captionDraft){
-    c.reel.captionDraft = _generateCaption(c);
-    c.reel.hashtags = DEFAULT_HASHTAGS.slice();
+  // アクティブな投稿形式の記録を対象にする
+  const isPost = _currentFormat==='post';
+  const rec = isPost ? (c.post||(c.post={generated:false,slidePaths:[],captionDraft:'',hashtags:[],instagramPosted:false,instagramUrl:'',postedAt:'',generatedAt:''}))
+                     : (c.reel||(c.reel={generated:false,videoPath:'',captionDraft:'',hashtags:[],instagramPosted:false,instagramUrl:'',postedAt:''}));
+  if(!rec.captionDraft){
+    rec.captionDraft = _generateCaption(c);
+    rec.hashtags = DEFAULT_HASHTAGS.slice();
     saveCases();
   }
   try{
-    await navigator.clipboard.writeText(c.reel.captionDraft);
-    toast('📋 キャプションをコピーしました');
-    // インスタアプリへのShare（対応端末のみ）
+    await navigator.clipboard.writeText(rec.captionDraft);
+    toast(`📋 ${isPost?'通常投稿':'リール'}のキャプションをコピーしました`);
     if(navigator.share){
       setTimeout(()=>{
         if(confirm('Instagramアプリで共有しますか？\n（キャプションは既にコピー済み）')){
-          navigator.share({text:c.reel.captionDraft}).catch(()=>{});
+          navigator.share({text:rec.captionDraft}).catch(()=>{});
         }
       }, 500);
     }
   }catch(e){
-    // フォールバック：プロンプトで表示
-    prompt('長押しでコピー：', c.reel.captionDraft);
+    prompt('長押しでコピー：', rec.captionDraft);
   }
 }
 
 function markInstaPosted(){
   const c = cases.find(c=>c.id===currentCaseId);
   if(!c){ return; }
-  if(!c.reel) c.reel={generated:false,videoPath:'',captionDraft:'',hashtags:[],instagramPosted:false,instagramUrl:'',postedAt:''};
-  const url = prompt('投稿URL（任意）', c.reel.instagramUrl||'');
+  const isPost = _currentFormat==='post';
+  const rec = isPost ? (c.post||(c.post={generated:false,slidePaths:[],captionDraft:'',hashtags:[],instagramPosted:false,instagramUrl:'',postedAt:'',generatedAt:''}))
+                     : (c.reel||(c.reel={generated:false,videoPath:'',captionDraft:'',hashtags:[],instagramPosted:false,instagramUrl:'',postedAt:''}));
+  const url = prompt(`${isPost?'通常投稿':'リール'}の投稿URL（任意）`, rec.instagramUrl||'');
   if(url===null) return; // キャンセル
-  c.reel.instagramPosted = true;
-  c.reel.instagramUrl = url.trim();
-  c.reel.postedAt = new Date().toISOString();
+  rec.instagramPosted = true;
+  rec.instagramUrl = url.trim();
+  rec.postedAt = new Date().toISOString();
   c.updatedAt = new Date().toISOString();
   saveCases();
   setTimeout(()=>syncPush(true), 500);
-  toast('✅ 投稿済みとして記録');
+  toast(`✅ ${isPost?'通常投稿':'リール'}を投稿済みとして記録`);
   renderCaseDetail(c);
 }
 
