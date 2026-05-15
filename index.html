@@ -2843,7 +2843,8 @@ async function generateDeliveryReport(){
     const logoSrc = localStorage.getItem(LS_KEY_LOGO);
     const instaSrc = localStorage.getItem(LS_KEY_INSTA_QR);
     const lineSrc = localStorage.getItem(LS_KEY_LINE_QR);
-    const logoImg2  = logoSrc  ? await _loadDataUrl(logoSrc)  : null;
+    let logoImg2    = logoSrc  ? await _loadDataUrl(logoSrc)  : null;
+    if(logoImg2 && logoImg2.naturalWidth>0) logoImg2 = _logoKnockoutBlack(logoImg2);
     const instaImg  = instaSrc ? await _loadDataUrl(instaSrc) : null;
     const lineImg   = lineSrc  ? await _loadDataUrl(lineSrc)  : null;
 
@@ -2895,8 +2896,10 @@ async function generateDeliveryReport(){
     let y = 50;
 
     // ─── 1. ロゴ（上部・ヒーローサイズ・白背景パネル）───
-    if(logoImg2 && logoImg2.naturalWidth>0){
-      const ratio = logoImg2.naturalWidth/logoImg2.naturalHeight;
+    const _logoW = logoImg2 ? (logoImg2.naturalWidth || logoImg2.width) : 0;
+    const _logoH = logoImg2 ? (logoImg2.naturalHeight || logoImg2.height) : 0;
+    if(logoImg2 && _logoW>0){
+      const ratio = _logoW/_logoH;
       // 横幅いっぱい基準で大きく表示（高さは上限でクランプ）
       let lw = W - 2*M;
       let lh = lw / ratio;
@@ -3333,6 +3336,32 @@ function _roundRect(ctx, x, y, w, h, r){
   ctx.lineTo(x, y+r.tl);
   ctx.arcTo(x, y, x+r.tl, y, r.tl);
   ctx.closePath();
+}
+
+// ロゴ画像の黒（に近い）背景を透過除去して canvas を返す。
+// 緑文字・ゴールド等の有色ピクセルは残し、暗部のみ alpha を落とす。
+function _logoKnockoutBlack(img){
+  try{
+    const w = img.naturalWidth, h = img.naturalHeight;
+    if(!w || !h) return img;
+    const cv = document.createElement('canvas');
+    cv.width = w; cv.height = h;
+    const cx = cv.getContext('2d');
+    cx.drawImage(img, 0, 0, w, h);
+    const id = cx.getImageData(0, 0, w, h);
+    const d = id.data;
+    const LO = 46, HI = 104; // LO以下=完全透過 / HI以上=不透明 / 間はフェザー
+    for(let i=0;i<d.length;i+=4){
+      const r=d[i], g=d[i+1], b=d[i+2];
+      const mx = Math.max(r,g,b);
+      const sat = mx - Math.min(r,g,b); // 彩度が高い＝ロゴ本体なので残す
+      if(sat > 40) continue;
+      if(mx <= LO){ d[i+3] = 0; }
+      else if(mx < HI){ d[i+3] = Math.round(d[i+3] * (mx-LO)/(HI-LO)); }
+    }
+    cx.putImageData(id, 0, 0);
+    return cv;
+  }catch(e){ return img; }
 }
 
 // ─────────────────────────────────────────────
