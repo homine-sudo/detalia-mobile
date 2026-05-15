@@ -367,16 +367,16 @@ a{color:var(--gold-light);text-decoration:none}
       <div class="card">
         <div class="card-title">Sync <span class="ja">同期操作</span></div>
         <div id="sync-status" style="font-size:11px;color:var(--text-dim);margin-bottom:10px;text-align:center;padding:6px;background:var(--bg2);border-radius:6px">未同期</div>
+        <div style="font-size:10px;color:var(--text-dim);line-height:1.6;margin-bottom:10px;padding:8px;background:rgba(184,233,134,.06);border-radius:6px">
+          ✨ 自動同期が常時動作中（30秒ごとにリモートチェック）<br>
+          編集すると 1秒後に自動Push、3-wayフィールドマージで他端末の変更も保持
+        </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
           <button class="btn btn-secondary" onclick="syncPull()" style="font-size:13px">⬇️ Pull</button>
           <button class="btn btn-secondary" onclick="syncPush()" style="font-size:13px">⬆️ Push</button>
         </div>
-        <button class="btn btn-primary btn-full" onclick="syncBoth()">🔄 完全同期（Pull→Push）</button>
-        <div style="font-size:10px;color:var(--text-dim);line-height:1.6;margin-top:10px">
-          ・<b>Pull</b>: Dropbox→端末（PCで作った案件を取得）<br>
-          ・<b>Push</b>: 端末→Dropbox（編集を反映）<br>
-          ・<b>完全同期</b>: 両方やる。マージはid+updatedAt基準
-        </div>
+        <button class="btn btn-primary btn-full" onclick="syncBoth()">🔄 完全同期</button>
+        <button class="btn btn-secondary btn-full" style="margin-top:8px;font-size:12px;color:var(--orange);border-color:var(--orange)" onclick="syncReset()">🔧 同期リセット（エラー時）</button>
       </div>
 
       <div class="card">
@@ -4200,32 +4200,64 @@ function mergeById(local, remote){
   return mergeCollection(local, remote, _lastSyncSnapshot);
 }
 
+// 401 受けたら refresh して再試行する共通 fetch
+async function _dbxFetchWithRefresh(url, opts){
+  if(!_dbxToken()){ throw new Error('Dropbox 未連携'); }
+  // 1回目
+  opts.headers = opts.headers || {};
+  opts.headers['Authorization'] = 'Bearer '+_dbxToken();
+  let r = await fetch(url, opts);
+  if(r.status === 401){
+    // トークン期限切れ → refresh 試行
+    const ok = await dbxRefreshToken();
+    if(ok){
+      opts.headers['Authorization'] = 'Bearer '+_dbxToken();
+      r = await fetch(url, opts);
+    } else {
+      throw new Error('認証期限切れ。設定で再連携してください');
+    }
+  }
+  return r;
+}
+
 // Dropbox: メタデータ取得（rev だけ確認したい時に軽量）
 async function dbxGetMeta(path){
-  const r = await fetch('https://api.dropboxapi.com/2/files/get_metadata',{
-    method:'POST',
-    headers:{'Authorization':'Bearer '+_dbxToken(), 'Content-Type':'application/json'},
-    body: _asciiSafeJson({path})
-  });
-  if(!r.ok) return null;
-  return await r.json();
+  try{
+    const r = await _dbxFetchWithRefresh('https://api.dropboxapi.com/2/files/get_metadata',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: _asciiSafeJson({path})
+    });
+    if(!r.ok) return null;
+    return await r.json();
+  }catch(e){ return null; }
 }
 
 // Dropbox: ダウンロード（rev 付きで返す）
 async function dbxDownloadWithRev(path){
-  const r = await fetch('https://content.dropboxapi.com/2/files/download',{
+  const r = await _dbxFetchWithRefresh('https://content.dropboxapi.com/2/files/download',{
     method:'POST',
     headers:{
-      'Authorization':'Bearer '+_dbxToken(),
       'Dropbox-API-Arg': _asciiSafeJson({path})
     }
   });
   if(r.status === 409) return {text:null, rev:null}; // ファイル無し
-  if(!r.ok){ throw new Error('download '+r.status); }
+  if(!r.ok){
+    let detail = '';
+    try{ detail = await r.text(); }catch(e){}
+    throw new Error(`download ${r.status} ${detail.slice(0,100)}`);
+  }
   let rev = null;
   const apiResult = r.headers.get('Dropbox-API-Result');
   if(apiResult){
     try{ rev = JSON.parse(apiResult).rev; }catch(e){}
+  }
+  // ヘッダで取れなかった場合は メタデータAPI で取り直す
+  if(!rev){
+    try{
+      const meta = await dbxGetMeta(path);
+      if(meta && meta.rev) rev = meta.rev;
+    }catch(e){}
   }
   const text = await r.text();
   return { text, rev };
@@ -4239,24 +4271,35 @@ async function dbxUploadAtomic(path, content, expectedRev){
     autorename: false,
     mute: true
   };
-  const r = await fetch('https://content.dropboxapi.com/2/files/upload',{
+  const r = await _dbxFetchWithRefresh('https://content.dropboxapi.com/2/files/upload',{
     method:'POST',
     headers:{
-      'Authorization':'Bearer '+_dbxToken(),
       'Content-Type':'application/octet-stream',
       'Dropbox-API-Arg': _asciiSafeJson(args)
     },
     body: content
   });
   if(!r.ok){
+    let detail = '';
+    try{ detail = await r.text(); }catch(e){}
     if(r.status === 409){
-      const e = new Error('rev_conflict'); e.code='rev_conflict'; throw e;
+      const e = new Error('rev_conflict ' + detail.slice(0,80)); e.code='rev_conflict'; throw e;
     }
-    const t = await r.text();
-    throw new Error('upload '+r.status+' '+t.slice(0,80));
+    throw new Error(`upload ${r.status} ${detail.slice(0,100)}`);
   }
   const meta = await r.json();
   return meta.rev;
+}
+
+// 🔧 同期リセット（壊れたrev/snapshotクリア、強制的にPullし直し）
+async function syncReset(){
+  if(!confirm('同期状態をリセットします。\nDropbox から最新データを取得して、ローカルとマージし直します。\n（データは消えません）')) return;
+  localStorage.removeItem(LS_KEY_REV);
+  localStorage.removeItem(LS_KEY_SNAPSHOT);
+  _lastDbxRev = null;
+  _lastSyncSnapshot = null;
+  toast('🔧 同期状態リセット → 再取得中...');
+  await syncPull(false);
 }
 
 // Pull（Dropbox→ローカル）スナップショット使った 3-way マージ
