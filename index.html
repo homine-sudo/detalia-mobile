@@ -372,6 +372,8 @@ a{color:var(--gold-light);text-decoration:none}
           <input id="dbx-path" type="text" placeholder="/ライム共有DB/システムデータ（D)/data.json" style="font-size:12px;font-family:Courier,monospace">
         </div>
         <button class="btn btn-secondary btn-full" onclick="saveDbxPath()">💾 パス保存</button>
+        <button class="btn btn-primary btn-full" style="margin-top:8px" onclick="useDefaultDbxPath()">🔧 デスクトップと同じパスに自動修正</button>
+        <div style="font-size:10px;color:var(--text-dim);margin-top:6px;line-height:1.6">パスは全角「（」＋半角「)」が混在し手入力ミスしやすいため、上のボタンで正しい既定パスに一発設定できます。</div>
       </div>
 
       <div class="card">
@@ -580,6 +582,15 @@ const DEMO_CASES = [
 function init(){
   const demoEl = document.getElementById('demo-toggle');
   if(demoEl) demoEl.checked = isDemoMode;
+  // データパス自動修正：旧・誤った既定パス（空ファイル）が保存されている端末を救済
+  try{
+    const _bad = '/ライム共有DB/ディテーリング/data.json';
+    const _cur = localStorage.getItem(LS_KEY_PATH);
+    if(_cur === _bad){
+      localStorage.setItem(LS_KEY_PATH, DBX_DEFAULT_PATH);
+      console.log('[detalia] data path migrated', _bad, '→', DBX_DEFAULT_PATH);
+    }
+  }catch(e){}
   loadCases();
   renderHome();
   renderCaseList();
@@ -5143,6 +5154,15 @@ function saveDbxPath(){
   if(!p.startsWith('/')){ toast('パスは / で始めてください','error'); return; }
   localStorage.setItem(LS_KEY_PATH, p);
   toast('✅ パスを保存しました');
+}
+
+// デスクトップ実体（システムデータ（D)）に一発設定 → 即プル
+async function useDefaultDbxPath(){
+  localStorage.setItem(LS_KEY_PATH, DBX_DEFAULT_PATH);
+  const pEl=document.getElementById('dbx-path');
+  if(pEl) pEl.value = DBX_DEFAULT_PATH;
+  toast('✅ 正しいパスに設定しました。同期します…');
+  try{ await syncPull(false); }catch(e){ toast('❌ 同期失敗: '+(e&&e.message||e),'error'); }
 }
 
 async function testDbxConnection(){
