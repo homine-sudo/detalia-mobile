@@ -694,6 +694,12 @@ function esc(s){
 // ─────────────────────────────────────────────
 // 🏠 ホーム描画
 // ─────────────────────────────────────────────
+// 一覧の並び替えキー（入庫日→受付日→納車予定→納車日→作成日 の順でフォールバック）
+// ※ desktop 作成案件は arrival/receptionDate が空のことがあり、空だと最下部に沈むため
+function _caseSortKey(c){
+  return String(c.arrival||c.receptionDate||c.deliveryPlan||c.delivery||c.createdAt||c.updatedAt||'').slice(0,10);
+}
+
 function renderHome(){
   const today=new Date().toISOString().slice(0,10);
   const todayIn=cases.filter(c=>!c.deleted&&(c.arrival||'').slice(0,10)===today).length;
@@ -708,7 +714,7 @@ function renderHome(){
 
   // 最近の案件 5件
   const recent=cases.filter(c=>!c.deleted)
-                    .sort((a,b)=>(b.arrival||b.receptionDate||'').localeCompare(a.arrival||a.receptionDate||''))
+                    .sort((a,b)=>_caseSortKey(b).localeCompare(_caseSortKey(a)))
                     .slice(0,5);
   document.getElementById('recent-cases').innerHTML=recent.length
     ? recent.map(c=>caseCardHtml(c)).join('')
@@ -830,7 +836,7 @@ function renderCaseList(){
     return (c.customer||'').toLowerCase().includes(q)
         || (c.carModel||'').toLowerCase().includes(q)
         || (c.id||'').toLowerCase().includes(q);
-  }).sort((a,b)=>(b.arrival||b.receptionDate||'').localeCompare(a.arrival||a.receptionDate||''));
+  }).sort((a,b)=>_caseSortKey(b).localeCompare(_caseSortKey(a)));
   const list=document.getElementById('case-list');
   list.innerHTML=filtered.length
     ? filtered.map(c=>caseCardHtml(c)).join('')
