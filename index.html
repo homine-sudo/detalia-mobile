@@ -4658,6 +4658,57 @@ function _buildWordingCardBlob(c){
   });
 }
 
+// 文言をテキストで生成（動画内テキスト＋キャプション＋ハッシュタグ）
+function _buildWordingText(c){
+  const car = `${c.carMaker||c.maker||''} ${c.carModel||''}`.trim() || 'お客様のお車';
+  const items = (c.workDetail||'').split(/[・,、\n\/]/).map(s=>s.trim()).filter(Boolean);
+  const onscreen = [
+    'フック：その違いは、細部に出る。',
+    `（小）${car}`,
+    'Before：施工前 ― ここから始まる',
+    '切替：細部に、神は宿る。',
+    'After：施工後 ― 違いは一目瞭然',
+    `情報：${car}${c.size?'（'+c.size+'）':''} ／ ${items.slice(0,3).join('・')||'ディテーリング'}`,
+    '締め①：細部に神は宿る ― God is in the details',
+    '締め②：LIME DETAILING STUDIO ／ 沖縄・豊見城 ／ ご予約は LINE'
+  ];
+  return '【動画内テキスト（シーン順）】\n' + onscreen.join('\n')
+       + '\n\n【Instagram キャプション（コピペ用）】\n' + _generateCaption(c);
+}
+
+// 文言をテキストでモーダル表示（コピー可。画像化しない＝Magic動画に混入しない）
+function _showWordingText(c){
+  const txt = _buildWordingText(c);
+  const cap = _generateCaption(c);
+  const old = document.getElementById('wording-overlay'); if(old) old.remove();
+  const ov = document.createElement('div');
+  ov.id = 'wording-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:3000;display:flex;flex-direction:column;padding:16px;gap:10px;backdrop-filter:blur(8px)';
+  ov.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div style="color:var(--gold-light);font-size:14px;font-weight:bold">📝 リール文言（テキスト）</div>
+      <button class="btn btn-secondary" style="font-size:12px;padding:6px 12px" onclick="document.getElementById('wording-overlay').remove()">✕ 閉じる</button>
+    </div>
+    <div style="font-size:11px;color:var(--text-dim);line-height:1.6">Canvaの文字入力欄に貼り付け／Instagramにキャプションを貼り付けて使います（画像ではないのでMagic動画に混入しません）。</div>
+    <textarea id="wording-ta" readonly style="flex:1;width:100%;font-size:13px;line-height:1.7;padding:12px;border-radius:8px;background:#111;color:#eee;border:1px solid var(--gold-border);resize:none"></textarea>
+    <textarea id="wording-cap" style="display:none"></textarea>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <button class="btn btn-primary" style="font-size:13px;padding:12px" onclick="_copyFromEl('wording-ta','📋 全文コピー')">📋 全文コピー</button>
+      <button class="btn btn-secondary" style="font-size:13px;padding:12px" onclick="_copyFromEl('wording-cap','📋 キャプションのみコピー')">📋 キャプションのみ</button>
+    </div>`;
+  document.body.appendChild(ov);
+  // 値はDOM経由で安全に投入（HTML属性に文字列を埋め込まない）
+  ov.querySelector('#wording-ta').value = txt;
+  ov.querySelector('#wording-cap').value = cap;
+}
+
+// テキストエリアの内容をクリップボードへ
+async function _copyFromEl(id, msg){
+  const el = document.getElementById(id); if(!el) return;
+  try{ await navigator.clipboard.writeText(el.value); toast(msg); }
+  catch(e){ try{ el.style.display='block'; el.select(); document.execCommand('copy'); toast(msg); }catch(_){ prompt('長押しでコピー', el.value); } }
+}
+
 // ── Canva 半自動リール（Pro可）：Before/After を Canva アップロードへ自動転送 → テンプレを開く ──
 async function canvaSemiAutoReel(){
   const c = cases.find(c=>c.id===currentCaseId);
@@ -4698,12 +4749,7 @@ async function canvaSemiAutoReel(){
       throw new Error(`転送失敗（${where}）: ${lastErr||'原因不明'}`);
     }
 
-    // 文言カードも一緒にCanvaへアップ（写真と並んで「アップロード」に入る）
-    if(prog) prog.textContent='文言カードを転送中...';
-    try{
-      const wb = await _buildWordingCardBlob(c);
-      if(wb){ const wa = await canvaUploadAsset(wb, `${c.id}_文言.jpg`); if(wa&&wa.id) ok++; }
-    }catch(e){ console.warn('wording card upload failed', e); }
+    // 文言は「テキスト」で提供（画像にしない＝Magic動画に写真として混入させない）
     // キャプションを自動でクリップボードへ
     let _capCopied=false;
     try{ await navigator.clipboard.writeText(_generateCaption(c)); _capCopied=true; }catch(e){}
@@ -4719,7 +4765,7 @@ async function canvaSemiAutoReel(){
 
     if(prog) prog.style.display='none';
     if(btn){ btn.disabled=false; btn.style.opacity='1'; }
-    toast(`✅ 写真＋文言カードをCanvaへ転送完了${_capCopied?'（キャプションはコピー済）':''}`);
+    toast(`✅ 写真${ok}枚をCanvaへ転送完了${_capCopied?'（キャプションはコピー済）':''}`);
 
     // Canva を開く（Magic動画 or 登録テンプレ）
     const tplUrl = (localStorage.getItem(LS_KEY_CANVA_TPLURL)||'').trim();
@@ -4735,6 +4781,8 @@ async function canvaSemiAutoReel(){
     }
     try{ window.open(openUrl, '_blank'); }catch(e){}
     setTimeout(()=>toast(hint), 1500);
+    // 文言はテキストで表示（コピーして使う／Magic動画には画像を入れない）
+    _showWordingText(c);
     renderCaseDetail(c);
   }catch(e){
     if(prog) prog.style.display='none';
