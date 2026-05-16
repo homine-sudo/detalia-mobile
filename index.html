@@ -369,7 +369,7 @@ a{color:var(--gold-light);text-decoration:none}
         </div>
         <div class="form-row" style="margin-top:14px">
           <label class="form-label">data.json のパス</label>
-          <input id="dbx-path" type="text" placeholder="/ライム共有DB/ディテーリング/data.json" style="font-size:12px;font-family:Courier,monospace">
+          <input id="dbx-path" type="text" placeholder="/ライム共有DB/システムデータ（D)/data.json" style="font-size:12px;font-family:Courier,monospace">
         </div>
         <button class="btn btn-secondary btn-full" onclick="saveDbxPath()">💾 パス保存</button>
       </div>
@@ -542,7 +542,7 @@ const LS_KEY_LAST_SYNC= 'detalia_mobile_last_sync';
 
 // Dropbox App Key（PKCE 使用のため公開OK。LIME One と同じアプリを共有）
 const DBX_APP_KEY = 'fly154tcdbz09x9';
-const DBX_DEFAULT_PATH = '/ライム共有DB/ディテーリング/data.json';
+const DBX_DEFAULT_PATH = '/ライム共有DB/システムデータ（D)/data.json';
 
 let cases = [];
 let currentCaseId = null;
