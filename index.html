@@ -4403,8 +4403,12 @@ async function canvaTestConnection(){
 // アセット（写真）アップロード — Phase β-1（テンプレIDが用意できたら使う）
 async function canvaUploadAsset(blob, name){
   if(!canvaIsConnected()) throw new Error('Canva未連携');
-  const metaObj = {name_base64: btoa(unescape(encodeURIComponent(name||'photo.jpg')))};
-  const meta = btoa(JSON.stringify(metaObj));
+  // 名前は最大50文字。Base64(UTF-8) で name_base64 に格納
+  let nm = (name||'photo.jpg');
+  if(nm.length>50) nm = nm.slice(-50);
+  const metaObj = {name_base64: btoa(unescape(encodeURIComponent(nm)))};
+  // Asset-Upload-Metadata は「JSON文字列そのもの」を渡す（base64化しない＝以前の二重エンコードが400の原因）
+  const meta = JSON.stringify(metaObj);
   const r = await canvaFetch(CANVA_API_BASE+'/asset-uploads', {
     method:'POST',
     headers:{
@@ -4413,7 +4417,7 @@ async function canvaUploadAsset(blob, name){
     },
     body: blob
   });
-  if(!r.ok){ throw new Error('Asset upload init failed: '+r.status); }
+  if(!r.ok){ throw new Error('Asset upload init failed: '+r.status+' '+(await r.text().catch(()=>'')).substring(0,140)); }
   const init = await r.json();
   const jobId = init.job?.id;
   if(!jobId) throw new Error('Asset job ID 取得失敗');
