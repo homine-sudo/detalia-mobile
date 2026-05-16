@@ -947,12 +947,27 @@ function inlineEdit(caseId, field, value){
   if(field==='nextMaintenance' || field==='maintenanceType'){
     if(typeof _updateMaintStatus==='function') _updateMaintStatus(c);
   }
+  // SNS掲載許可を切り替えたら、警告とボタンの有効/無効を即反映（再描画せず）
+  if(field==='snsPermitted'){
+    if(typeof _refreshSnsGate==='function') _refreshSnsGate(c);
+  }
   // 視覚フィードバック
   const ind = document.getElementById('save-indicator');
   if(ind){ ind.textContent='💾 保存済'; ind.style.opacity='1'; setTimeout(()=>{ ind.style.opacity='0'; }, 1200); }
 }
 
 function inlineEditBool(caseId, field, checked){ inlineEdit(caseId, field, !!checked); }
+
+// SNS掲載許可の状態を画面に即反映（警告表示・各ボタンの有効/無効）
+function _refreshSnsGate(c){
+  const on = !!(c && c.snsPermitted);
+  const warn = document.getElementById('sns-warn');
+  if(warn) warn.style.display = on ? 'none' : 'block';
+  ['btn-gen-canva-reel','btn-sns-caption','btn-sns-posted'].forEach(id=>{
+    const b = document.getElementById(id);
+    if(b){ b.disabled = !on; b.style.opacity = on ? '1' : '.5'; }
+  });
+}
 
 // 案件詳細：インライン編集できる単一画面（V2: ステージ集中型）
 function renderCaseDetail(c){
@@ -1216,7 +1231,7 @@ function renderCaseDetail(c){
     `)}
 
     ${sCard(7, 'SNS（リール）', `
-      ${!c.snsPermitted ? `<div style="font-size:11px;color:var(--orange);padding:10px;background:rgba(251,191,36,.1);border-radius:6px;margin-bottom:10px;line-height:1.7">⚠️ STEP 4 でお客様の掲載許可を取ってください<br><button class="btn btn-secondary" style="font-size:11px;padding:6px 10px;margin-top:6px" onclick="document.querySelectorAll('details')[3]?.scrollIntoView({behavior:'smooth',block:'center'})">⬆️ STEP 4へ</button></div>` : ''}
+      <div id="sns-warn" style="display:${c.snsPermitted?'none':'block'};font-size:11px;color:var(--orange);padding:10px;background:rgba(251,191,36,.1);border-radius:6px;margin-bottom:10px;line-height:1.7">⚠️ STEP 1 でお客様の掲載許可（✅ SNS掲載許可OK）にチェックしてください<br><button class="btn btn-secondary" style="font-size:11px;padding:6px 10px;margin-top:6px" onclick="document.querySelectorAll('details')[0]?.scrollIntoView({behavior:'smooth',block:'center'})">⬆️ 受付情報へ</button></div>
       <div style="font-size:11px;color:var(--text-dim);line-height:1.7;margin-bottom:10px">
         Before/After写真と文言カードを Canva へ自動転送し、登録テンプレを開きます。<br>
         Canva では音楽を付けず書き出し → Instagram でトレンド音源を付与（尺の目安 約15秒）。
@@ -1228,8 +1243,8 @@ function renderCaseDetail(c){
         🎬 状況：${c.reel?.canvaAssetsPushedAt?`<span style="color:var(--lime);font-weight:bold">✅ Canva転送済</span>（${fmtDate(c.reel.canvaAssetsPushedAt)}）`:(c.reel?.videoPath?'<span style="color:var(--lime);font-weight:bold">✅ 生成済</span>':'<span style="color:var(--text-dim)">未着手</span>')}${c.reel?.instagramPosted?` ／ <span style="color:var(--lime)">📱投稿済</span>${c.reel.postedAt?'（'+fmtDate(c.reel.postedAt)+'）':''}`:''}
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
-        <button class="btn btn-secondary" style="font-size:12px;padding:10px" onclick="copyInstaCaption()" ${c.snsPermitted?'':'disabled'}>📋 キャプションをコピー</button>
-        <button class="btn btn-secondary" style="font-size:12px;padding:10px" onclick="markInstaPosted()" ${c.snsPermitted?'':'disabled'}>📱 投稿記録</button>
+        <button id="btn-sns-caption" class="btn btn-secondary" style="font-size:12px;padding:10px" onclick="copyInstaCaption()" ${c.snsPermitted?'':'disabled'}>📋 キャプションをコピー</button>
+        <button id="btn-sns-posted" class="btn btn-secondary" style="font-size:12px;padding:10px" onclick="markInstaPosted()" ${c.snsPermitted?'':'disabled'}>📱 投稿記録</button>
       </div>
       ${photoSec('other','📁 その他写真（任意）')}
     `)}
