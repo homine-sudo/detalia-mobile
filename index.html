@@ -4652,17 +4652,24 @@ async function canvaSemiAutoReel(){
       ...before.slice(0,4).map((p,i)=>({path:p.path, name:`${c.id}_BEFORE_${i+1}.jpg`})),
       ...after.slice(0,4).map((p,i)=>({path:p.path, name:`${c.id}_AFTER_${i+1}.jpg`}))
     ];
-    let done=0, ok=0;
+    let done=0, ok=0, lastErr='', dbxFail=0, canvaFail=0;
     for(const j of jobs){
       if(prog) prog.textContent=`Canvaへ写真を転送中... ${done+1}/${jobs.length}`;
       try{
-        const blob = await _dbxFetchFileBlob(j.path);
-        const asset = await canvaUploadAsset(blob, j.name);
-        if(asset && asset.id) ok++;
-      }catch(e){ console.warn('asset upload failed', j.name, e); }
+        let blob;
+        try{ blob = await _dbxFetchFileBlob(j.path); }
+        catch(de){ dbxFail++; throw new Error('Dropbox取得: '+(de&&de.message||de)); }
+        try{
+          const asset = await canvaUploadAsset(blob, j.name);
+          if(asset && asset.id) ok++; else { canvaFail++; lastErr='Canva: asset_id未取得'; }
+        }catch(ce){ canvaFail++; throw new Error('Canva送信: '+(ce&&ce.message||ce)); }
+      }catch(e){ lastErr = (e&&e.message||String(e)); console.warn('upload failed', j.name, e); }
       done++;
     }
-    if(ok===0) throw new Error('写真のCanva転送に失敗しました（接続/権限を確認）');
+    if(ok===0){
+      const where = dbxFail>0 && canvaFail===0 ? 'Dropbox側' : (canvaFail>0 && dbxFail===0 ? 'Canva側' : '接続');
+      throw new Error(`転送失敗（${where}）: ${lastErr||'原因不明'}`);
+    }
 
     // 文言カードも一緒にCanvaへアップ（写真と並んで「アップロード」に入る）
     if(prog) prog.textContent='文言カードを転送中...';
