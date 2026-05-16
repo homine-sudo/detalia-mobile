@@ -336,7 +336,7 @@ a{color:var(--gold-light);text-decoration:none}
     <!-- ⚙️ 設定 -->
     <div class="page" id="page-settings">
       <div class="card">
-        <div class="card-title">Dropbox <span class="ja">クラウド連携</span></div>
+        <div class="card-title">Sync <span class="ja">データ同期（Dropbox）</span></div>
         <!-- 未連携時 -->
         <div id="dbx-not-connected">
           <div style="font-size:12px;color:var(--text-dim);line-height:1.7;margin-bottom:12px">
@@ -364,33 +364,32 @@ a{color:var(--gold-light);text-decoration:none}
               <div id="dbx-account" style="font-size:10px;color:var(--text-dim)">確認中...</div>
             </div>
           </div>
-          <button class="btn btn-secondary btn-full" onclick="testDbxConnection()">🧪 接続テスト</button>
-          <button class="btn btn-secondary btn-full" style="margin-top:8px;color:var(--red);border-color:var(--red)" onclick="dbxLogout()">🚪 連携を解除</button>
-        </div>
-        <div class="form-row" style="margin-top:14px">
-          <label class="form-label">data.json のパス</label>
-          <input id="dbx-path" type="text" placeholder="/ライム共有DB/システムデータ（D)/data.json" style="font-size:12px;font-family:Courier,monospace">
-        </div>
-        <button class="btn btn-secondary btn-full" onclick="saveDbxPath()">💾 パス保存</button>
-        <button class="btn btn-primary btn-full" style="margin-top:8px" onclick="useDefaultDbxPath()">🔧 デスクトップと同じパスに自動修正</button>
-        <div style="font-size:10px;color:var(--text-dim);margin-top:6px;line-height:1.6">パスは全角「（」＋半角「)」が混在し手入力ミスしやすいため、上のボタンで正しい既定パスに一発設定できます。</div>
-      </div>
+          <div id="sync-status" style="font-size:11px;color:var(--text-dim);margin-bottom:10px;text-align:center;padding:6px;background:var(--bg2);border-radius:6px">未同期</div>
+          <button class="btn btn-primary btn-full" onclick="syncBoth()">🔄 今すぐ完全同期</button>
+          <div style="font-size:10px;color:var(--text-dim);line-height:1.6;margin-top:8px;text-align:center">✨ 自動同期が常時動作中（30秒ごと／編集時は自動Push）</div>
 
-      <div class="card">
-        <div class="card-title">Sync <span class="ja">同期操作</span></div>
-        <div id="sync-status" style="font-size:11px;color:var(--text-dim);margin-bottom:10px;text-align:center;padding:6px;background:var(--bg2);border-radius:6px">未同期</div>
-        <div style="font-size:10px;color:var(--text-dim);line-height:1.6;margin-bottom:10px;padding:8px;background:rgba(184,233,134,.06);border-radius:6px">
-          ✨ 自動同期が常時動作中（30秒ごとにリモートチェック）<br>
-          編集すると 1秒後に自動Push、3-wayフィールドマージで他端末の変更も保持
+          <details style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px">
+            <summary style="font-size:11px;color:var(--text-dim);cursor:pointer;padding:4px 0">⚙️ 詳細・うまく同期できない時</summary>
+            <div style="margin-top:10px">
+              <div class="form-row">
+                <label class="form-label">data.json のパス</label>
+                <input id="dbx-path" type="text" placeholder="/ライム共有DB/システムデータ（D)/data.json" style="font-size:12px;font-family:Courier,monospace">
+              </div>
+              <button class="btn btn-secondary btn-full" style="font-size:12px" onclick="saveDbxPath()">💾 パス保存</button>
+              <button class="btn btn-primary btn-full" style="margin-top:8px;font-size:12px" onclick="useDefaultDbxPath()">🔧 デスクトップと同じパスに自動修正</button>
+              <div style="font-size:10px;color:var(--text-dim);margin:6px 0 12px;line-height:1.6">パスは全角「（」＋半角「)」が混在し手入力ミスしやすいため、上のボタンで一発設定できます。</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+                <button class="btn btn-secondary" onclick="syncPull()" style="font-size:12px">⬇️ Pull のみ</button>
+                <button class="btn btn-secondary" onclick="syncPush()" style="font-size:12px">⬆️ Push のみ</button>
+              </div>
+              <button class="btn btn-secondary btn-full" style="font-size:12px;color:var(--orange);border-color:var(--orange)" onclick="syncReset()">🔧 同期リセット（エラー時）</button>
+              <button class="btn btn-secondary btn-full" style="margin-top:8px;font-size:12px;color:var(--red);border-color:var(--red)" onclick="syncHardReset()">⚠️ サーバーから完全再構築（端末ローカルを破棄）</button>
+              <div style="font-size:10px;color:var(--text-dim);margin-top:6px;line-height:1.6">案件がPCにあるのに端末に出ない時用。端末ローカルを捨て、サーバー(data.json)で作り直します。</div>
+              <button class="btn btn-secondary btn-full" style="margin-top:12px;font-size:12px" onclick="testDbxConnection()">🧪 接続テスト</button>
+              <button class="btn btn-secondary btn-full" style="margin-top:8px;font-size:12px;color:var(--red);border-color:var(--red)" onclick="dbxLogout()">🚪 連携を解除</button>
+            </div>
+          </details>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-          <button class="btn btn-secondary" onclick="syncPull()" style="font-size:13px">⬇️ Pull</button>
-          <button class="btn btn-secondary" onclick="syncPush()" style="font-size:13px">⬆️ Push</button>
-        </div>
-        <button class="btn btn-primary btn-full" onclick="syncBoth()">🔄 完全同期</button>
-        <button class="btn btn-secondary btn-full" style="margin-top:8px;font-size:12px;color:var(--orange);border-color:var(--orange)" onclick="syncReset()">🔧 同期リセット（エラー時）</button>
-        <button class="btn btn-secondary btn-full" style="margin-top:8px;font-size:12px;color:var(--red);border-color:var(--red)" onclick="syncHardReset()">⚠️ サーバーから完全再構築（端末ローカルを破棄）</button>
-        <div style="font-size:10px;color:var(--text-dim);margin-top:6px;line-height:1.6">案件がデスクトップにあるのに端末に出ない時用。端末のローカルデータを捨て、サーバー（data.json）の内容で作り直します。</div>
       </div>
 
       <div class="card">
@@ -455,22 +454,26 @@ a{color:var(--gold-light);text-decoration:none}
         <div style="font-size:11px;color:var(--text-dim);margin-bottom:6px">🏪 <b>店舗情報</b>（報告書に印字）</div>
         <input id="shop-addr" type="text" placeholder="例: 沖縄県豊見城市字与根326-6" style="font-size:13px;margin-bottom:6px" onblur="localStorage.setItem(LS_KEY_SHOP_ADDR,this.value);toast('住所保存')">
         <input id="shop-tel" type="tel" placeholder="例: 098-0901-3817" style="font-size:13px;margin-bottom:16px" onblur="localStorage.setItem(LS_KEY_SHOP_TEL,this.value);toast('電話保存')">
-        <!-- Instagram QR -->
-        <div style="font-size:11px;color:var(--text-dim);margin-bottom:6px">📱 <b>Instagram QRコード</b>（報告書フッタに表示）</div>
-        <div id="insta-qr-preview" style="display:flex;justify-content:center;align-items:center;background:#fff;border:1px solid var(--gold-border);border-radius:8px;padding:10px;margin-bottom:8px;min-height:80px"></div>
-        <input type="file" id="insta-qr-input" accept="image/*" style="display:none" onchange="_onQrSelected(this,'insta')">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:16px">
-          <button class="btn btn-secondary" style="font-size:12px" onclick="document.getElementById('insta-qr-input').click()">📁 QR選択</button>
-          <button class="btn btn-secondary" style="font-size:12px;color:var(--red);border-color:var(--red)" onclick="_clearQr('insta')">🗑️ 削除</button>
-        </div>
-        <!-- LINE QR -->
-        <div style="font-size:11px;color:var(--text-dim);margin-bottom:6px">💬 <b>LINE QRコード</b>（報告書フッタに表示）</div>
-        <div id="line-qr-preview" style="display:flex;justify-content:center;align-items:center;background:#fff;border:1px solid var(--gold-border);border-radius:8px;padding:10px;margin-bottom:8px;min-height:80px"></div>
-        <input type="file" id="line-qr-input" accept="image/*" style="display:none" onchange="_onQrSelected(this,'line')">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-          <button class="btn btn-secondary" style="font-size:12px" onclick="document.getElementById('line-qr-input').click()">📁 QR選択</button>
-          <button class="btn btn-secondary" style="font-size:12px;color:var(--red);border-color:var(--red)" onclick="_clearQr('line')">🗑️ 削除</button>
-        </div>
+        <!-- QRコード（任意・折りたたみ）-->
+        <details style="margin-top:6px;border-top:1px solid var(--border);padding-top:10px">
+          <summary style="font-size:11px;color:var(--text-dim);cursor:pointer;padding:4px 0">📱 QRコード（報告書フッタ・任意）</summary>
+          <div style="margin-top:10px">
+            <div style="font-size:11px;color:var(--text-dim);margin-bottom:6px">📱 <b>Instagram QRコード</b></div>
+            <div id="insta-qr-preview" style="display:flex;justify-content:center;align-items:center;background:#fff;border:1px solid var(--gold-border);border-radius:8px;padding:10px;margin-bottom:8px;min-height:80px"></div>
+            <input type="file" id="insta-qr-input" accept="image/*" style="display:none" onchange="_onQrSelected(this,'insta')">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:16px">
+              <button class="btn btn-secondary" style="font-size:12px" onclick="document.getElementById('insta-qr-input').click()">📁 QR選択</button>
+              <button class="btn btn-secondary" style="font-size:12px;color:var(--red);border-color:var(--red)" onclick="_clearQr('insta')">🗑️ 削除</button>
+            </div>
+            <div style="font-size:11px;color:var(--text-dim);margin-bottom:6px">💬 <b>LINE QRコード</b></div>
+            <div id="line-qr-preview" style="display:flex;justify-content:center;align-items:center;background:#fff;border:1px solid var(--gold-border);border-radius:8px;padding:10px;margin-bottom:8px;min-height:80px"></div>
+            <input type="file" id="line-qr-input" accept="image/*" style="display:none" onchange="_onQrSelected(this,'line')">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+              <button class="btn btn-secondary" style="font-size:12px" onclick="document.getElementById('line-qr-input').click()">📁 QR選択</button>
+              <button class="btn btn-secondary" style="font-size:12px;color:var(--red);border-color:var(--red)" onclick="_clearQr('line')">🗑️ 削除</button>
+            </div>
+          </div>
+        </details>
       </div>
 
       <details style="background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;overflow:hidden">
