@@ -433,6 +433,8 @@ a{color:var(--gold-light);text-decoration:none}
             <input id="canva-template-id" type="text" placeholder="DAFxxxxxxxxx" autocomplete="off" style="font-size:12px;font-family:Courier,monospace">
             <button class="btn btn-secondary btn-full" style="margin-top:8px" onclick="canvaSaveTemplateId()">💾 テンプレートID保存</button>
             <button class="btn btn-secondary btn-full" style="margin-top:8px" onclick="canvaListTemplates()">📋 ブランドテンプレ一覧を取得</button>
+            <button class="btn btn-primary btn-full" style="margin-top:8px" onclick="canvaReadinessCheck()">🧪 Canva準備チェック（承認待ちでも実行可）</button>
+            <div id="canva-readiness" style="margin-top:8px"></div>
             <div id="canva-template-list" style="margin-top:8px"></div>
           </div>
 
@@ -4474,6 +4476,70 @@ async function canvaListTemplates(){
   }catch(e){
     if(box) box.innerHTML = `<div style="font-size:11px;color:var(--red)">取得失敗: ${esc(e.message)}</div>`;
   }
+}
+
+// ── Canva準備チェック（Autofill承認待ちでも実行可。承認後すぐ本番投入できるか検証）──
+async function canvaReadinessCheck(){
+  const box = document.getElementById('canva-readiness');
+  const lines = [];
+  const push = (ok,label,detail)=>lines.push(`<div style="display:flex;gap:8px;font-size:12px;padding:4px 0;border-bottom:1px solid var(--border)"><span>${ok==='ok'?'✅':ok==='warn'?'⚠️':'❌'}</span><div><b>${esc(label)}</b>${detail?`<div style="font-size:10px;color:var(--text-dim);line-height:1.5">${detail}</div>`:''}</div></div>`);
+  const render = ()=>{ if(box) box.innerHTML = lines.join(''); };
+  if(box) box.innerHTML = '<div style="font-size:11px;color:var(--text-dim)">チェック中...</div>';
+
+  // 1. 連携
+  if(!canvaIsConnected()){ push('ng','Canva連携','未連携。設定で「Canvaと連携」してください'); render(); return; }
+  try{
+    const r = await canvaFetch(CANVA_API_BASE+'/users/me');
+    if(r.ok){ const d=await r.json(); push('ok','Canva連携 OK', esc(d.team?.display_name||d.profile?.display_name||'接続確認済')); }
+    else { push('ng','Canva連携', 'users/me 失敗: '+r.status); render(); return; }
+  }catch(e){ push('ng','Canva連携', esc(e.message)); render(); return; }
+  render();
+
+  // 2. アセットアップロード（asset:write・Autofill不要）
+  try{
+    const cv=document.createElement('canvas'); cv.width=cv.height=8;
+    const cx=cv.getContext('2d'); cx.fillStyle='#93C01F'; cx.fillRect(0,0,8,8);
+    const blob=await new Promise(rs=>cv.toBlob(rs,'image/jpeg',0.8));
+    const asset=await canvaUploadAsset(blob,'detalia_readiness_test.jpg');
+    push(asset&&asset.id?'ok':'ng','アセットアップロード OK', asset&&asset.id?('asset_id 取得: '+esc(String(asset.id).substring(0,16))+'…'):'asset_id 取得失敗');
+  }catch(e){ push('ng','アセットアップロード', esc(e.message)); }
+  render();
+
+  // 3. テンプレID設定
+  const tpl=localStorage.getItem(LS_KEY_CANVA_TEMPLATE)||'';
+  if(!tpl){ push('warn','テンプレートID','未設定。Canvaで縦型リール動画のブランドテンプレを作り、IDを設定してください'); render(); return; }
+  push('ok','テンプレートID 設定済', esc(tpl));
+  render();
+
+  // 4. テンプレのデータフィールド検証（brandtemplate:content:read・Autofill不要）
+  try{
+    const r = await canvaFetch(CANVA_API_BASE+'/brand-templates/'+encodeURIComponent(tpl)+'/dataset');
+    if(!r.ok){
+      const t=await r.text();
+      push(r.status===403?'warn':'ng','テンプレ項目チェック',
+        (r.status===403?'権限不足の可能性（Teams/Enterprise・brandtemplate:content:read）':'')+' '+r.status+' '+esc(t.substring(0,100)));
+      render(); return;
+    }
+    const data = await r.json();
+    const ds = data.dataset || data.data_fields || {};
+    const names = Object.keys(ds);
+    const need = [['before','image'],['after','image'],['car','text'],['service','text'],['studio','text']];
+    const opt  = [['before2','image'],['after2','image']];
+    const miss=[], okf=[], warnf=[];
+    need.forEach(([n,ty])=>{ if(!names.includes(n)) miss.push(n); else { const t=(ds[n].type||'').toLowerCase(); okf.push(n+(t&&t!==ty?`(型:${t}≠${ty})`:'')); } });
+    opt.forEach(([n,ty])=>{ if(names.includes(n)) okf.push(n); else warnf.push(n); });
+    if(miss.length){
+      push('ng','テンプレ項目チェック',
+        `必須フィールド不足: <b>${miss.join(', ')}</b><br>検出フィールド: ${names.length?esc(names.join(', ')):'(なし)'}<br>テンプレ側のデータフィールド名を before/after/car/service/studio に設定してください`);
+    } else {
+      push('ok','テンプレ項目チェック',
+        `必須フィールドOK: ${okf.join(', ')}${warnf.length?`<br>任意未設定(2枚目): ${warnf.join(', ')}（あると尚良し）`:''}`);
+    }
+  }catch(e){ push('ng','テンプレ項目チェック', esc(e.message)); }
+
+  // 5. Autofill 承認状況の注記
+  push('warn','Autofill API','このチェックは Autofill を呼びません。上が全て✅なら、Autofill承認が下り次第そのまま本番稼働できます');
+  render();
 }
 
 // ── オートフィル（テンプレ＋データ → 新規デザイン）──
