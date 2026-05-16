@@ -434,20 +434,6 @@ a{color:var(--gold-light);text-decoration:none}
             <button class="btn btn-secondary btn-full" style="margin-top:8px" onclick="canvaSaveTplUrl()">💾 テンプレURL保存</button>
           </div>
 
-          <details style="margin-top:12px">
-            <summary style="font-size:11px;color:var(--text-dim);cursor:pointer">⚙️ Autofill自動リール（Canva Enterprise専用・将来用）</summary>
-            <div style="margin-top:8px">
-              <div style="font-size:10px;color:var(--orange);line-height:1.7;margin-bottom:6px">
-                ※ 完全自動のAutofill方式は <b>Canva Enterprise限定</b>。Free/Pro/Teamsでは不可。将来Enterprise化した場合のみ使用。
-              </div>
-              <input id="canva-template-id" type="text" placeholder="DAFxxxxxxxxx" autocomplete="off" style="font-size:12px;font-family:Courier,monospace">
-              <button class="btn btn-secondary btn-full" style="margin-top:8px" onclick="canvaSaveTemplateId()">💾 テンプレートID保存</button>
-              <button class="btn btn-secondary btn-full" style="margin-top:8px" onclick="canvaListTemplates()">📋 ブランドテンプレ一覧を取得</button>
-              <button class="btn btn-secondary btn-full" style="margin-top:8px" onclick="canvaReadinessCheck()">🧪 Canva準備チェック</button>
-              <div id="canva-readiness" style="margin-top:8px"></div>
-              <div id="canva-template-list" style="margin-top:8px"></div>
-            </div>
-          </details>
 
           <button class="btn btn-secondary btn-full" style="margin-top:12px;color:var(--red);border-color:var(--red)" onclick="canvaLogout()">🚪 連携を解除</button>
         </div>
@@ -1221,44 +1207,23 @@ function renderCaseDetail(c){
       </div>
     `)}
 
-    ${sCard(7, 'SNS自動投稿', `
+    ${sCard(7, 'SNS（リール）', `
       ${!c.snsPermitted ? `<div style="font-size:11px;color:var(--orange);padding:10px;background:rgba(251,191,36,.1);border-radius:6px;margin-bottom:10px;line-height:1.7">⚠️ STEP 4 でお客様の掲載許可を取ってください<br><button class="btn btn-secondary" style="font-size:11px;padding:6px 10px;margin-top:6px" onclick="document.querySelectorAll('details')[3]?.scrollIntoView({behavior:'smooth',block:'center'})">⬆️ STEP 4へ</button></div>` : ''}
-      <!-- 投稿形式セレクター -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;padding:4px;background:var(--bg2);border-radius:10px">
-        <button id="fmt-reel" class="fmt-btn fmt-active" onclick="_selectFormat('reel')" style="padding:10px;border-radius:8px;background:var(--gold);color:#0F0F1A;font-weight:bold;font-size:13px">🎬 リール（縦動画）</button>
-        <button id="fmt-post" class="fmt-btn" onclick="_selectFormat('post')" style="padding:10px;border-radius:8px;background:transparent;color:var(--text-dim);font-size:13px">📸 通常投稿（カルーセル）</button>
+      <div style="font-size:11px;color:var(--text-dim);line-height:1.7;margin-bottom:10px">
+        Before/After写真と文言カードを Canva へ自動転送し、登録テンプレを開きます。<br>
+        Canva では音楽を付けず書き出し → Instagram でトレンド音源を付与（尺の目安 約15秒）。
       </div>
-      <div id="ai-style-card">
-        ${(()=>{
-          try{
-            const plan = _buildReelPlan(c);
-            return `<div style="padding:10px 12px;background:linear-gradient(135deg,rgba(201,168,76,.12) 0%,rgba(232,201,106,.06) 100%);border:1px solid var(--gold-border);border-radius:8px;margin-bottom:10px">
-              <div style="font-size:10px;letter-spacing:2px;color:var(--gold-deep);margin-bottom:4px">🎯 AI 推奨スタイル</div>
-              <div style="font-size:13px;color:var(--text);font-weight:bold;margin-bottom:4px">${esc(plan.style)}</div>
-              <div style="font-size:10px;color:var(--text-dim);line-height:1.6">${esc(plan.reason)}</div>
-              <div style="font-size:9px;color:var(--gold-deep);margin-top:6px;letter-spacing:1px">推定 ${plan.totalDuration.toFixed(0)}秒 ／ ${plan.scenes.length}シーン</div>
-            </div>`;
-          }catch(e){ return ''; }
-        })()}
-      </div>
-      <button class="btn btn-primary btn-full" id="btn-gen-reel" style="padding:16px;font-size:16px" onclick="generateReel()" ${c.snsPermitted?'':'disabled'} ${c.snsPermitted?'':'style="opacity:.5"'}">🎬 自動リール生成（簡易・端末内）</button>
-      <button class="btn btn-primary btn-full" id="btn-gen-canva-reel" style="padding:16px;font-size:15px;margin-top:8px;background:linear-gradient(135deg,#8B3DFF,#00C4CC);color:#fff;font-weight:bold;${canvaIsConnected()?'':'display:none'}" onclick="canvaSemiAutoReel()" ${c.snsPermitted?'':'disabled'}>🎨 Canvaへ写真送信＋テンプレを開く</button>
-      <button class="btn btn-primary btn-full" id="btn-gen-post" style="padding:16px;font-size:16px;display:none" onclick="generatePost()" ${c.snsPermitted?'':'disabled'} ${c.snsPermitted?'':'style="opacity:.5"'}">📸 自動カルーセル生成 → 共有</button>
+      <button class="btn btn-primary btn-full" id="btn-gen-canva-reel" style="padding:16px;font-size:15px;background:linear-gradient(135deg,#8B3DFF,#00C4CC);color:#fff;font-weight:bold" onclick="canvaSemiAutoReel()" ${c.snsPermitted?'':'disabled'}>🎨 Canvaへ写真送信＋テンプレを開く</button>
+      ${!canvaIsConnected()?`<div style="font-size:10px;color:var(--orange);margin-top:6px;line-height:1.6">※ 設定でCanvaと連携すると使えます</div>`:''}
       <div id="reel-progress" style="display:none;font-size:11px;color:var(--gold-light);margin-top:6px;text-align:center"></div>
-      <button class="btn btn-secondary btn-full" id="btn-save-post-device" style="display:none;margin-top:8px;font-size:12px;padding:10px" onclick="_savePostToDevice()">💾 通常投稿の画像を端末に保存</button>
-      <!-- 生成/投稿ステータス（リール・通常投稿を独立管理）-->
       <div style="margin-top:10px;font-size:11px;line-height:2;background:var(--bg2);border-radius:8px;padding:8px 12px">
-        <div>🎬 リール：${c.reel?.videoPath?`<span style="color:var(--lime);font-weight:bold">✅ 生成済</span>${c.reel?.instagramPosted?` / <span style="color:var(--lime)">📱投稿済</span>${c.reel.postedAt?'（'+fmtDate(c.reel.postedAt)+'）':''}`:''}`:'<span style="color:var(--text-dim)">未生成</span>'}</div>
-        <div>📸 通常投稿：${c.post?.generated?`<span style="color:var(--lime);font-weight:bold">✅ 生成済</span>${c.post.slidePaths?.length?`（${c.post.slidePaths.length}枚）`:''}${c.post?.instagramPosted?` / <span style="color:var(--lime)">📱投稿済</span>${c.post.postedAt?'（'+fmtDate(c.post.postedAt)+'）':''}`:''}`:'<span style="color:var(--text-dim)">未生成</span>'}</div>
+        🎬 状況：${c.reel?.canvaAssetsPushedAt?`<span style="color:var(--lime);font-weight:bold">✅ Canva転送済</span>（${fmtDate(c.reel.canvaAssetsPushedAt)}）`:(c.reel?.videoPath?'<span style="color:var(--lime);font-weight:bold">✅ 生成済</span>':'<span style="color:var(--text-dim)">未着手</span>')}${c.reel?.instagramPosted?` ／ <span style="color:var(--lime)">📱投稿済</span>${c.reel.postedAt?'（'+fmtDate(c.reel.postedAt)+'）':''}`:''}
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
-        <button class="btn btn-secondary" style="font-size:12px;padding:10px" onclick="copyInstaCaption()" ${c.snsPermitted?'':'disabled'}>📋 キャプションのみコピー</button>
+        <button class="btn btn-secondary" style="font-size:12px;padding:10px" onclick="copyInstaCaption()" ${c.snsPermitted?'':'disabled'}>📋 キャプションをコピー</button>
         <button class="btn btn-secondary" style="font-size:12px;padding:10px" onclick="markInstaPosted()" ${c.snsPermitted?'':'disabled'}>📱 投稿記録</button>
       </div>
       ${photoSec('other','📁 その他写真（任意）')}
-      <details style="margin-top:12px"><summary style="font-size:11px;color:var(--text-dim);cursor:pointer">🎨 Canva で手動編集する場合</summary>
-        <button class="btn btn-secondary btn-full" style="font-size:12px;margin-top:6px" onclick="openCanvaWorkflow('${cid}')" ${c.snsPermitted?'':'disabled'}>🎨 Canva ワークフロー</button>
-      </details>
     `)}
   `;
   // 写真グリッドを描画
