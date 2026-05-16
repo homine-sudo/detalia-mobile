@@ -4619,6 +4619,50 @@ async function _dbxFetchFileBlob(path){
   return await r.blob();
 }
 
+// 文言カード画像を生成（写真と一緒にCanvaへ送る／オンスクリーン文字＋キャプション＋ハッシュタグ）
+function _buildWordingCardBlob(c){
+  return new Promise(res=>{
+    const W=1080,H=1600;
+    const cv=document.createElement('canvas'); cv.width=W; cv.height=H;
+    const x=cv.getContext('2d');
+    x.fillStyle='#0F1410'; x.fillRect(0,0,W,H);
+    x.fillStyle='#93C01F'; x.fillRect(0,0,W,10);
+    const car=`${c.carMaker||c.maker||''} ${c.carModel||''}`.trim()||'お客様のお車';
+    const items=(c.workDetail||'').split(/[・,、\n\/]/).map(s=>s.trim()).filter(Boolean);
+    let y=72;
+    x.textAlign='left';
+    x.fillStyle='#93C01F'; x.font='700 30px sans-serif';
+    x.fillText('LIME DETAILING STUDIO ｜ リール文言シート', 56, y); y+=18;
+    x.strokeStyle='#2A3326'; x.beginPath(); x.moveTo(56,y); x.lineTo(W-56,y); x.stroke(); y+=46;
+    x.fillStyle='#fff'; x.font='800 36px sans-serif';
+    x.fillText(`${c.id||''}  ${c.customer||''}`, 56, y); y+=40;
+    x.fillStyle='#AEB6A0'; x.font='500 23px sans-serif';
+    y=_drawWrappedText(x,`${car}　/　施工: ${items.join('・')||'—'}${c.size?'　/　SIZE '+c.size:''}`,56,y,W-112,30)+24;
+    x.fillStyle='#93C01F'; x.font='700 25px sans-serif'; x.fillText('▼ 動画内テキスト（シーン順）', 56, y); y+=40;
+    const lines=[
+      'フック：BEFORE → AFTER',
+      `（小）${car} ｜ ${items[0]||'ディテーリング'}`,
+      'Before：施工前',
+      '切替：'+(items[0]?`${items[0]}で輝きが変わる`:'仕上がりが変わる'),
+      'After：施工後',
+      `情報：${car} ／ 施工 ${items.slice(0,3).join('・')||'—'}${c.size?' ／ SIZE '+c.size:''}`,
+      '締め：LIME DETAILING STUDIO ／ 沖縄・豊見城 ／ ご予約はLINEから'
+    ];
+    x.fillStyle='#E7ECDF'; x.font='500 24px sans-serif';
+    lines.forEach(t=>{ y=_drawWrappedText(x,'・'+t,56,y,W-112,32)+10; });
+    y+=14;
+    x.fillStyle='#93C01F'; x.font='700 25px sans-serif'; x.fillText('▼ キャプション（コピペ用）', 56, y); y+=38;
+    x.fillStyle='#E7ECDF'; x.font='400 22px sans-serif';
+    y=_drawWrappedText(x, _generateCaption(c), 56, y, W-112, 30)+18;
+    x.fillStyle='#93C01F'; x.font='700 25px sans-serif'; x.fillText('▼ ハッシュタグ', 56, y); y+=36;
+    x.fillStyle='#9FD23A'; x.font='500 20px sans-serif';
+    _drawWrappedText(x, DEFAULT_HASHTAGS.join(' '), 56, y, W-112, 28);
+    x.fillStyle='#7A8470'; x.font='400 18px sans-serif';
+    x.fillText('尺の目安：約15秒（最大30秒）／ 音楽はInstagramでトレンド音源を付与', 56, H-40);
+    cv.toBlob(b=>res(b),'image/jpeg',0.92);
+  });
+}
+
 // ── Canva 半自動リール（Pro可）：Before/After を Canva アップロードへ自動転送 → テンプレを開く ──
 async function canvaSemiAutoReel(){
   const c = cases.find(c=>c.id===currentCaseId);
@@ -4652,6 +4696,16 @@ async function canvaSemiAutoReel(){
     }
     if(ok===0) throw new Error('写真のCanva転送に失敗しました（接続/権限を確認）');
 
+    // 文言カードも一緒にCanvaへアップ（写真と並んで「アップロード」に入る）
+    if(prog) prog.textContent='文言カードを転送中...';
+    try{
+      const wb = await _buildWordingCardBlob(c);
+      if(wb){ const wa = await canvaUploadAsset(wb, `${c.id}_文言.jpg`); if(wa&&wa.id) ok++; }
+    }catch(e){ console.warn('wording card upload failed', e); }
+    // キャプションを自動でクリップボードへ
+    let _capCopied=false;
+    try{ await navigator.clipboard.writeText(_generateCaption(c)); _capCopied=true; }catch(e){}
+
     // 記録（生成ではなく素材転送）
     if(!c.reel) c.reel={generated:false,videoPath:'',captionDraft:'',hashtags:[],instagramPosted:false,instagramUrl:'',postedAt:''};
     c.reel.canvaAssetsPushedAt = new Date().toISOString();
@@ -4663,7 +4717,7 @@ async function canvaSemiAutoReel(){
 
     if(prog) prog.style.display='none';
     if(btn){ btn.disabled=false; btn.style.opacity='1'; }
-    toast(`✅ ${ok}枚をCanvaへ転送完了。テンプレを開きます`);
+    toast(`✅ 写真＋文言カードをCanvaへ転送完了${_capCopied?'（キャプションはコピー済）':''}`);
 
     // Canva を開く（テンプレURL設定があればそれ、無ければアップロード一覧）
     const tplUrl = (localStorage.getItem(LS_KEY_CANVA_TPLURL)||'').trim();
