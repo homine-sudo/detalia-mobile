@@ -389,6 +389,8 @@ a{color:var(--gold-light);text-decoration:none}
         </div>
         <button class="btn btn-primary btn-full" onclick="syncBoth()">🔄 完全同期</button>
         <button class="btn btn-secondary btn-full" style="margin-top:8px;font-size:12px;color:var(--orange);border-color:var(--orange)" onclick="syncReset()">🔧 同期リセット（エラー時）</button>
+        <button class="btn btn-secondary btn-full" style="margin-top:8px;font-size:12px;color:var(--red);border-color:var(--red)" onclick="syncHardReset()">⚠️ サーバーから完全再構築（端末ローカルを破棄）</button>
+        <div style="font-size:10px;color:var(--text-dim);margin-top:6px;line-height:1.6">案件がデスクトップにあるのに端末に出ない時用。端末のローカルデータを捨て、サーバー（data.json）の内容で作り直します。</div>
       </div>
 
       <div class="card">
@@ -4970,6 +4972,26 @@ async function syncReset(){
   _lastSyncSnapshot = null;
   toast('🔧 同期状態リセット → 再取得中...');
   await syncPull(false);
+}
+
+// ⚠️ 完全再構築：端末ローカルを破棄しサーバー(data.json)の内容で作り直す
+// （ローカルの削除済みトゥームストーン等がデスクトップ案件をマスクしている場合の最終手段）
+async function syncHardReset(){
+  if(!confirm('⚠️ 端末ローカルの案件データを破棄し、サーバー（Dropbox の data.json）の内容で作り直します。\n\n・サーバー側のデータは消えません\n・この端末でしか作っていない未同期の変更があれば失われます\n\n実行しますか？')) return;
+  try{
+    localStorage.removeItem(LS_KEY_CASES);
+    localStorage.removeItem(LS_KEY_SNAPSHOT);
+    localStorage.removeItem(LS_KEY_REV);
+    _lastDbxRev = null;
+    _lastSyncSnapshot = null;
+    cases = [];
+    toast('⚠️ ローカル破棄 → サーバーから再構築中...');
+    await syncPull(false);
+    renderHome(); renderCaseList();
+    toast(`✅ 再構築完了（${cases.length}件）`);
+  }catch(e){
+    toast('❌ 再構築失敗: '+(e&&e.message||e), 'error');
+  }
 }
 
 // Pull（Dropbox→ローカル）スナップショット使った 3-way マージ
