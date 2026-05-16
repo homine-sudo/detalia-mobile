@@ -424,11 +424,16 @@ a{color:var(--gold-light);text-decoration:none}
 
           <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
             <label class="form-label">🎬 Canva半自動リール（Pro可・推奨）</label>
-            <div style="font-size:10px;color:var(--text-dim);line-height:1.7;margin-bottom:6px">
-              Canvaで作り込んだ縦型リール動画デザインのURLを登録。生成時に Before/After 写真が
-              <b>自動でCanvaの「アップロード」へ転送</b>され、そのテンプレが開きます（写真をはめ込むだけ）。
-              Proプランで利用可・無料。
+            <div style="font-size:10px;color:var(--text-dim);line-height:1.7;margin-bottom:8px">
+              生成時に Before/After 写真＋文言カードが <b>自動でCanvaの「アップロード」へ転送</b>されます。
+              その後 Canva をどう開くか選べます。
             </div>
+            <label class="form-label" style="margin-top:4px">開く先</label>
+            <select id="canva-open-mode" onchange="localStorage.setItem(LS_KEY_CANVA_OPENMODE,this.value);toast('開く先を保存')" style="font-size:13px;margin-bottom:10px">
+              <option value="magic">⚡ Magic動画（Canvaが自動生成・速い）</option>
+              <option value="template">🎨 登録テンプレを開く（毎回同じ型）</option>
+            </select>
+            <label class="form-label">テンプレURL（「登録テンプレ」選択時に使用）</label>
             <input id="canva-tplurl" type="text" placeholder="https://www.canva.com/design/XXXX/edit" autocomplete="off" style="font-size:12px;font-family:Courier,monospace">
             <button class="btn btn-secondary btn-full" style="margin-top:8px" onclick="canvaSaveTplUrl()">💾 テンプレURL保存</button>
           </div>
@@ -4228,6 +4233,7 @@ const LS_KEY_CANVA_VERIFIER  = 'detalia_canva_verifier';
 const LS_KEY_CANVA_EXPIRES   = 'detalia_canva_expires';
 const LS_KEY_CANVA_TEMPLATE  = 'detalia_canva_template_id'; // リール用テンプレID（Autofill/Enterprise用）
 const LS_KEY_CANVA_TPLURL    = 'detalia_canva_tpl_url';     // 半自動リール用 CanvaデザインURL（Pro可）
+const LS_KEY_CANVA_OPENMODE  = 'detalia_canva_open_mode';   // 'magic'(自動) | 'template'(登録テンプレ)
 
 function _canvaClientId(){ return localStorage.getItem(LS_KEY_CANVA_CLIENT_ID)||''; }
 function _canvaClientSecret(){ return localStorage.getItem(LS_KEY_CANVA_CLIENT_SECRET)||''; }
@@ -4698,14 +4704,20 @@ async function canvaSemiAutoReel(){
     if(btn){ btn.disabled=false; btn.style.opacity='1'; }
     toast(`✅ 写真＋文言カードをCanvaへ転送完了${_capCopied?'（キャプションはコピー済）':''}`);
 
-    // Canva を開く（テンプレURL設定があればそれ、無ければアップロード一覧）
+    // Canva を開く（Magic動画 or 登録テンプレ）
     const tplUrl = (localStorage.getItem(LS_KEY_CANVA_TPLURL)||'').trim();
-    const openUrl = tplUrl || 'https://www.canva.com/folder/uploads';
-    try{ window.open(openUrl, '_blank'); }catch(e){}
-    // 案内（テンプレ未設定時）
-    if(!tplUrl){
-      setTimeout(()=>toast('💡 設定でリールテンプレURLを登録すると次回から直接開けます'), 1500);
+    const mode = localStorage.getItem(LS_KEY_CANVA_OPENMODE) || (tplUrl ? 'template' : 'magic');
+    let openUrl, hint;
+    if(mode === 'template' && tplUrl){
+      openUrl = tplUrl;
+      hint = '🎨 テンプレを開きました。ファイル→コピーを作成→写真をはめ込み';
+    } else {
+      // Magic: Canvaの動画作成入口（アップロード済み写真からMagic Designで生成）
+      openUrl = 'https://www.canva.com/create/video-maker/';
+      hint = '⚡ Canvaで「Magic Design」→ アップロード済みの写真を選んで自動生成';
     }
+    try{ window.open(openUrl, '_blank'); }catch(e){}
+    setTimeout(()=>toast(hint), 1500);
     renderCaseDetail(c);
   }catch(e){
     if(prog) prog.style.display='none';
@@ -5562,6 +5574,8 @@ function initSettingsUI(){
     if(ctplEl) ctplEl.value = localStorage.getItem(LS_KEY_CANVA_TEMPLATE)||'';
     const ctpurlEl = document.getElementById('canva-tplurl');
     if(ctpurlEl) ctpurlEl.value = localStorage.getItem(LS_KEY_CANVA_TPLURL)||'';
+    const comEl = document.getElementById('canva-open-mode');
+    if(comEl) comEl.value = localStorage.getItem(LS_KEY_CANVA_OPENMODE) || ((localStorage.getItem(LS_KEY_CANVA_TPLURL)||'').trim()?'template':'magic');
     if(cConnected){
       canvaFetch(CANVA_API_BASE+'/users/me').then(r=>r.ok?r.json():null).then(data=>{
         const el=document.getElementById('canva-account');
