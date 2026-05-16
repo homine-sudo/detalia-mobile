@@ -3935,43 +3935,44 @@ function _generateCaption(c){
       paintHook = `📊 塗膜計測 ${ms.length}箇所実施済み`;
     }
   }
-  // フック行（最初の1行が重要）
+  // フック行（最初の1行が命。"細部に神は宿る"を軸に）
   const hooks = [
-    'スワイプして変化を見てください👉',
-    '同じ車とは思えない仕上がり✨',
-    'この差、3秒で分かります👀',
-    '本気のディテーリング、見せます🔥',
-    '塗装を蘇らせました...👇'
+    '細部に、神は宿る。',
+    'その違いは、細部に出る。',
+    '"なんとなく綺麗"で、終わらせない。',
+    '見て分かる。乗って、もっと分かる。',
+    'この一台に、どれだけ手をかけたか。'
   ];
   const hook = hooks[Math.floor(Math.random()*hooks.length)];
   // CTA行
   const ctas = [
-    'ご質問・ご予約はプロフィールのDMから📩',
-    '愛車を蘇らせたい方、DMでご相談ください✉️',
-    '見積無料です、お気軽にDMどうぞ💬'
+    'ご予約・ご相談は プロフィールのLINE / DM から',
+    '愛車の"本気の仕上げ"。まずは無料見積もりから',
+    '次の一台、私たちに任せてみませんか'
   ];
   const cta = ctas[Math.floor(Math.random()*ctas.length)];
 
   return [
     hook,
     ``,
-    `🚗 ${c.carModel||''} ${c.carYear||''}`.trim() + (c.size?` (${c.size}サイズ)`:''),
+    `🚗 ${c.carModel||''} ${c.carYear||''}`.trim() + (c.size?`（${c.size}）`:''),
     ``,
-    c.beforeComment?`【施工前の状態】\n${c.beforeComment}`:'',
+    c.beforeComment?`― 施工前 ―\n${c.beforeComment}`:'',
     ``,
-    `［施工内容］`,
+    `［ 施工内容 ］`,
     ...items.map(i=>`✓ ${i}`),
     ``,
     paintHook,
     ``,
-    c.afterComment?`【施工後】\n${c.afterComment}`:'',
+    c.afterComment?`― 施工後 ―\n${c.afterComment}`:'',
     ``,
-    `「ディテーリング」って聞いたことありますか？`,
-    `洗車では落ちない汚れも、磨きとコーティングで`,
-    `新車以上の輝きに戻せます✨`,
+    `磨き、コーティング、その先の一手間まで。`,
+    `仕上がりの差は、いつも"細部"に現れます。`,
     ``,
     cta,
-    `📍 沖縄 LIME DETAILING STUDIO`,
+    ``,
+    `細部に神は宿る ― God is in the details`,
+    `📍 沖縄・豊見城｜LIME DETAILING STUDIO`,
     ``,
     DEFAULT_HASHTAGS.join(' ')
   ].filter(s=>s!=='').join('\n').replace(/\n\n\n+/g,'\n\n');
@@ -4633,13 +4634,14 @@ function _buildWordingCardBlob(c){
     y=_drawWrappedText(x,`${car}　/　施工: ${items.join('・')||'—'}${c.size?'　/　SIZE '+c.size:''}`,56,y,W-112,30)+24;
     x.fillStyle='#93C01F'; x.font='700 25px sans-serif'; x.fillText('▼ 動画内テキスト（シーン順）', 56, y); y+=40;
     const lines=[
-      'フック：BEFORE → AFTER',
-      `（小）${car} ｜ ${items[0]||'ディテーリング'}`,
-      'Before：施工前',
-      '切替：'+(items[0]?`${items[0]}で輝きが変わる`:'仕上がりが変わる'),
-      'After：施工後',
-      `情報：${car} ／ 施工 ${items.slice(0,3).join('・')||'—'}${c.size?' ／ SIZE '+c.size:''}`,
-      '締め：LIME DETAILING STUDIO ／ 沖縄・豊見城 ／ ご予約はLINEから'
+      'フック：その違いは、細部に出る。',
+      `（小）${car}`,
+      'Before：施工前 ― ここから始まる',
+      '切替：細部に、神は宿る。',
+      'After：施工後 ― 違いは一目瞭然',
+      `情報：${car}${c.size?'（'+c.size+'）':''} ／ ${items.slice(0,3).join('・')||'ディテーリング'}`,
+      '締め①：細部に神は宿る ― God is in the details',
+      '締め②：LIME DETAILING STUDIO ／ 沖縄・豊見城 ／ ご予約は LINE'
     ];
     x.fillStyle='#E7ECDF'; x.font='500 24px sans-serif';
     lines.forEach(t=>{ y=_drawWrappedText(x,'・'+t,56,y,W-112,32)+10; });
