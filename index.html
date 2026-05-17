@@ -2110,22 +2110,31 @@ async function _uploadPhotoBlob(caseId, kind, blob){
 
 // 写真を追加（ファイル選択ハンドラ）
 async function _onPhotoSelected(kind, input){
-  const files = Array.from(input.files||[]);
+  const tgt = (_capTarget && _capTarget.kind===kind) ? _capTarget : null;
+  _capTarget = null;
+  let files = Array.from(input.files||[]);
   input.value = ''; // 同じファイル再選択対応
   if(files.length===0) return;
+  if(tgt) files = files.slice(0,1); // スロット指定撮影は1枚だけ
   const c = cases.find(c=>c.id===currentCaseId);
   if(!c){ toast('案件が見つかりません','error'); return; }
   if(isDemoMode){ toast('デモモードでは写真をアップできません','error'); return; }
   if(!_dbxToken()){ toast('先に Dropbox トークンを設定してください','error'); return; }
   if(!c.photos) c.photos={before:[],during:[],after:[],paint:[],other:[]};
   if(!Array.isArray(c.photos[kind])) c.photos[kind]=[];
-  toast(`📤 ${files.length}枚アップロード中...`);
+  toast(tgt ? `📤 ${tgt.pos} を撮影中...` : `📤 ${files.length}枚アップロード中...`);
   let success=0;
   for(const f of files){
     try{
       const blob = await _compressImage(f);
       const path = await _uploadPhotoBlob(c.id, kind, blob);
-      c.photos[kind].push({path, size:blob.size, ts:new Date().toISOString()});
+      if(tgt){
+        const obj = {path, size:blob.size, ts:new Date().toISOString(), pos:tgt.pos};
+        const ex = c.photos[kind].findIndex(p=>p && p.pos===tgt.pos);
+        if(ex>=0) c.photos[kind][ex] = obj; else c.photos[kind].push(obj);
+      } else {
+        c.photos[kind].push({path, size:blob.size, ts:new Date().toISOString()});
+      }
       success++;
     }catch(e){
       console.error('photo upload failed', e);
@@ -2170,24 +2179,58 @@ async function _loadPhotoThumb(path){
   }catch(e){ return null; }
 }
 
-// 写真グリッドを描画（プレースホルダ→サムネ非同期ロード）
+// 撮影ポジション（before/after 共通スロット。リールはこの順で構成）
+const PHOTO_POS = ['フロント正面','斜め前(運転席側)','助手席側','リア','ホイール','内装','気になる箇所'];
+const SLOTTED_KINDS = ['before','after'];
+let _capTarget = null; // {kind,pos} スロット指定撮影のターゲット
+
+function _captureSlot(kind, pos){
+  _capTarget = { kind, pos };
+  document.getElementById('photo-input-'+kind).click();
+}
+
+// 写真グリッドを描画（before/after=ラベル付きスロット／その他=従来の+追加）
 function _renderPhotoGrid(c, kind){
   const grid = document.getElementById('photo-grid-'+kind);
   if(!grid) return;
   const photos = (c.photos&&c.photos[kind])||[];
-  const cells = photos.map((p,i)=>`<div class="photo-cell" id="ph-${kind}-${i}" onclick="_openPhoto('${esc(p.path)}')"><span style="color:var(--text-dim);font-size:10px">読込中…</span></div>`).join('');
-  const addBtn = `<div class="photo-cell photo-add" onclick="document.getElementById('photo-input-${kind}').click()">+</div>`;
-  grid.innerHTML = cells + addBtn;
-  // サムネ非同期ロード
-  photos.forEach(async (p,i)=>{
-    const cell = document.getElementById(`ph-${kind}-${i}`);
-    if(!cell) return;
-    const url = await _loadPhotoThumb(p.path);
-    if(url && cell){
-      cell.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:8px" alt="">`;
-    }else if(cell){
-      cell.innerHTML = `<span style="color:var(--text-dim);font-size:10px">📷</span>`;
-    }
+  const ph = (id)=>`<div id="${id}" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:10px">読込中…</div>`;
+  const load = []; // {idx,elId}
+  if(SLOTTED_KINDS.includes(kind)){
+    const used = new Set();
+    // ① pos一致を割当 → ② pos未設定の旧写真を空きスロットへ順番にフォールバック（表示のみ・データ非破壊）
+    const slotIdx = PHOTO_POS.map((pos)=>{ const i=photos.findIndex((p,idx)=>p&&p.pos===pos&&!used.has(idx)); if(i>=0) used.add(i); return i; });
+    const legacy = photos.map((p,idx)=>({p,idx})).filter(o=>o.p&&!o.p.pos&&!used.has(o.idx));
+    let lp=0;
+    for(let s=0;s<slotIdx.length;s++){ if(slotIdx[s]<0 && lp<legacy.length){ slotIdx[s]=legacy[lp].idx; used.add(legacy[lp].idx); lp++; } }
+    let html='';
+    PHOTO_POS.forEach((pos,si)=>{
+      const num=si+1, pi=slotIdx[si];
+      if(pi>=0){
+        const elId=`ph-${kind}-${pi}`; load.push({idx:pi,elId});
+        html+=`<div class="photo-cell" style="position:relative" onclick="_openPhoto('${esc(photos[pi].path)}')">`+ph(elId)
+          +`<span style="position:absolute;left:3px;top:3px;background:rgba(0,0,0,.55);color:#fff;font-size:9px;padding:1px 5px;border-radius:6px">${num} ${esc(pos)}</span>`
+          +`<button onclick="event.stopPropagation();_captureSlot('${kind}','${esc(pos)}')" style="position:absolute;right:3px;bottom:3px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:6px;font-size:11px;padding:2px 6px">📷撮直</button></div>`;
+      } else {
+        html+=`<div class="photo-cell" onclick="_captureSlot('${kind}','${esc(pos)}')" style="display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px dashed var(--gold-border);background:var(--bg2);gap:2px;text-align:center;padding:4px">`
+          +`<span style="font-size:18px">📷</span><span style="font-size:9px;color:var(--gold-deep);font-weight:bold">${num}</span><span style="font-size:8.5px;color:var(--text-dim);line-height:1.15">${esc(pos)}</span></div>`;
+      }
+    });
+    photos.forEach((p,i)=>{ if(p&&!used.has(i)){ const elId=`ph-${kind}-${i}`; load.push({idx:i,elId}); html+=`<div class="photo-cell" onclick="_openPhoto('${esc(p.path)}')">`+ph(elId)+`</div>`; } });
+    grid.innerHTML = html;
+  } else {
+    let html = photos.map((p,i)=>{ const elId=`ph-${kind}-${i}`; load.push({idx:i,elId}); return `<div class="photo-cell" onclick="_openPhoto('${esc(p.path)}')">`+ph(elId)+`</div>`; }).join('');
+    html += `<div class="photo-cell photo-add" onclick="document.getElementById('photo-input-${kind}').click()">+</div>`;
+    grid.innerHTML = html;
+  }
+  // サムネ非同期ロード（内側 thumb div だけ差し替え＝ラベル/ボタンは保持）
+  load.forEach(async ({idx,elId})=>{
+    const el = document.getElementById(elId);
+    if(!el || !photos[idx]) return;
+    const url = await _loadPhotoThumb(photos[idx].path);
+    el.innerHTML = url
+      ? `<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:8px" alt="">`
+      : `<span style="color:var(--text-dim);font-size:10px">📷</span>`;
   });
 }
 
