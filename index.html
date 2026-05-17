@@ -963,7 +963,7 @@ function _refreshSnsGate(c){
   const on = !!(c && c.snsPermitted);
   const warn = document.getElementById('sns-warn');
   if(warn) warn.style.display = on ? 'none' : 'block';
-  ['btn-save-photos-device','btn-gen-canva-reel','btn-sns-caption','btn-sns-posted'].forEach(id=>{
+  ['btn-sns-caption','btn-sns-posted'].forEach(id=>{
     const b = document.getElementById(id);
     if(b){ b.disabled = !on; b.style.opacity = on ? '1' : '.5'; }
   });
@@ -1233,22 +1233,29 @@ function renderCaseDetail(c){
     ${sCard(7, 'SNS（リール）', `
       <div id="sns-warn" style="display:${c.snsPermitted?'none':'block'};font-size:11px;color:var(--orange);padding:10px;background:rgba(251,191,36,.1);border-radius:6px;margin-bottom:10px;line-height:1.7">⚠️ STEP 1 でお客様の掲載許可（✅ SNS掲載許可OK）にチェックしてください<br><button class="btn btn-secondary" style="font-size:11px;padding:6px 10px;margin-top:6px" onclick="document.querySelectorAll('details')[0]?.scrollIntoView({behavior:'smooth',block:'center'})">⬆️ 受付情報へ</button></div>
       <div style="font-size:11px;color:var(--text-dim);line-height:1.7;margin-bottom:10px">
-        Before/After写真を <b>iPhoneの写真アプリ</b>に保存 → <b>iMovie / Clips</b> でリール作成（純正・無料・音楽も純正）。文言はテキストで表示されるのでテロップ／キャプションに貼り付け。
+        リール動画は <b>PCで自動生成</b>します（細部に神は宿る・ブランド統一）。<br>
+        この画面では <b>Before/After撮影</b>まで。PCで下記の案件IDを入力して生成 → 完成MP4を受け取って投稿。
       </div>
-      <button class="btn btn-primary btn-full" id="btn-save-photos-device" style="padding:16px;font-size:15px;background:linear-gradient(135deg,#34C759,#0FB5A0);color:#fff;font-weight:bold" onclick="_saveCasePhotosToDevice()" ${c.snsPermitted?'':'disabled'}>📲 写真を端末に保存（iMovie等で編集）</button>
-      <div id="reel-progress" style="display:none;font-size:11px;color:var(--gold-light);margin-top:6px;text-align:center"></div>
-      <div style="margin-top:10px;font-size:11px;line-height:2;background:var(--bg2);border-radius:8px;padding:8px 12px">
-        🎬 状況：${c.reel?.photosSavedAt?`<span style="color:var(--lime);font-weight:bold">✅ 端末保存済</span>（${fmtDate(c.reel.photosSavedAt)}）`:(c.reel?.canvaAssetsPushedAt?`<span style="color:var(--lime);font-weight:bold">✅ Canva転送済</span>（${fmtDate(c.reel.canvaAssetsPushedAt)}）`:'<span style="color:var(--text-dim)">未着手</span>')}${c.reel?.instagramPosted?` ／ <span style="color:var(--lime)">📱投稿済</span>${c.reel.postedAt?'（'+fmtDate(c.reel.postedAt)+'）':''}`:''}
+      <div style="background:var(--bg2);border:1px solid var(--gold-border);border-radius:10px;padding:12px;margin-bottom:10px">
+        <div style="font-size:10px;color:var(--gold-deep);letter-spacing:2px;margin-bottom:4px">PCで入力する 案件ID</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="font-size:26px;font-weight:900;color:var(--gold-light);font-family:Courier,monospace">${esc(c.id)}</div>
+          <button class="btn btn-secondary" style="font-size:11px;padding:6px 12px" onclick="(async()=>{try{await navigator.clipboard.writeText('${esc(c.id)}');toast('📋 案件IDコピー');}catch(e){prompt('コピー','${esc(c.id)}');}})()">📋 コピー</button>
+        </div>
+        <div style="font-size:11px;color:var(--text-dim);line-height:1.8;margin-top:10px">
+          ① PC: <b>C:\\detalia-remotion\\リール生成.bat</b> をダブルクリック<br>
+          ② 案件ID <b>${esc(c.id)}</b> を入力 → Enter<br>
+          ③ 完成MP4：Dropbox <b>システムデータ（D)\\reels\\</b> に出力<br>
+          ④ スマホのDropboxアプリでそのMP4を開く → Instagramリール投稿
+        </div>
+      </div>
+      <div style="margin-top:6px;font-size:11px;line-height:2;background:var(--bg2);border-radius:8px;padding:8px 12px">
+        🎬 投稿状況：${c.reel?.instagramPosted?`<span style="color:var(--lime);font-weight:bold">📱 投稿済</span>${c.reel.postedAt?'（'+fmtDate(c.reel.postedAt)+'）':''}`:'<span style="color:var(--text-dim)">未投稿</span>'}
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
         <button id="btn-sns-caption" class="btn btn-secondary" style="font-size:12px;padding:10px" onclick="copyInstaCaption()" ${c.snsPermitted?'':'disabled'}>📋 キャプションをコピー</button>
         <button id="btn-sns-posted" class="btn btn-secondary" style="font-size:12px;padding:10px" onclick="markInstaPosted()" ${c.snsPermitted?'':'disabled'}>📱 投稿記録</button>
       </div>
-      <details style="margin-top:12px">
-        <summary style="font-size:11px;color:var(--text-dim);cursor:pointer">🎨 Canvaで作る場合（任意）</summary>
-        <button class="btn btn-secondary btn-full" id="btn-gen-canva-reel" style="margin-top:8px;font-size:12px;padding:12px" onclick="canvaSemiAutoReel()" ${c.snsPermitted?'':'disabled'}>🎨 Canvaへ写真送信＋テンプレ/Magicを開く</button>
-        ${!canvaIsConnected()?`<div style="font-size:10px;color:var(--orange);margin-top:6px;line-height:1.6">※ 設定でCanvaと連携すると使えます</div>`:''}
-      </details>
       ${photoSec('other','📁 その他写真（任意）')}
     `)}
   `;
