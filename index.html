@@ -963,7 +963,7 @@ function _refreshSnsGate(c){
   const on = !!(c && c.snsPermitted);
   const warn = document.getElementById('sns-warn');
   if(warn) warn.style.display = on ? 'none' : 'block';
-  ['btn-gen-canva-reel','btn-sns-caption','btn-sns-posted'].forEach(id=>{
+  ['btn-save-photos-device','btn-gen-canva-reel','btn-sns-caption','btn-sns-posted'].forEach(id=>{
     const b = document.getElementById(id);
     if(b){ b.disabled = !on; b.style.opacity = on ? '1' : '.5'; }
   });
@@ -1233,19 +1233,22 @@ function renderCaseDetail(c){
     ${sCard(7, 'SNS（リール）', `
       <div id="sns-warn" style="display:${c.snsPermitted?'none':'block'};font-size:11px;color:var(--orange);padding:10px;background:rgba(251,191,36,.1);border-radius:6px;margin-bottom:10px;line-height:1.7">⚠️ STEP 1 でお客様の掲載許可（✅ SNS掲載許可OK）にチェックしてください<br><button class="btn btn-secondary" style="font-size:11px;padding:6px 10px;margin-top:6px" onclick="document.querySelectorAll('details')[0]?.scrollIntoView({behavior:'smooth',block:'center'})">⬆️ 受付情報へ</button></div>
       <div style="font-size:11px;color:var(--text-dim);line-height:1.7;margin-bottom:10px">
-        Before/After写真と文言カードを Canva へ自動転送し、登録テンプレを開きます。<br>
-        Canva では音楽を付けず書き出し → Instagram でトレンド音源を付与（尺の目安 約15秒）。
+        Before/After写真を <b>iPhoneの写真アプリ</b>に保存 → <b>iMovie / Clips</b> でリール作成（純正・無料・音楽も純正）。文言はテキストで表示されるのでテロップ／キャプションに貼り付け。
       </div>
-      <button class="btn btn-primary btn-full" id="btn-gen-canva-reel" style="padding:16px;font-size:15px;background:linear-gradient(135deg,#8B3DFF,#00C4CC);color:#fff;font-weight:bold" onclick="canvaSemiAutoReel()" ${c.snsPermitted?'':'disabled'}>🎨 Canvaへ写真送信＋テンプレを開く</button>
-      ${!canvaIsConnected()?`<div style="font-size:10px;color:var(--orange);margin-top:6px;line-height:1.6">※ 設定でCanvaと連携すると使えます</div>`:''}
+      <button class="btn btn-primary btn-full" id="btn-save-photos-device" style="padding:16px;font-size:15px;background:linear-gradient(135deg,#34C759,#0FB5A0);color:#fff;font-weight:bold" onclick="_saveCasePhotosToDevice()" ${c.snsPermitted?'':'disabled'}>📲 写真を端末に保存（iMovie等で編集）</button>
       <div id="reel-progress" style="display:none;font-size:11px;color:var(--gold-light);margin-top:6px;text-align:center"></div>
       <div style="margin-top:10px;font-size:11px;line-height:2;background:var(--bg2);border-radius:8px;padding:8px 12px">
-        🎬 状況：${c.reel?.canvaAssetsPushedAt?`<span style="color:var(--lime);font-weight:bold">✅ Canva転送済</span>（${fmtDate(c.reel.canvaAssetsPushedAt)}）`:(c.reel?.videoPath?'<span style="color:var(--lime);font-weight:bold">✅ 生成済</span>':'<span style="color:var(--text-dim)">未着手</span>')}${c.reel?.instagramPosted?` ／ <span style="color:var(--lime)">📱投稿済</span>${c.reel.postedAt?'（'+fmtDate(c.reel.postedAt)+'）':''}`:''}
+        🎬 状況：${c.reel?.photosSavedAt?`<span style="color:var(--lime);font-weight:bold">✅ 端末保存済</span>（${fmtDate(c.reel.photosSavedAt)}）`:(c.reel?.canvaAssetsPushedAt?`<span style="color:var(--lime);font-weight:bold">✅ Canva転送済</span>（${fmtDate(c.reel.canvaAssetsPushedAt)}）`:'<span style="color:var(--text-dim)">未着手</span>')}${c.reel?.instagramPosted?` ／ <span style="color:var(--lime)">📱投稿済</span>${c.reel.postedAt?'（'+fmtDate(c.reel.postedAt)+'）':''}`:''}
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
         <button id="btn-sns-caption" class="btn btn-secondary" style="font-size:12px;padding:10px" onclick="copyInstaCaption()" ${c.snsPermitted?'':'disabled'}>📋 キャプションをコピー</button>
         <button id="btn-sns-posted" class="btn btn-secondary" style="font-size:12px;padding:10px" onclick="markInstaPosted()" ${c.snsPermitted?'':'disabled'}>📱 投稿記録</button>
       </div>
+      <details style="margin-top:12px">
+        <summary style="font-size:11px;color:var(--text-dim);cursor:pointer">🎨 Canvaで作る場合（任意）</summary>
+        <button class="btn btn-secondary btn-full" id="btn-gen-canva-reel" style="margin-top:8px;font-size:12px;padding:12px" onclick="canvaSemiAutoReel()" ${c.snsPermitted?'':'disabled'}>🎨 Canvaへ写真送信＋テンプレ/Magicを開く</button>
+        ${!canvaIsConnected()?`<div style="font-size:10px;color:var(--orange);margin-top:6px;line-height:1.6">※ 設定でCanvaと連携すると使えます</div>`:''}
+      </details>
       ${photoSec('other','📁 その他写真（任意）')}
     `)}
   `;
@@ -4707,6 +4710,57 @@ async function _copyFromEl(id, msg){
   const el = document.getElementById(id); if(!el) return;
   try{ await navigator.clipboard.writeText(el.value); toast(msg); }
   catch(e){ try{ el.style.display='block'; el.select(); document.execCommand('copy'); toast(msg); }catch(_){ prompt('長押しでコピー', el.value); } }
+}
+
+// 📲 案件のBefore/After写真を端末（写真アプリ）に保存 → iMovie等で編集
+async function _saveCasePhotosToDevice(){
+  const c = cases.find(c=>c.id===currentCaseId);
+  if(!c){ toast('案件が見つかりません','error'); return; }
+  if(isDemoMode){ toast('デモモードでは実行できません','error'); return; }
+  if(!_dbxToken()){ toast('Dropbox未連携','error'); return; }
+  const before = (c.photos&&c.photos.before)||[];
+  const after  = (c.photos&&c.photos.after)||[];
+  if(before.length===0 && after.length===0){ toast('Before/After写真がありません','error'); return; }
+
+  const jobs = [
+    ...before.slice(0,8).map((p,i)=>({path:p.path, name:`${c.id}_BEFORE_${i+1}.jpg`})),
+    ...after.slice(0,8).map((p,i)=>({path:p.path, name:`${c.id}_AFTER_${i+1}.jpg`}))
+  ];
+  toast('📥 写真を取得中...');
+  const files=[]; let fail=0, lastErr='';
+  for(const j of jobs){
+    try{
+      const blob = await _dbxFetchFileBlob(j.path);
+      files.push(new File([blob], j.name, {type:'image/jpeg'}));
+    }catch(e){ fail++; lastErr=(e&&e.message||String(e)); }
+  }
+  if(!files.length){ toast('❌ 写真取得失敗: '+(lastErr||'不明'),'error'); return; }
+
+  // iOS：共有シート →「画像を保存」で 写真アプリ（カメラロール）へ
+  let saved=false;
+  if(navigator.canShare && navigator.canShare({files})){
+    try{
+      await navigator.share({ files, title:`${c.id} Before/After` });
+      saved=true;
+    }catch(e){ if(e.name==='AbortError'){ /* ユーザーキャンセル */ } }
+  }
+  if(!saved){
+    // 非対応端末：個別ダウンロード
+    for(const f of files){
+      const url=URL.createObjectURL(f); const a=document.createElement('a');
+      a.href=url; a.download=f.name; document.body.appendChild(a); a.click(); a.remove();
+      await new Promise(r=>setTimeout(r,300)); URL.revokeObjectURL(url);
+    }
+  }
+  // 記録
+  if(!c.reel) c.reel={generated:false,videoPath:'',captionDraft:'',hashtags:[],instagramPosted:false,instagramUrl:'',postedAt:''};
+  c.reel.photosSavedAt = new Date().toISOString();
+  if(!c.reel.captionDraft){ c.reel.captionDraft=_generateCaption(c); c.reel.hashtags=DEFAULT_HASHTAGS.slice(); }
+  c.updatedAt=new Date().toISOString(); saveCases(); setTimeout(()=>syncPush(true),500);
+  toast(`✅ 写真${files.length}枚を端末へ${fail?`（${fail}枚失敗）`:''}。共有シートで「画像を保存」→ iMovie等で編集`);
+  // 文言テキストを表示（テロップ／キャプション用にコピー）
+  _showWordingText(c);
+  try{ renderCaseDetail(c); }catch(e){}
 }
 
 // ── Canva 半自動リール（Pro可）：Before/After を Canva アップロードへ自動転送 → テンプレを開く ──
