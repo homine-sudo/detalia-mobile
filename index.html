@@ -569,7 +569,7 @@ const DEMO_CASES = [
     optExt:130000,optInt:0,optOther:0,discount:0,
     workDetail:'鉄粉除去（ホワイト系）・ボディ磨き（ホワイト系）・ディテール洗車・樹脂パーツコーティング（全面）・アルミくすみ除去・タイヤ洗浄・ホイール洗浄・ガラスコーティング クリスタルプロ8500',
     paymentMethod:'振込',paymentDeadline:'2026-05-31',
-    photos:{before:[],after:[],paint:[],other:[]},
+    photos:{before:[],during:[],after:[],paint:[],other:[]},
     paintGauge:{measured:false,deviceModel:'',measurements:[],notes:''},
     reel:{generated:false,videoPath:'',captionDraft:'',hashtags:[],instagramPosted:false,instagramUrl:'',postedAt:''}
   },
@@ -579,7 +579,7 @@ const DEMO_CASES = [
     optExt:0,optInt:35000,optOther:0,discount:0,
     workDetail:'車内クリーニング',
     paymentMethod:'',paymentDeadline:'',
-    photos:{before:[],after:[],paint:[],other:[]},
+    photos:{before:[],during:[],after:[],paint:[],other:[]},
     paintGauge:{measured:false,deviceModel:'',measurements:[],notes:''},
     reel:{generated:false,videoPath:'',captionDraft:'',hashtags:[],instagramPosted:false,instagramUrl:'',postedAt:''}
   }
@@ -616,8 +616,8 @@ function _migrateMobileCase(c){
   if(typeof c.maintenanceNoticeSent!=='string') c.maintenanceNoticeSent='';
   if(typeof c.reelRequest!=='string') c.reelRequest='';
   if(typeof c.reelPattern!=='string') c.reelPattern='';
-  if(!c.photos || typeof c.photos!=='object') c.photos={before:[],after:[],paint:[],other:[]};
-  ['before','after','paint','other'].forEach(k=>{ if(!Array.isArray(c.photos[k])) c.photos[k]=[]; });
+  if(!c.photos || typeof c.photos!=='object') c.photos={before:[],during:[],after:[],paint:[],other:[]};
+  ['before','during','after','paint','other'].forEach(k=>{ if(!Array.isArray(c.photos[k])) c.photos[k]=[]; });
   if(!c.paintGauge||typeof c.paintGauge!=='object') c.paintGauge={measured:false,deviceModel:'',measurements:[],notes:''};
   if(!Array.isArray(c.paintGauge.measurements)) c.paintGauge.measurements=[];
   // Before/After 構造へのマイグレーション（旧 value → valueBefore）
@@ -1170,8 +1170,9 @@ function renderCaseDetail(c){
 
     ${sCard(4, 'Before：写真＋塗膜＋コメント', `
       <button class="btn btn-primary btn-full" style="margin-bottom:10px;padding:14px;font-size:15px" onclick="document.getElementById('photo-input-before').click()">📷 Before を撮影</button>
-      <div style="font-size:10px;color:var(--text-dim);line-height:1.6;margin-bottom:8px;padding:6px 8px;background:var(--bg2);border-radius:4px">
-        📐 推奨アングル：①正面 ②斜め前（運転席側） ③ボンネット俯瞰 ④気になる箇所アップ
+      <div style="font-size:10px;color:var(--text-dim);line-height:1.7;margin-bottom:8px;padding:8px 10px;background:var(--bg2);border-radius:4px">
+        📐 <b>この順番で撮影</b>（リールはこの順で構成されます）<br>
+        ①フロント正面 ②斜め前(運転席側) ③助手席側 ④リア ⑤ホイール ⑥内装 ⑦気になる箇所アップ
       </div>
       ${photoSec('before','Before（施工前）')}
       <!-- 塗膜：Before値の入力に集中 -->
@@ -1186,11 +1187,22 @@ function renderCaseDetail(c){
       </div>
     `)}
 
+    ${`<details style="background:var(--card);border:1px solid var(--border);border-radius:10px;margin-bottom:8px;overflow:hidden">
+      <summary style="padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;list-style:none;user-select:none">
+        <span style="width:18px;display:inline-block"></span>
+        <span style="flex:1;font-size:14px;font-weight:bold">🛠 施工中 <span style="font-size:10px;color:var(--text-dim);font-weight:normal">（任意・撮らなくてOK）</span></span>
+        <span style="font-size:10px;color:var(--gold-deep)">${(c.photos?.during||[]).length}枚</span>
+      </summary>
+      <div style="padding:0 14px 14px">
+        <div style="font-size:10px;color:var(--text-dim);line-height:1.6;margin-bottom:8px;padding:6px 8px;background:var(--bg2);border-radius:4px">作業中の様子（泡・磨き・拭き上げ等）。撮ると <b>Before→After の間</b> にリールへ自動挿入。無くてもOK。</div>
+        <button class="btn btn-primary btn-full" style="margin-bottom:10px;padding:14px;font-size:15px" onclick="document.getElementById('photo-input-during').click()">📷 施工中 を撮影</button>
+        ${photoSec('during','施工中')}
+      </div>
+    </details>`}
+
     ${sCard(5, 'After：写真＋塗膜＋コメント', `
       <button class="btn btn-primary btn-full" style="margin-bottom:10px;padding:14px;font-size:15px" onclick="document.getElementById('photo-input-after').click()">📷 After を撮影</button>
-      <div style="font-size:10px;color:var(--text-dim);line-height:1.6;margin-bottom:8px;padding:6px 8px;background:var(--bg2);border-radius:4px">
-        📐 推奨：Beforeと <b>同じアングル</b> で撮影 → 比較効果UP
-      </div>
+      <div style="font-size:10px;color:var(--text-dim);line-height:1.7;margin-bottom:8px;padding:8px 10px;background:var(--bg2);border-radius:4px">📐 <b>Beforeと同じ順番・同じアングル</b>で撮影 → 比較効果UP（①フロント正面 ②斜め前 ③助手席側 …）</div>
       ${photoSec('after','After（施工後）')}
       <!-- 塗膜：After値の入力 -->
       <div style="margin-top:14px;padding:10px 12px;background:var(--bg2);border:1px solid rgba(184,233,134,.3);border-radius:8px">
@@ -1273,7 +1285,7 @@ function renderCaseDetail(c){
     `)}
   `;
   // 写真グリッドを描画
-  ['before','after','other'].forEach(kind=>_renderPhotoGrid(c,kind));
+  ['before','during','after','other'].forEach(kind=>_renderPhotoGrid(c,kind));
   // 作業項目チェックボックスを描画
   _renderWorkCheckboxes(c);
   // 車種→サイズ自動判定の監視
@@ -2003,7 +2015,7 @@ function saveCaseEdit(){
   });
   // 新規ならα-0フィールドも初期化
   if(isNew){
-    c.photos = {before:[],after:[],paint:[],other:[]};
+    c.photos = {before:[],during:[],after:[],paint:[],other:[]};
     c.paintGauge = {measured:false,deviceModel:'',measurements:[],notes:''};
     c.reel = {generated:false,videoPath:'',captionDraft:'',hashtags:[],instagramPosted:false,instagramUrl:'',postedAt:''};
     cases.push(c);
@@ -2105,7 +2117,7 @@ async function _onPhotoSelected(kind, input){
   if(!c){ toast('案件が見つかりません','error'); return; }
   if(isDemoMode){ toast('デモモードでは写真をアップできません','error'); return; }
   if(!_dbxToken()){ toast('先に Dropbox トークンを設定してください','error'); return; }
-  if(!c.photos) c.photos={before:[],after:[],paint:[],other:[]};
+  if(!c.photos) c.photos={before:[],during:[],after:[],paint:[],other:[]};
   if(!Array.isArray(c.photos[kind])) c.photos[kind]=[];
   toast(`📤 ${files.length}枚アップロード中...`);
   let success=0;
