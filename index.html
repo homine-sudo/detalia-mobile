@@ -614,6 +614,7 @@ function _migrateMobileCase(c){
   if(typeof c.maintenanceType!=='string') c.maintenanceType='';
   if(typeof c.maintenanceNote!=='string') c.maintenanceNote='';
   if(typeof c.maintenanceNoticeSent!=='string') c.maintenanceNoticeSent='';
+  if(typeof c.reelRequest!=='string') c.reelRequest='';
   if(!c.photos || typeof c.photos!=='object') c.photos={before:[],after:[],paint:[],other:[]};
   ['before','after','paint','other'].forEach(k=>{ if(!Array.isArray(c.photos[k])) c.photos[k]=[]; });
   if(!c.paintGauge||typeof c.paintGauge!=='object') c.paintGauge={measured:false,deviceModel:'',measurements:[],notes:''};
@@ -963,7 +964,7 @@ function _refreshSnsGate(c){
   const on = !!(c && c.snsPermitted);
   const warn = document.getElementById('sns-warn');
   if(warn) warn.style.display = on ? 'none' : 'block';
-  ['btn-sns-caption','btn-sns-posted'].forEach(id=>{
+  ['btn-reel-request','btn-sns-caption','btn-sns-posted'].forEach(id=>{
     const b = document.getElementById(id);
     if(b){ b.disabled = !on; b.style.opacity = on ? '1' : '.5'; }
   });
@@ -1234,9 +1235,15 @@ function renderCaseDetail(c){
       <div id="sns-warn" style="display:${c.snsPermitted?'none':'block'};font-size:11px;color:var(--orange);padding:10px;background:rgba(251,191,36,.1);border-radius:6px;margin-bottom:10px;line-height:1.7">⚠️ STEP 1 でお客様の掲載許可（✅ SNS掲載許可OK）にチェックしてください<br><button class="btn btn-secondary" style="font-size:11px;padding:6px 10px;margin-top:6px" onclick="document.querySelectorAll('details')[0]?.scrollIntoView({behavior:'smooth',block:'center'})">⬆️ 受付情報へ</button></div>
       <div style="font-size:11px;color:var(--text-dim);line-height:1.7;margin-bottom:10px">
         リール動画は <b>PCで自動生成</b>します（細部に神は宿る・ブランド統一）。<br>
-        この画面では <b>Before/After撮影</b>まで。PCで下記の案件IDを入力して生成 → 完成MP4を受け取って投稿。
+        Before/After撮影後、下のボタンで<b>依頼</b>すれば、PCの常駐ツールが自動で動画化します。
       </div>
-      <div style="background:var(--bg2);border:1px solid var(--gold-border);border-radius:10px;padding:12px;margin-bottom:10px">
+      <button class="btn btn-primary btn-full" id="btn-reel-request" style="padding:16px;font-size:15px;background:linear-gradient(135deg,#C9A84C,#E8C96A);color:#0F0F1A;font-weight:bold" onclick="requestReel('${esc(c.id)}')" ${c.snsPermitted?'':'disabled'}>🎬 リール生成を依頼（PC常駐で自動生成）</button>
+      <div id="reel-req-status" style="margin-top:8px;font-size:11px;line-height:1.9;background:var(--bg2);border-radius:8px;padding:8px 12px">
+        ${c.reelRequest?`<span style="color:var(--gold-light);font-weight:bold">📨 生成依頼済</span>（${fmtDate(c.reelRequest)}）<br><span style="color:var(--text-dim)">PCの「リール自動生成（常駐）」が起動していれば自動で動画化 → Dropbox システムデータ（D)\\reels\\</span>`:'<span style="color:var(--text-dim)">未依頼</span>'}
+      </div>
+      <details style="margin-top:10px">
+        <summary style="font-size:11px;color:var(--text-dim);cursor:pointer">🖐 PCで手動生成する場合（常駐を使わない時）</summary>
+      <div style="background:var(--bg2);border:1px solid var(--gold-border);border-radius:10px;padding:12px;margin:8px 0">
         <div style="font-size:10px;color:var(--gold-deep);letter-spacing:2px;margin-bottom:4px">PCで入力する 案件ID</div>
         <div style="display:flex;align-items:center;gap:10px">
           <div style="font-size:26px;font-weight:900;color:var(--gold-light);font-family:Courier,monospace">${esc(c.id)}</div>
@@ -1249,7 +1256,8 @@ function renderCaseDetail(c){
           ④ スマホのDropboxアプリでそのMP4を開く → Instagramリール投稿
         </div>
       </div>
-      <div style="margin-top:6px;font-size:11px;line-height:2;background:var(--bg2);border-radius:8px;padding:8px 12px">
+      </details>
+      <div style="margin-top:8px;font-size:11px;line-height:2;background:var(--bg2);border-radius:8px;padding:8px 12px">
         🎬 投稿状況：${c.reel?.instagramPosted?`<span style="color:var(--lime);font-weight:bold">📱 投稿済</span>${c.reel.postedAt?'（'+fmtDate(c.reel.postedAt)+'）':''}`:'<span style="color:var(--text-dim)">未投稿</span>'}
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
@@ -4174,6 +4182,20 @@ async function copyInstaCaption(){
   }catch(e){
     prompt('長押しでコピー：', rec.captionDraft);
   }
+}
+
+// 🎬 リール生成を依頼（PC常駐ウォッチャーが自動レンダリング）
+function requestReel(id){
+  const c = cases.find(c=>c.id===id) || cases.find(c=>c.id===currentCaseId);
+  if(!c){ toast('案件が見つかりません','error'); return; }
+  if(!c.snsPermitted){ toast('先にSNS掲載許可にチェックしてください','error'); return; }
+  c.reelRequest = new Date().toISOString();
+  c.updatedAt = new Date().toISOString();
+  saveCases();
+  setTimeout(()=>syncPush(true), 500);
+  const el = document.getElementById('reel-req-status');
+  if(el) el.innerHTML = `<span style="color:var(--gold-light);font-weight:bold">📨 生成依頼済</span>（${fmtDate(c.reelRequest)}）<br><span style="color:var(--text-dim)">PCの「リール自動生成（常駐）」が起動していれば自動で動画化 → Dropbox システムデータ（D)\\reels\\</span>`;
+  toast('🎬 リール生成を依頼しました。PCの常駐ツールが自動生成します');
 }
 
 function markInstaPosted(){
