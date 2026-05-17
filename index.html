@@ -1175,11 +1175,11 @@ function renderCaseDetail(c){
         ①フロント正面 ②斜め前(運転席側) ③助手席側 ④リア ⑤ホイール ⑥内装 ⑦気になる箇所アップ
       </div>
       ${photoSec('before','Before（施工前）')}
-      <!-- 塗膜：Before値の入力に集中 -->
-      <div style="margin-top:14px;padding:10px 12px;background:var(--bg2);border:1px solid var(--gold-border);border-radius:8px">
-        <div style="font-size:11px;letter-spacing:2px;color:var(--gold-deep);margin-bottom:8px">🎨 塗膜計測（Before値）</div>
-        ${paintBlockBefore}
-      </div>
+      <!-- 塗膜：Before値（あまり使わないので折りたたみ・タップで開く） -->
+      <details style="margin-top:14px;background:var(--bg2);border:1px solid var(--gold-border);border-radius:8px;overflow:hidden">
+        <summary style="font-size:11px;letter-spacing:2px;color:var(--gold-deep);padding:10px 12px;cursor:pointer;list-style:none;user-select:none">🎨 塗膜計測（Before値）　<span style="color:var(--text-dim);font-weight:normal">▼ タップで入力</span></summary>
+        <div style="padding:0 12px 12px">${paintBlockBefore}</div>
+      </details>
       <!-- スタッフコメント -->
       <div style="margin-top:14px">
         <label style="font-size:10px;color:var(--gold-deep);letter-spacing:2px;display:block;margin-bottom:4px">📝 Before スタッフコメント（SNSキャプションに使用）</label>
@@ -1204,11 +1204,11 @@ function renderCaseDetail(c){
       <button class="btn btn-primary btn-full" style="margin-bottom:10px;padding:14px;font-size:15px" onclick="document.getElementById('photo-input-after').click()">📷 After を撮影</button>
       <div style="font-size:10px;color:var(--text-dim);line-height:1.7;margin-bottom:8px;padding:8px 10px;background:var(--bg2);border-radius:4px">📐 <b>Beforeと同じ順番・同じアングル</b>で撮影 → 比較効果UP（①フロント正面 ②斜め前 ③助手席側 …）</div>
       ${photoSec('after','After（施工後）')}
-      <!-- 塗膜：After値の入力 -->
-      <div style="margin-top:14px;padding:10px 12px;background:var(--bg2);border:1px solid rgba(184,233,134,.3);border-radius:8px">
-        <div style="font-size:11px;letter-spacing:2px;color:var(--lime-deep);margin-bottom:8px">🎨 塗膜計測（After値）</div>
-        ${paintBlockAfter}
-      </div>
+      <!-- 塗膜：After値（折りたたみ・タップで開く） -->
+      <details style="margin-top:14px;background:var(--bg2);border:1px solid rgba(184,233,134,.3);border-radius:8px;overflow:hidden">
+        <summary style="font-size:11px;letter-spacing:2px;color:var(--lime-deep);padding:10px 12px;cursor:pointer;list-style:none;user-select:none">🎨 塗膜計測（After値）　<span style="color:var(--text-dim);font-weight:normal">▼ タップで入力</span></summary>
+        <div style="padding:0 12px 12px">${paintBlockAfter}</div>
+      </details>
       <!-- スタッフコメント -->
       <div style="margin-top:14px">
         <label style="font-size:10px;color:var(--gold-deep);letter-spacing:2px;display:block;margin-bottom:4px">📝 After スタッフコメント（SNSキャプションに使用）</label>
@@ -1252,7 +1252,7 @@ function renderCaseDetail(c){
       </div>
       <div style="font-size:11px;color:var(--text-dim);margin-bottom:4px">🎨 リールのスタイルを選ぶ</div>
       <select id="reel-pattern" style="width:100%;padding:12px;font-size:14px;border-radius:8px;border:1px solid var(--gold-border);background:var(--bg2);color:var(--text);margin-bottom:10px">
-        ${[['classic','おまかせ（定番・約15秒）'],['punch','高速ビフォーアフター（短尺）'],['split','上下2分割（同時比較）'],['slider','スライダー比較（左右ワイプ）'],['timelapse','作業工程ステップ'],['stats','数字で魅せる'],['luxury','高級・ゴールド（明朝）'],['hooktext','強フック（冒頭インパクト）'],['grid','写真グリッド（2×2）'],['minimal','ミニマル（写真主役）']].map(([v,l])=>`<option value="${v}" ${(c.reelPattern||'classic')===v?'selected':''}>${l}</option>`).join('')}
+        ${[['勢い・参考寄せ',[['impact','勢い（参考リール寄せ・おすすめ）'],['punch','高速ビフォーアフター（短尺）'],['hooktext','強フック（冒頭インパクト）']]],['高級系（静か）',[['editorial','高級・静寂（黒基調・上品）'],['luxury','高級・ゴールド（明朝）'],['minimal','ミニマル（写真主役）']]],['標準・比較',[['classic','おまかせ（定番・約15秒）'],['split','上下2分割（同時比較）'],['slider','スライダー比較（左右ワイプ）'],['stats','数字で魅せる'],['timelapse','作業工程ステップ'],['grid','写真グリッド（2×2）']]]].map(([g,opts])=>`<optgroup label="${g}">`+opts.map(([v,l])=>`<option value="${v}" ${((c.reelPattern||'impact')===v)?'selected':''}>${l}</option>`).join('')+`</optgroup>`).join('')}
       </select>
       <button class="btn btn-primary btn-full" id="btn-reel-request" style="padding:16px;font-size:15px;background:linear-gradient(135deg,#C9A84C,#E8C96A);color:#0F0F1A;font-weight:bold" onclick="requestReel('${esc(c.id)}')" ${c.snsPermitted?'':'disabled'}>🎬 リール生成を依頼（PC常駐で自動生成）</button>
       <div id="reel-req-status" style="margin-top:8px;font-size:11px;line-height:1.9;background:var(--bg2);border-radius:8px;padding:8px 12px">
@@ -2189,6 +2189,23 @@ function _captureSlot(kind, pos){
   document.getElementById('photo-input-'+kind).click();
 }
 
+// 写真削除（参照を外す＝Dropbox実体は残すが無害。非破壊・同期安全）
+function _deletePhoto(kind, idx){
+  const c = cases.find(c=>c.id===currentCaseId);
+  if(!c) return;
+  const arr = c.photos && c.photos[kind];
+  if(!Array.isArray(arr) || idx<0 || idx>=arr.length) return;
+  if(!confirm('この写真を削除しますか？')) return;
+  arr.splice(idx,1);
+  c.updatedAt = new Date().toISOString();
+  saveCases();
+  _renderPhotoGrid(c, kind);
+  const cnt = document.getElementById('photo-count-'+kind); if(cnt) cnt.textContent = arr.length+'枚';
+  toast('🗑 削除しました');
+  setTimeout(()=>syncPush(true), 500);
+}
+const _delBtn = (k,ix)=>`<button onclick="event.stopPropagation();_deletePhoto('${k}',${ix})" style="position:absolute;right:3px;top:3px;background:rgba(196,40,40,.88);color:#fff;border:none;border-radius:50%;width:22px;height:22px;font-size:13px;line-height:20px;padding:0;text-align:center">×</button>`;
+
 // 写真グリッドを描画（before/after=ラベル付きスロット／その他=従来の+追加）
 function _renderPhotoGrid(c, kind){
   const grid = document.getElementById('photo-grid-'+kind);
@@ -2210,16 +2227,17 @@ function _renderPhotoGrid(c, kind){
         const elId=`ph-${kind}-${pi}`; load.push({idx:pi,elId});
         html+=`<div class="photo-cell" style="position:relative" onclick="_openPhoto('${esc(photos[pi].path)}')">`+ph(elId)
           +`<span style="position:absolute;left:3px;top:3px;background:rgba(0,0,0,.55);color:#fff;font-size:9px;padding:1px 5px;border-radius:6px">${num} ${esc(pos)}</span>`
+          +_delBtn(kind,pi)
           +`<button onclick="event.stopPropagation();_captureSlot('${kind}','${esc(pos)}')" style="position:absolute;right:3px;bottom:3px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:6px;font-size:11px;padding:2px 6px">📷撮直</button></div>`;
       } else {
         html+=`<div class="photo-cell" onclick="_captureSlot('${kind}','${esc(pos)}')" style="display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px dashed var(--gold-border);background:var(--bg2);gap:2px;text-align:center;padding:4px">`
           +`<span style="font-size:18px">📷</span><span style="font-size:9px;color:var(--gold-deep);font-weight:bold">${num}</span><span style="font-size:8.5px;color:var(--text-dim);line-height:1.15">${esc(pos)}</span></div>`;
       }
     });
-    photos.forEach((p,i)=>{ if(p&&!used.has(i)){ const elId=`ph-${kind}-${i}`; load.push({idx:i,elId}); html+=`<div class="photo-cell" onclick="_openPhoto('${esc(p.path)}')">`+ph(elId)+`</div>`; } });
+    photos.forEach((p,i)=>{ if(p&&!used.has(i)){ const elId=`ph-${kind}-${i}`; load.push({idx:i,elId}); html+=`<div class="photo-cell" style="position:relative" onclick="_openPhoto('${esc(p.path)}')">`+ph(elId)+_delBtn(kind,i)+`</div>`; } });
     grid.innerHTML = html;
   } else {
-    let html = photos.map((p,i)=>{ const elId=`ph-${kind}-${i}`; load.push({idx:i,elId}); return `<div class="photo-cell" onclick="_openPhoto('${esc(p.path)}')">`+ph(elId)+`</div>`; }).join('');
+    let html = photos.map((p,i)=>{ const elId=`ph-${kind}-${i}`; load.push({idx:i,elId}); return `<div class="photo-cell" style="position:relative" onclick="_openPhoto('${esc(p.path)}')">`+ph(elId)+_delBtn(kind,i)+`</div>`; }).join('');
     html += `<div class="photo-cell photo-add" onclick="document.getElementById('photo-input-${kind}').click()">+</div>`;
     grid.innerHTML = html;
   }
@@ -4250,7 +4268,7 @@ function requestReel(id){
   if(!c){ toast('案件が見つかりません','error'); return; }
   if(!c.snsPermitted){ toast('先にSNS掲載許可にチェックしてください','error'); return; }
   const sel = document.getElementById('reel-pattern');
-  c.reelPattern = (sel && sel.value) || 'classic';
+  c.reelPattern = (sel && sel.value) || 'impact';
   c.reelRequest = new Date().toISOString();
   c.updatedAt = new Date().toISOString();
   saveCases();
