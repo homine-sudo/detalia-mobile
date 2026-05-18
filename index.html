@@ -1713,26 +1713,13 @@ function _nextCaseId(){
 
 // 案件をすぐ作って詳細ページで継続編集（インライン編集モード）
 function _newCaseInline(kind){
-  const id = _nextCaseId();
-  const newC = {
-    id,
-    customer:'', tel:'', contact:'', category: kind==='quote'?'見積':'業販',
-    carModel:'', carYear:'', size:'', chassis:'', colorCode:'', workStaff:'',
-    arrival:'', deliveryPlan:'', delivery:'',
-    optExt:0, optInt:0, optOther:0, discount:0,
-    paymentMethod:'', paymentDeadline:'',
-    workDetail:'', snsPermitted:false, snsNote:'',
-    org_id:'self',
-    updatedAt: new Date().toISOString()
-  };
-  _migrateMobileCase(newC);
-  cases.push(newC);
-  saveCases();
-  setTimeout(()=>syncPush(true), 500);
-  currentCaseId = id;
-  renderCaseDetail(newC);
-  showPage('detail');
-  toast(kind==='quote'?`📄 見積 ${id} 受付`:`✨ 新規案件 ${id} 作成`);
+  // 入力フォーム（保存ボタンあり）へ。案件は「💾 登録」タップ時に saveCaseEdit() が作成する。
+  // ※以前はここでブランク案件を即 push→detail へ飛ばしており、保存ボタンの無い詳細画面に
+  //   入力する羽目になっていた＋空案件が毎回同期される副作用があった（リグレッション）。
+  _newCaseKind = kind;
+  currentCaseId = null;
+  _renderEditForm(null);
+  showPage('edit');
 }
 function newCase(){ _newCaseInline('case'); }
 function newQuoteCase(){ _newCaseInline('quote'); }
