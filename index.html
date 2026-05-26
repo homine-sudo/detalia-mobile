@@ -228,6 +228,16 @@ a{color:var(--gold-light);text-decoration:none}
 .hero-k{font-size:10px;letter-spacing:3.5px;color:var(--gold-deep);text-transform:uppercase}
 .hero-v{font-family:'Georgia',serif;font-weight:300;font-size:40px;line-height:1.05;color:var(--gold-light);margin-top:6px;letter-spacing:1px;word-break:break-all}
 .hero-s{font-size:11px;color:#5E5A4C;margin-top:4px;letter-spacing:1px}
+/* 目標達成バー（細いヘアラインバー＋下に%と目標額） */
+.hero-target{margin-top:14px}
+.ht-bar{height:2px;background:rgba(255,255,255,.05);border-radius:2px;overflow:hidden}
+.ht-fill{height:100%;width:0;background:linear-gradient(90deg,var(--gold-deep) 0%,var(--gold-light) 100%);transition:width .8s cubic-bezier(.4,.0,.2,1)}
+.ht-fill.done{background:linear-gradient(90deg,var(--lime-deep) 0%,var(--lime) 100%)}
+.ht-meta{display:flex;justify-content:space-between;align-items:baseline;margin-top:7px;font-size:11px;letter-spacing:1.5px}
+.ht-pct{color:var(--gold-light);font-family:'Georgia',serif;font-weight:600;font-size:13px}
+.ht-pct.done{color:var(--lime)}
+.ht-lbl{color:#5E5A4C;font-size:10px}
+.ht-lbl .num{color:var(--text-dim)}
 .stats{display:grid;grid-template-columns:1fr 1fr 1fr;margin:22px 0 30px;border-top:1px solid var(--gold-border);border-bottom:1px solid var(--gold-border)}
 .stat{padding:14px 6px;text-align:center;position:relative}
 .stat+.stat::before{content:'';position:absolute;left:0;top:18px;bottom:18px;width:1px;background:rgba(255,255,255,.05)}
@@ -359,6 +369,13 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--gold);bo
         <div class="hero-k">Monthly Revenue ／ 当月売上</div>
         <div class="hero-v num" id="kpi-month-rev">―</div>
         <div class="hero-s" id="home-month-sub">税抜</div>
+        <div class="hero-target" id="hero-target" style="display:none">
+          <div class="ht-bar"><div class="ht-fill" id="ht-fill"></div></div>
+          <div class="ht-meta">
+            <span class="ht-pct num" id="ht-pct">―%</span>
+            <span class="ht-lbl">目標 <span class="num" id="ht-goal">¥0</span></span>
+          </div>
+        </div>
       </div>
       <div class="stats">
         <div class="stat"><div class="l">本日入庫</div><div class="n num q" id="kpi-today-in">―</div></div>
@@ -627,12 +644,15 @@ const LS_KEY_VERIFIER = 'detalia_mobile_dbx_verifier'; // sessionStorage
 const LS_KEY_DEMO     = 'detalia_mobile_demo';
 const LS_KEY_PATH     = 'detalia_mobile_dbx_path';
 const LS_KEY_LAST_SYNC= 'detalia_mobile_last_sync';
+const LS_KEY_SETTINGS = 'detalia_mobile_settings_v1';  // 同期データの settings(monthlyTarget等)キャッシュ
 
 // Dropbox App Key（PKCE 使用のため公開OK。LIME One と同じアプリを共有）
 const DBX_APP_KEY = 'fly154tcdbz09x9';
 const DBX_DEFAULT_PATH = '/ライム共有DB/システムデータ（D)/data.json';
 
 let cases = [];
+// 同期データの settings（monthlyTarget等・デスクトップで設定された値を読み取り専用で保持）
+let settings = (function(){ try{ return JSON.parse(localStorage.getItem(LS_KEY_SETTINGS)||'{}'); }catch(_){ return {}; } })();
 let currentCaseId = null;
 let pageHistory = ['home'];
 let isDemoMode = localStorage.getItem(LS_KEY_DEMO) === 'true' || new URLSearchParams(location.search).has('demo');
@@ -804,6 +824,28 @@ function renderHome(){
   document.getElementById('kpi-wait-dlv').textContent=waitDlv;
   document.getElementById('kpi-month-dlv').textContent=monthDlv;
   document.getElementById('kpi-month-rev').textContent=fmt(monthRev);
+
+  // 目標達成率（デスクトップと同じ仕組み・settings.monthlyTargets[YYYY-MM] or monthlyTarget）
+  const _ym=_nowD.getFullYear()+'-'+String(_nowD.getMonth()+1).padStart(2,'0');
+  const _tgt=Number((settings.monthlyTargets&&settings.monthlyTargets[_ym])||settings.monthlyTarget||0);
+  const _tw=document.getElementById('hero-target');
+  if(_tw){
+    if(_tgt>0){
+      // Math.floor で算出：99.5%以上で100%丸めの誤表示を防ぐ
+      const _pct=Math.floor(monthRev/_tgt*100);
+      const _done=monthRev>=_tgt;
+      _tw.style.display='block';
+      const _fill=document.getElementById('ht-fill');
+      _fill.style.width=Math.min(_pct,100)+'%';
+      _fill.classList.toggle('done',_done);
+      const _pe=document.getElementById('ht-pct');
+      _pe.textContent=_pct+'%'+(_done?' 🎉':'');
+      _pe.classList.toggle('done',_done);
+      document.getElementById('ht-goal').textContent=fmt(_tgt);
+    } else {
+      _tw.style.display='none';
+    }
+  }
 
   // 最近の案件 5件
   const recent=cases.filter(c=>!c.deleted)
@@ -5505,6 +5547,11 @@ async function syncPull(silent){
     }
     const data = JSON.parse(text);
     const remoteCases = Array.isArray(data.cases) ? data.cases : [];
+    // settings（monthlyTarget等）も取り込んでLSにキャッシュ
+    if(data.settings && typeof data.settings==='object'){
+      settings = data.settings;
+      try{ localStorage.setItem(LS_KEY_SETTINGS, JSON.stringify(settings)); }catch(_){ }
+    }
     const before = cases.length;
     const merged = mergeCollection(cases, remoteCases, _lastSyncSnapshot);
     cases = merged;
