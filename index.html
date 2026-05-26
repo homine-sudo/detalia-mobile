@@ -291,6 +291,11 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--gold);bo
 /* チェックボックス選択UI（作業項目）軽量化 */
 .checklist-item,.check-item{background:#0E0E14 !important;border:1px solid var(--border) !important;border-radius:9px !important}
 
+/* 写真セル微調整：少し丸く、+ ボタンを上品に */
+.photo-cell{aspect-ratio:1;background:#0C0C12;border:1px solid var(--border);border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:11px;overflow:hidden}
+.photo-add{background:linear-gradient(180deg,rgba(201,168,76,.08),rgba(201,168,76,.03));border:1px dashed var(--gold-border);color:var(--gold-light);font-size:22px;font-weight:300;letter-spacing:0}
+.photo-add:active{background:rgba(201,168,76,.13)}
+
 /* STEP 状態アイコン（緑✅絵文字 → 編集的な金丸チェック/金ドット） */
 .ss-done{width:20px;height:20px;border-radius:50%;background:var(--gold);color:#0B0B05;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;line-height:1;flex-shrink:0;box-shadow:0 1px 4px rgba(201,168,76,.3)}
 .ss-cur{width:10px;height:10px;border-radius:50%;background:var(--gold-light);display:inline-block;margin:0 5px;box-shadow:0 0 9px rgba(232,201,106,.6),0 0 2px rgba(232,201,106,.8);flex-shrink:0}
@@ -1177,17 +1182,21 @@ function renderCaseDetail(c){
     </details>`;
   };
 
-  // 写真セクション
-  const photoSec = (kind, label)=>`
-    <div style="margin-bottom:10px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-        <span style="font-size:12px;color:var(--text)">${label}</span>
-        <span id="photo-count-${kind}" style="font-size:10px;color:var(--gold-deep)">${(c.photos?.[kind]||[]).length}枚</span>
+  // 写真セクション（編集的kicker：英字＋日本語＋ヘアライン＋件数）
+  const photoSec = (kind, label)=>{
+    const kicker = kind==='before'?'Before':kind==='after'?'After':kind==='during'?'Process':kind==='paint'?'Paint Gauge':'Other';
+    return `
+    <div style="margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:11px;margin-bottom:9px">
+        <span style="font-size:10px;letter-spacing:3px;color:var(--gold-deep);text-transform:uppercase">${kicker}</span>
+        <span style="font-size:12px;color:var(--text-dim);letter-spacing:1px">${label}</span>
+        <span style="flex:1;height:1px;background:var(--gold-border)"></span>
+        <span id="photo-count-${kind}" style="font-family:'Georgia',serif;font-size:11px;color:var(--gold-light);letter-spacing:1px">${(c.photos?.[kind]||[]).length}枚</span>
       </div>
       <div class="photo-grid" id="photo-grid-${kind}"></div>
       <input type="file" id="photo-input-${kind}" accept="image/*" multiple style="display:none" onchange="_onPhotoSelected('${kind}',this)">
     </div>
-  `;
+  `;};
 
   // 塗膜計測：Before専用ブロック（After列はグレーアウト・参照のみ）
   const paintBlockBefore = `
