@@ -1030,21 +1030,24 @@ function _stageQuickActionHtml(c, stage){
 function stageProgressHtml(c){
   const stage = detectStage(c);
   const stages = ['受付','車両','作業','Before','After','納車','SNS','完了'];
-  return `<div style="background:var(--card);border:1px solid var(--gold-border);border-radius:10px;padding:10px 12px;margin-bottom:10px">
-    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
-      <span style="font-size:10px;letter-spacing:2px;color:var(--gold-deep)">PROGRESS</span>
-      <span style="font-size:11px;color:var(--gold-light);font-weight:bold">${stage.n}/9 · ${stage.label}</span>
+  // エディトリアル：枠を取りヘアラインバーと細い金アクセント・kicker構成
+  return `<div style="margin:2px 2px 16px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">
+      <span style="font-size:10px;letter-spacing:3px;color:var(--gold-deep);text-transform:uppercase">Progress</span>
+      <span style="font-family:'Georgia',serif;font-size:11px;color:var(--gold-light);letter-spacing:1.5px">${stage.n} / 9 · ${stage.label}</span>
     </div>
-    <div style="display:flex;gap:3px;margin-bottom:8px">
+    <div style="display:flex;gap:3px;margin-bottom:13px">
       ${stages.map((s,i)=>{
         const done=(i+1)<stage.n;
         const cur=(i+1)===stage.n;
-        return `<div style="flex:1;height:5px;border-radius:3px;background:${done?'var(--gold)':cur?'var(--gold-light)':'rgba(255,255,255,0.08)'};${cur?'box-shadow:0 0 8px var(--gold-glow);':''}"></div>`;
+        const bg = done?'var(--gold)':cur?'var(--gold-light)':'rgba(201,168,76,0.10)';
+        const sh = cur?'box-shadow:0 0 7px rgba(232,201,106,.5);':'';
+        return `<div style="flex:1;height:2px;border-radius:2px;background:${bg};${sh}"></div>`;
       }).join('')}
     </div>
-    <div style="display:flex;align-items:center;gap:8px;padding:8px;background:var(--gold-dim);border-radius:6px">
-      <span style="font-size:14px">👉</span>
-      <div style="flex:1;font-size:12px;color:var(--text)"><b>次にやること</b>：${stage.next}</div>
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 13px;background:rgba(201,168,76,.05);border-left:2px solid var(--gold);border-radius:0 8px 8px 0">
+      <span style="font-size:9.5px;letter-spacing:2px;color:var(--gold-deep);text-transform:uppercase;font-weight:600">Next</span>
+      <div style="flex:1;font-size:13px;color:var(--text);line-height:1.45">${stage.next}</div>
     </div>
   </div>`;
 }
