@@ -1,6 +1,6 @@
 {
-  "name": "DETALIA — Coating & Detailing OS",
-  "short_name": "DETALIA",
+  "name": "LIME DETAILING — Coating & Detailing OS",
+  "short_name": "LIME DETAILING",
   "description": "ディテーリング・コーティング現場用モバイルアプリ。ビフォー/アフター写真・塗膜計測・リール生成・Instagram投稿支援。",
   "start_url": "./index.html?utm_source=pwa",
   "scope": "./",
