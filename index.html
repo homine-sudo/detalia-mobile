@@ -264,6 +264,22 @@ a{color:var(--gold-light);text-decoration:none}
 
 /* フォーム */
 .form-label{font-size:10px;letter-spacing:2px;color:var(--gold-deep);text-transform:uppercase}
+
+/* ── ELEVATE pass 2 — 全体の重さを抜く ── */
+/* .card：箱の存在感を抑えてエディトリアル寄りに */
+.card{background:#11111A;border:1px solid var(--gold-border);border-radius:13px;padding:15px 17px;margin-bottom:11px;box-shadow:none}
+.card-title{font-size:10px;letter-spacing:3px;color:var(--gold-deep);text-transform:uppercase;margin-bottom:11px}
+.card-title .ja{font-size:13px;letter-spacing:1.5px;color:var(--text)}
+/* 入力フィールドを地に馴染ませる */
+input,select,textarea{background:#0C0C12;border:1px solid var(--border);border-radius:10px;padding:11px 13px;font-size:15px}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,168,76,.12)}
+/* 危険ボタンをゴースト化（削除など） */
+.btn-danger{background:transparent;color:#E0775F;border:1px solid rgba(224,119,95,.4);box-shadow:none;font-weight:600}
+.btn-danger:active{background:rgba(224,119,95,.08)}
+/* フォーム間隔を引き締める */
+.form-row{margin-bottom:13px}
+/* チェックボックス選択UI（作業項目）軽量化 */
+.checklist-item,.check-item{background:#0E0E14 !important;border:1px solid var(--border) !important;border-radius:9px !important}
 </style>
 </head>
 <body>
