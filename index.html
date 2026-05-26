@@ -290,6 +290,11 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--gold);bo
 .form-row{margin-bottom:13px}
 /* チェックボックス選択UI（作業項目）軽量化 */
 .checklist-item,.check-item{background:#0E0E14 !important;border:1px solid var(--border) !important;border-radius:9px !important}
+
+/* STEP 状態アイコン（緑✅絵文字 → 編集的な金丸チェック/金ドット） */
+.ss-done{width:20px;height:20px;border-radius:50%;background:var(--gold);color:#0B0B05;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;line-height:1;flex-shrink:0;box-shadow:0 1px 4px rgba(201,168,76,.3)}
+.ss-cur{width:10px;height:10px;border-radius:50%;background:var(--gold-light);display:inline-block;margin:0 5px;box-shadow:0 0 9px rgba(232,201,106,.6),0 0 2px rgba(232,201,106,.8);flex-shrink:0}
+.ss-future{width:20px;height:20px;border-radius:50%;border:1px solid var(--border);display:inline-block;flex-shrink:0}
 </style>
 </head>
 <body>
@@ -1154,17 +1159,19 @@ function renderCaseDetail(c){
     const isCurrent = stage.n === n;
     const isPast    = stage.n > n;
     const isFuture  = stage.n < n;
-    const icon = isPast ? '✅' : isCurrent ? '🎯' : '';
+    // 状態アイコン：完了=金丸チェック / 現在=金グロウドット / 未来=細い枠
+    let iconHtml;
+    if(isPast)         iconHtml = '<span class="ss-done">✓</span>';
+    else if(isCurrent) iconHtml = '<span class="ss-cur"></span>';
+    else               iconHtml = '<span class="ss-future"></span>';
     const open = (isCurrent || isPast) ? 'open' : '';
-    const tag  = isCurrent ? '<span style="font-size:10px;color:var(--gold-light);font-weight:bold;background:var(--gold-dim);padding:2px 8px;border-radius:10px">いまここ</span>' : '';
-    const border = isCurrent ? 'border-left:3px solid var(--gold);box-shadow:0 0 12px rgba(201,168,76,.15)' : '';
-    const opacity = isFuture ? 'opacity:.55' : '';
+    const border = isCurrent ? 'border-left:2px solid var(--gold);box-shadow:0 0 14px rgba(201,168,76,.10)' : '';
+    const opacity = isFuture ? 'opacity:.45' : '';
     return `<details ${open} style="background:var(--card);border:1px solid var(--border);${border};${opacity};border-radius:10px;margin-bottom:8px;overflow:hidden">
-      <summary style="padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;list-style:none;user-select:none">
-        ${icon ? `<span style="font-size:18px">${icon}</span>` : '<span style="width:18px;display:inline-block"></span>'}
-        <span style="font-size:10px;color:var(--gold-deep);letter-spacing:2px;min-width:42px">STEP ${n}</span>
-        <span style="font-size:13px;color:var(--text);flex:1">${label}</span>
-        ${tag}
+      <summary style="padding:13px 14px;cursor:pointer;display:flex;align-items:center;gap:11px;list-style:none;user-select:none">
+        ${iconHtml}
+        <span style="font-family:'Georgia',serif;font-size:10.5px;color:var(--gold-deep);letter-spacing:3px;min-width:38px">STEP ${n}</span>
+        <span style="font-size:13px;color:var(--text);flex:1;letter-spacing:.5px">${label}</span>
       </summary>
       <div style="padding:0 14px 14px">${contentHtml}</div>
     </details>`;
