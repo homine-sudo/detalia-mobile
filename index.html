@@ -202,6 +202,68 @@ a{color:var(--gold-light);text-decoration:none}
 .empty{padding:48px 24px;text-align:center;color:var(--text-dim)}
 .empty .icon{font-size:48px;margin-bottom:10px;opacity:.5}
 .empty .msg{font-size:13px}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   ELEVATED UI v2 (2026-05-23 試作から移植) — エディトリアル/高級方向
+   既存セレクタを上書き＋ホーム用の新要素を追加（既存JS/ロジック非破壊）
+   ═══════════════════════════════════════════════════════════════════════ */
+.num{font-feature-settings:"lnum" 1,"tnum" 1;font-variant-numeric:lining-nums tabular-nums}
+
+/* ヘッダ：ロゴ画像配置 */
+.m-header{background:linear-gradient(180deg,#15131A 0%,#0B0A10 100%);height:56px;gap:10px;padding:0 16px}
+.m-header::after{height:1px;opacity:.45}
+.m-logo{height:38px;display:block;filter:drop-shadow(0 2px 6px rgba(0,0,0,.45));flex-shrink:0}
+.m-title{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans',sans-serif;font-size:12px;letter-spacing:2px;color:var(--text-dim);font-weight:400;flex:1;line-height:1.2;text-align:right}
+.m-title b{font-size:13px;color:var(--text);font-weight:600;letter-spacing:1px}
+.m-header-btn{width:34px;height:34px;font-size:15px}
+
+/* メイン余白 */
+.m-main{padding:22px 20px 100px}
+
+/* ホーム：日付・ヒーロー・3指標 */
+.daterow{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:26px}
+.daterow .d{font-family:'Georgia',serif;font-size:13px;letter-spacing:2px;color:var(--text-dim)}
+.daterow .g{font-size:11px;letter-spacing:3px;color:#5E5A4C;text-transform:uppercase}
+.hero{margin-bottom:8px}
+.hero-k{font-size:10px;letter-spacing:3.5px;color:var(--gold-deep);text-transform:uppercase}
+.hero-v{font-family:'Georgia',serif;font-weight:300;font-size:40px;line-height:1.05;color:var(--gold-light);margin-top:6px;letter-spacing:1px;word-break:break-all}
+.hero-s{font-size:11px;color:#5E5A4C;margin-top:4px;letter-spacing:1px}
+.stats{display:grid;grid-template-columns:1fr 1fr 1fr;margin:22px 0 30px;border-top:1px solid var(--gold-border);border-bottom:1px solid var(--gold-border)}
+.stat{padding:14px 6px;text-align:center;position:relative}
+.stat+.stat::before{content:'';position:absolute;left:0;top:18px;bottom:18px;width:1px;background:rgba(255,255,255,.05)}
+.stat .l{font-size:9.5px;letter-spacing:2px;color:#5E5A4C;text-transform:uppercase}
+.stat .n{font-family:'Georgia',serif;font-weight:300;font-size:30px;color:var(--text);margin-top:5px;line-height:1}
+.stat .n.q{color:var(--gold-light)}
+
+/* セクション kicker */
+.kick{display:flex;align-items:center;gap:12px;margin:0 0 14px}
+.kick.mt{margin-top:30px}
+.kick .t{font-size:10px;letter-spacing:3px;color:var(--gold-deep);text-transform:uppercase}
+.kick .ja{font-size:12px;letter-spacing:2px;color:var(--text-dim)}
+.kick .ln{flex:1;height:1px;background:var(--gold-border)}
+
+/* クイック操作 */
+.qa{display:grid;grid-template-columns:1fr 1.3fr 1fr;gap:9px;margin-bottom:34px}
+.qa .btn{padding:13px 4px;font-size:13px;height:48px;border-radius:11px;min-height:48px;letter-spacing:.5px}
+
+/* 案件カード：ヘアライン枠＋ステータスをドット付き小文字に */
+.case-card{background:linear-gradient(180deg,rgba(255,255,255,.014),transparent);border:1px solid var(--gold-border);border-left:1px solid var(--gold-border);border-radius:13px;padding:15px 17px;margin-bottom:10px}
+.case-card:active{background:rgba(201,168,76,.05)}
+.case-row{align-items:center;margin-bottom:7px}
+.case-id{font-family:'Georgia',serif;font-size:11px;letter-spacing:2px;color:var(--gold-deep)}
+.case-status{background:none !important;padding:0;font-size:9.5px;color:var(--text-dim);font-weight:500;letter-spacing:1.5px;text-transform:uppercase;display:inline-flex;align-items:center;gap:6px;border:0;border-radius:0}
+.case-status::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--gold-light);box-shadow:0 0 6px rgba(232,201,106,.5)}
+.case-customer{font-size:18px;letter-spacing:.4px}
+.case-meta{font-size:12px;color:var(--text-dim);margin-top:8px;line-height:1.5}
+.case-size{background:transparent;color:var(--gold-light);border:1px solid var(--gold-border);font-family:'Georgia',serif;padding:2px 7px;border-radius:5px;font-size:10px;letter-spacing:1.5px}
+
+/* ボタン */
+.btn{border-radius:11px;letter-spacing:.5px}
+.btn-primary{background:linear-gradient(135deg,var(--gold) 0%,var(--gold-light) 100%);color:#0B0B05;box-shadow:0 4px 16px rgba(201,168,76,.22);font-weight:700}
+.btn-secondary{background:var(--card2);border:1px solid var(--gold-border)}
+
+/* フォーム */
+.form-label{font-size:10px;letter-spacing:2px;color:var(--gold-deep);text-transform:uppercase}
 </style>
 </head>
 <body>
@@ -209,7 +271,8 @@ a{color:var(--gold-light);text-decoration:none}
   <!-- ヘッダ -->
   <header class="m-header">
     <button class="m-header-btn" onclick="goBack()" id="btn-back" style="display:none">←</button>
-    <div class="m-title" id="header-title"><b>DETALIA</b> <span style="opacity:.6;font-size:11px">Mobile</span></div>
+    <img class="m-logo" src="lime_logo_dark.png" alt="LIME DETAILING STUDIO">
+    <div class="m-title" id="header-title"></div>
     <div id="header-sync-indicator" style="font-size:14px;color:var(--text-dim);margin-right:4px;min-width:14px;text-align:center" title="同期ステータス">○</div>
     <button class="m-header-btn" onclick="syncBoth()" title="今すぐ同期">⟳</button>
   </header>
@@ -272,25 +335,25 @@ a{color:var(--gold-light);text-decoration:none}
 
     <!-- 🏠 ホーム -->
     <div class="page active" id="page-home">
-      <div class="card" style="background:linear-gradient(135deg,#0F0F1A 0%,#1A1A2A 60%,#0F0F1A 100%);border-color:var(--gold-border)">
-        <div style="font-family:'Georgia',serif;font-size:28px;letter-spacing:8px;color:var(--gold-light);font-weight:300">DETALIA</div>
-        <div style="font-size:10px;color:var(--gold-deep);letter-spacing:4px;margin-top:2px">COATING & DETAILING OS</div>
+      <div class="daterow">
+        <div class="d num" id="home-date">―</div>
+        <div class="g" id="home-day">―</div>
+      </div>
+      <div class="hero">
+        <div class="hero-k">Monthly Revenue ／ 当月売上</div>
+        <div class="hero-v num" id="kpi-month-rev">―</div>
+        <div class="hero-s" id="home-month-sub">税抜</div>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="l">本日入庫</div><div class="n num q" id="kpi-today-in">―</div></div>
+        <div class="stat"><div class="l">納車待ち</div><div class="n num" id="kpi-wait-dlv">―</div></div>
+        <div class="stat"><div class="l">当月納車</div><div class="n num" id="kpi-month-dlv">―</div></div>
       </div>
 
-      <div class="kpi-grid">
-        <div class="kpi"><div class="kpi-lbl">本日の入庫</div><div class="kpi-val" id="kpi-today-in">―</div><div class="kpi-sub">件</div></div>
-        <div class="kpi"><div class="kpi-lbl">納車待ち</div><div class="kpi-val" id="kpi-wait-dlv">―</div><div class="kpi-sub">件</div></div>
-        <div class="kpi"><div class="kpi-lbl">当月納車</div><div class="kpi-val" id="kpi-month-dlv">―</div><div class="kpi-sub">件</div></div>
-        <div class="kpi"><div class="kpi-lbl">当月売上</div><div class="kpi-val" id="kpi-month-rev" style="font-size:16px">―</div><div class="kpi-sub">税抜</div></div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">Quick Actions <span class="ja">クイック操作</span></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
-          <button class="btn btn-secondary" style="font-size:12px;padding:10px 4px" onclick="newQuoteCase()">📄 見積</button>
-          <button class="btn btn-primary" style="font-size:12px;padding:10px 4px" onclick="newCase()">＋ 案件</button>
-          <button class="btn btn-secondary" style="font-size:12px;padding:10px 4px" onclick="showPage('cases')">📋 一覧</button>
-        </div>
+      <div class="qa">
+        <button class="btn btn-secondary" onclick="newQuoteCase()">📄 見積</button>
+        <button class="btn btn-primary" onclick="newCase()">＋ 案件</button>
+        <button class="btn btn-secondary" onclick="showPage('cases')">📋 一覧</button>
       </div>
 
       <div class="card" id="card-upcoming-maint" style="display:none;border-left:3px solid var(--gold)">
@@ -298,10 +361,8 @@ a{color:var(--gold-light);text-decoration:none}
         <div id="upcoming-maint-list"></div>
       </div>
 
-      <div class="card">
-        <div class="card-title">Recent <span class="ja">最近の案件</span></div>
-        <div id="recent-cases"></div>
-      </div>
+      <div class="kick"><div class="t">Recent</div><div class="ja">最近の案件</div><div class="ln"></div></div>
+      <div id="recent-cases"></div>
     </div>
 
     <!-- 📋 案件一覧 -->
@@ -711,6 +772,13 @@ function _caseSortKey(c){
 
 function renderHome(){
   const today=new Date().toISOString().slice(0,10);
+  // 日付行（エディトリアルUI v2）
+  const _nowD=new Date();
+  const _dStr=_nowD.getFullYear()+' . '+String(_nowD.getMonth()+1).padStart(2,'0')+' . '+String(_nowD.getDate()).padStart(2,'0');
+  const _dayStr=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][_nowD.getDay()];
+  const _dEl=document.getElementById('home-date'); if(_dEl) _dEl.textContent=_dStr;
+  const _gEl=document.getElementById('home-day'); if(_gEl) _gEl.textContent=_dayStr;
+  const _subEl=document.getElementById('home-month-sub'); if(_subEl) _subEl.textContent='税抜 ／ '+(_nowD.getMonth()+1)+'月実績';
   const todayIn=cases.filter(c=>!c.deleted&&(c.arrival||'').slice(0,10)===today).length;
   const waitDlv=cases.filter(c=>!c.deleted&&c.deliveryPlan&&!c.delivery).length;
   const monthDlv=cases.filter(c=>!c.deleted&&c.delivery&&c.delivery.slice(0,7)===today.slice(0,7)).length;
@@ -4289,8 +4357,9 @@ function showPage(name){
   if(p) p.classList.add('active');
   document.querySelectorAll('.m-tab').forEach(t=>t.classList.toggle('active',t.dataset.page===name));
   // ヘッダ
-  const titles={home:'<b>DETALIA</b>',cases:'<b>案件一覧</b>',sns:'<b>SNS Hub</b>',settings:'<b>設定</b>'};
-  if(titles[name]) document.getElementById('header-title').innerHTML=titles[name];
+  // ホームはロゴがブランドを担うのでタイトルは空。他は文脈タイトル。
+  const titles={home:'',cases:'<b>案件一覧</b>',sns:'<b>SNS Hub</b>',settings:'<b>設定</b>'};
+  if(titles[name]!==undefined) document.getElementById('header-title').innerHTML=titles[name];
   if(name==='sns') renderSnsHub();
   document.getElementById('btn-back').style.display=(name==='detail'||name==='edit')?'flex':'none';
   // 履歴
