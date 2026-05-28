@@ -1106,6 +1106,11 @@ function inlineEdit(caseId, field, value){
   if(field==='snsPermitted'){
     if(typeof _refreshSnsGate==='function') _refreshSnsGate(c);
   }
+  // 作業項目テキストを直接編集したら、最上部の作業進捗も更新
+  if(field==='workDetail'){
+    if(typeof _renderWorkProgress==='function') _renderWorkProgress(c);
+    if(typeof _renderWorkCheckboxes==='function') _renderWorkCheckboxes(c);
+  }
   // 視覚フィードバック
   const ind = document.getElementById('save-indicator');
   if(ind){ ind.textContent='💾 保存済'; ind.style.opacity='1'; setTimeout(()=>{ ind.style.opacity='0'; }, 1200); }
@@ -1249,8 +1254,8 @@ function renderCaseDetail(c){
 
   // ===== 本体レンダリング =====
   document.getElementById('case-detail-body').innerHTML=`
-    <!-- 進捗バー（コンパクト） -->
-    <div id="detail-progress">${stageProgressHtml(c)}</div>
+    <!-- 作業進捗（完了チェック）を案件の最上部に。旧ステージバーは廃止 -->
+    <div id="work-progress-block" style="margin-bottom:16px"></div>
 
     <!-- 保存インジケータ（右上にフローティング） -->
     <div id="save-indicator" style="position:fixed;top:64px;right:14px;background:var(--gold);color:#0F0F1A;padding:5px 12px;border-radius:14px;font-size:11px;font-weight:bold;opacity:0;transition:opacity .25s;z-index:50;pointer-events:none">💾 保存済</div>
@@ -1307,9 +1312,7 @@ function renderCaseDetail(c){
     `)}
 
     ${sCard(3, '作業内容＋料金', `
-      <!-- 作業進捗（選択中の項目をそのまま完了チェック・workChecks 互換） -->
-      <div id="work-progress-block" style="margin:2px 0 12px"></div>
-      <!-- 項目の選択／変更は折りたたみ（未選択時は自動で開く） -->
+      <!-- 進捗は最上部に集約。ここでは項目の選択／変更のみ（未選択時は自動で開く） -->
       <details ${c.workDetail?'':'open'} style="margin-bottom:10px;border:1px solid var(--border);border-radius:9px;padding:0 12px;background:#0E0E14">
         <summary style="font-size:11px;color:var(--gold-deep);letter-spacing:1px;cursor:pointer;padding:11px 0;list-style:none">＋ 作業項目を選ぶ／変更</summary>
         <div id="work-checkbox-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;padding-bottom:4px"></div>
