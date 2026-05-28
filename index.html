@@ -291,6 +291,24 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--gold);bo
 /* チェックボックス選択UI（作業項目）軽量化 */
 .checklist-item,.check-item{background:#0E0E14 !important;border:1px solid var(--border) !important;border-radius:9px !important}
 
+/* 作業進捗（完了チェック）デスクトップ workChecks 互換 */
+.wp-head{display:flex;align-items:center;gap:11px;margin:2px 0 9px}
+.wp-head .t{font-size:10px;letter-spacing:3px;color:var(--gold-deep);text-transform:uppercase}
+.wp-head .ln{flex:1;height:1px;background:var(--gold-border)}
+.wp-head .n{font-family:'Georgia',serif;font-size:12px;color:var(--gold-light);letter-spacing:1px}
+.wp-head .n.done{color:var(--lime)}
+.wp-bar{height:3px;background:rgba(255,255,255,.05);border-radius:3px;overflow:hidden;margin-bottom:11px}
+.wp-fill{height:100%;width:0;background:linear-gradient(90deg,var(--gold-deep),var(--gold-light));transition:width .6s cubic-bezier(.4,0,.2,1)}
+.wp-fill.done{background:linear-gradient(90deg,var(--lime-deep),var(--lime))}
+.wp-item{display:flex;align-items:center;gap:11px;padding:10px 12px;border:1px solid var(--border);border-radius:9px;margin-bottom:6px;background:#0E0E14;cursor:pointer}
+.wp-item:active{background:rgba(201,168,76,.05)}
+.wp-item.done{border-color:var(--gold-border);background:rgba(134,192,76,.05)}
+.wp-check{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--border);display:inline-flex;align-items:center;justify-content:center;font-size:12px;color:transparent;flex-shrink:0;transition:.15s}
+.wp-item.done .wp-check{background:var(--lime-deep);border-color:var(--lime-deep);color:#0B0B05;font-weight:700}
+.wp-label{flex:1;font-size:13px;color:var(--text);letter-spacing:.3px}
+.wp-item.done .wp-label{color:var(--text-dim);text-decoration:line-through;text-decoration-color:rgba(168,157,123,.5)}
+.wp-empty{font-size:12px;color:var(--ink-3);text-align:center;padding:14px;border:1px dashed var(--border);border-radius:9px}
+
 /* 写真セル微調整：少し丸く、+ ボタンを上品に */
 .photo-cell{aspect-ratio:1;background:#0C0C12;border:1px solid var(--border);border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:11px;overflow:hidden}
 .photo-add{background:linear-gradient(180deg,rgba(201,168,76,.08),rgba(201,168,76,.03));border:1px dashed var(--gold-border);color:var(--gold-light);font-size:22px;font-weight:300;letter-spacing:0}
@@ -1298,6 +1316,8 @@ function renderCaseDetail(c){
           <textarea id="e-workDetail" rows="2" placeholder="チェックすると自動で入る" onblur="inlineEdit('${cid}','workDetail',this.value)" style="font-size:13px;padding:8px 10px;resize:vertical;color:var(--text-dim)">${esc(c.workDetail||'')}</textarea>
         </div>
       </div>
+      <!-- 作業進捗（完了チェック・デスクトップ版と同データ workChecks 互換） -->
+      <div id="work-progress-block" style="margin:2px 0 4px"></div>
       <details><summary style="font-size:11px;color:var(--text-dim);cursor:pointer;padding:6px 0">💰 料金（税抜）</summary>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
           ${E('optExt','外装','0',{type:'number',inputmode:'numeric'})}
@@ -1429,6 +1449,8 @@ function renderCaseDetail(c){
   ['before','during','after','other'].forEach(kind=>_renderPhotoGrid(c,kind));
   // 作業項目チェックボックスを描画
   _renderWorkCheckboxes(c);
+  // 作業進捗（完了チェック）を描画
+  _renderWorkProgress(c);
   // 車種→サイズ自動判定の監視
   _attachSizeAutoDetect(c);
 }
@@ -1473,6 +1495,7 @@ function _toggleWorkItem(caseId, item, checked){
   if(checked && idx<0) current.push(item);
   else if(!checked && idx>=0) current.splice(idx,1);
   c.workDetail = current.join('・');
+  _syncWorkChecks(c);
   c.updatedAt = new Date().toISOString();
   saveCases();
   clearTimeout(window._inlineEditTimer);
@@ -1480,6 +1503,49 @@ function _toggleWorkItem(caseId, item, checked){
   // テキストエリアも同期
   const ta = document.getElementById('e-workDetail');
   if(ta) ta.value = c.workDetail;
+  _renderWorkProgress(c);
+  const ind = document.getElementById('save-indicator');
+  if(ind){ ind.textContent='💾 保存済'; ind.style.opacity='1'; setTimeout(()=>{ ind.style.opacity='0'; }, 1200); }
+}
+
+// 作業進捗（完了チェック）── デスクトップ版 c.workChecks[{label,selected,done}] と互換
+// workDetail(選択) を真として workChecks を再構築。done フラグは既存から保持。
+function _syncWorkChecks(c){
+  const sel = (c.workDetail||'').split(/[・\n]/).map(s=>s.trim()).filter(Boolean);
+  const prev = Array.isArray(c.workChecks)?c.workChecks:[];
+  const doneMap = {};
+  prev.forEach(it=>{ if(it && typeof it==='object' && it.label) doneMap[it.label]=!!it.done; });
+  c.workChecks = sel.map(label=>({label, selected:true, done:!!doneMap[label]}));
+  return c.workChecks;
+}
+function _renderWorkProgress(c){
+  const box = document.getElementById('work-progress-block');
+  if(!box) return;
+  const wc = _syncWorkChecks(c);
+  const total = wc.length;
+  if(total===0){ box.innerHTML='<div class="wp-empty">作業項目を選ぶと進捗が表示されます</div>'; return; }
+  const done = wc.filter(it=>it.done).length;
+  const pct = Math.floor(done/total*100);
+  const allDone = done===total;
+  box.innerHTML =
+    `<div class="wp-head"><span class="t">Progress</span><span class="ln"></span>`+
+    `<span class="n num ${allDone?'done':''}">${done} / ${total}${allDone?' 🎉':''}</span></div>`+
+    `<div class="wp-bar"><div class="wp-fill ${allDone?'done':''}" style="width:${pct}%"></div></div>`+
+    wc.map(it=>`<div class="wp-item ${it.done?'done':''}" data-label="${esc(it.label)}" onclick="_toggleWorkDoneEl(this,'${esc(c.id)}')"><span class="wp-check">✓</span><span class="wp-label">${esc(it.label)}</span></div>`).join('');
+}
+function _toggleWorkDoneEl(el, caseId){ _toggleWorkDone(caseId, el.getAttribute('data-label')); }
+function _toggleWorkDone(caseId, label){
+  const c = cases.find(c=>c.id===caseId);
+  if(!c || !label) return;
+  _syncWorkChecks(c);
+  const it = c.workChecks.find(x=>x.label===label);
+  if(!it) return;
+  it.done = !it.done;
+  c.updatedAt = new Date().toISOString();
+  saveCases();
+  clearTimeout(window._inlineEditTimer);
+  window._inlineEditTimer = setTimeout(()=>syncPush(true), 800);
+  _renderWorkProgress(c);
   const ind = document.getElementById('save-indicator');
   if(ind){ ind.textContent='💾 保存済'; ind.style.opacity='1'; setTimeout(()=>{ ind.style.opacity='0'; }, 1200); }
 }
