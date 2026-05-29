@@ -262,7 +262,7 @@ a{color:var(--gold-light);text-decoration:none}
 .case-row{align-items:center;margin-bottom:7px}
 .case-id{font-family:'Georgia',serif;font-size:11px;letter-spacing:2px;color:var(--gold-deep)}
 .case-status{background:none !important;padding:0;font-size:9.5px;color:var(--text-dim);font-weight:500;letter-spacing:1.5px;text-transform:uppercase;display:inline-flex;align-items:center;gap:6px;border:0;border-radius:0}
-.case-status::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--gold-light);box-shadow:0 0 6px rgba(232,201,106,.5)}
+.case-status::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor;box-shadow:0 0 6px currentColor;opacity:.95}
 .case-customer{font-size:18px;letter-spacing:.4px}
 .case-meta{font-size:12px;color:var(--text-dim);margin-top:8px;line-height:1.5}
 .case-size{background:transparent;color:var(--gold-light);border:1px solid var(--gold-border);font-family:'Georgia',serif;padding:2px 7px;border-radius:5px;font-size:10px;letter-spacing:1.5px}
@@ -809,13 +809,28 @@ function fmtDate(d){
   const m=d.match(/^(\d{4})-(\d{2})-(\d{2})/);
   return m?`${m[1].slice(2)}/${m[2]}/${m[3]}`:d;
 }
+// ★ステータス判定はデスクトップ(ディテーリング管理システム.html caseStatus)と完全一致させる。
+//   両方を変える時は必ず揃える(同じ案件が両画面で違うステータスに見えるのを防ぐ)。
 function caseStatus(c){
   if(c.paidDate) return '入金済';
   if(c.delivery) return '納車済';
-  if(c.deliveryPlan) return '作業中';
+  const wc=(c.workChecks||[]).filter(it=>typeof it==='object'&&it.selected);
+  if(wc.length>0 && wc.every(it=>it.done)) return '作業完了';
+  if(wc.some(it=>it.done)) return '作業中';
   if(c.arrival) return '入庫済';
   return '予約';
 }
+// ★ステータス→色 もデスクトップ STATUS_CONFIG と一致(同じ状態は同じ色に見せる)。
+const STATUS_CONFIG = {
+  '入金済':  {color:'#34D399'},
+  '納車済':  {color:'#A78BFA'},
+  '作業完了':{color:'#22D3EE'},
+  '作業中':  {color:'#FBBF24'},
+  '入庫済':  {color:'#60A5FA'},
+  '予約':    {color:'#94A3B8'},
+  'キャンセル':{color:'#F87171'},
+};
+function statusColor(st){ return (STATUS_CONFIG[st]||{}).color || 'var(--gold-light)'; }
 function esc(s){
   if(s==null) return '';
   return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -929,7 +944,7 @@ function caseCardHtml(c){
   return `<div class="case-card" onclick="openCase('${esc(c.id)}')" style="${isQuote?'border-left-color:var(--cyan)':''}">
     <div class="case-row">
       <span class="case-id">${esc(c.id)}</span>
-      ${isQuote?'<span style="font-size:9px;padding:2px 6px;border-radius:10px;background:rgba(34,211,238,.15);color:var(--cyan);font-weight:bold">📄 見積</span>':`<span class="case-status">${caseStatus(c)}</span>`}
+      ${isQuote?'<span style="font-size:9px;padding:2px 6px;border-radius:10px;background:rgba(34,211,238,.15);color:var(--cyan);font-weight:bold">📄 見積</span>':(st=>`<span class="case-status" style="color:${statusColor(st)}">${st}</span>`)(caseStatus(c))}
     </div>
     <div class="case-customer">${esc(c.customer||'―')}</div>
     <div class="case-meta">
