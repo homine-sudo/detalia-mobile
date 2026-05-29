@@ -1530,8 +1530,8 @@ function _renderWorkProgress(c){
   const pct = Math.floor(done/total*100);
   const allDone = done===total;
   box.innerHTML =
-    `<div class="wp-head"><span class="t">Progress</span><span class="ln"></span>`+
-    `<span class="n num ${allDone?'done':''}">${done} / ${total}${allDone?' 🎉':''}</span></div>`+
+    `<div class="wp-head"><span class="t">Progress 進捗</span><span class="ln"></span>`+
+    `<span class="n num ${allDone?'done':''}">${done}/${total} 完了（${pct}%）${allDone?' 🎉':''}</span></div>`+
     `<div class="wp-bar"><div class="wp-fill ${allDone?'done':''}" style="width:${pct}%"></div></div>`+
     wc.map(it=>`<div class="wp-item ${it.done?'done':''}" data-label="${esc(it.label)}" onclick="_toggleWorkDoneEl(this,'${esc(c.id)}')"><span class="wp-check">✓</span><span class="wp-label">${esc(it.label)}</span></div>`).join('');
 }
