@@ -87,8 +87,25 @@ header.nav{position:fixed;top:0;left:0;right:0;z-index:8000;mix-blend-mode:diffe
 @media (max-width:760px){.nav nav{display:none}}
 
 /* ════════ HERO ════════ */
-.hero{position:relative;min-height:100svh;display:flex;flex-direction:column;justify-content:center;overflow:hidden;padding:100px 0 70px}
-#fx{position:absolute;inset:0;z-index:1;pointer-events:none}
+.hero{position:relative;min-height:100svh;display:flex;flex-direction:column;justify-content:center;overflow:hidden;padding:100px 0 70px;perspective:1200px}
+.hstage{position:relative;flex:1;display:flex;flex-direction:column;justify-content:center;transform-style:preserve-3d;will-change:transform}
+.hstage .wrap{transform:translateZ(60px)}
+#fx{position:absolute;inset:-5%;z-index:1;pointer-events:none;transform:translateZ(-60px) scale(1.12)}
+
+/* 回転する3Dワイヤーフレームキューブ */
+.cube3d{--s:clamp(130px,21vw,260px);position:absolute;right:6vw;top:16%;width:var(--s);height:var(--s);z-index:1;transform-style:preserve-3d;pointer-events:none}
+.cb{position:absolute;inset:0;transform-style:preserve-3d;animation:spin3d 17s linear infinite}
+@keyframes spin3d{from{transform:rotateX(-16deg) rotateY(0deg)}to{transform:rotateX(-16deg) rotateY(360deg)}}
+.cb i{position:absolute;inset:0;border:1.5px solid var(--ink);background:rgba(255,59,0,.045);
+  display:flex;align-items:center;justify-content:center;font-style:normal;
+  font-family:var(--disp);font-size:calc(var(--s)*.42);color:transparent;-webkit-text-stroke:1.3px var(--verm)}
+.cb i:nth-child(1){transform:rotateY(0deg) translateZ(calc(var(--s)/2))}
+.cb i:nth-child(2){transform:rotateY(90deg) translateZ(calc(var(--s)/2))}
+.cb i:nth-child(3){transform:rotateY(180deg) translateZ(calc(var(--s)/2))}
+.cb i:nth-child(4){transform:rotateY(270deg) translateZ(calc(var(--s)/2))}
+.cb i:nth-child(5){transform:rotateX(90deg) translateZ(calc(var(--s)/2))}
+.cb i:nth-child(6){transform:rotateX(-90deg) translateZ(calc(var(--s)/2))}
+@media (max-width:760px){.cube3d{opacity:.4;top:8%}}
 .hero .wrap{position:relative;z-index:2}
 .khero{font-family:var(--disp);text-transform:uppercase;line-height:.84;letter-spacing:-.01em}
 .khero .row{display:block;overflow:hidden}
@@ -108,7 +125,7 @@ header.nav{position:fixed;top:0;left:0;right:0;z-index:8000;mix-blend-mode:diffe
 @keyframes drop{0%{transform:scaleY(0);transform-origin:top}45%{transform:scaleY(1);transform-origin:top}55%{transform:scaleY(1);transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}
 
 /* ════════ MARQUEE ════════ */
-.marquee{border-block:1.5px solid var(--ink);padding:18px 0;overflow:hidden;white-space:nowrap;background:var(--ink);color:var(--paper)}
+.marquee{border-block:1.5px solid var(--ink);padding:18px 0;overflow:hidden;white-space:nowrap;background:var(--ink);color:var(--paper);transform:perspective(900px) rotateX(5deg)}
 .marquee .track{display:inline-flex;gap:46px;animation:mx 26s linear infinite}
 .marquee b{font-family:var(--disp);font-size:clamp(22px,3.4vw,40px);font-weight:400;text-transform:uppercase;letter-spacing:.05em}
 .marquee b.o{color:transparent;-webkit-text-stroke:1px var(--paper)}
@@ -140,6 +157,12 @@ section{position:relative;padding:clamp(90px,12vw,170px) 0;z-index:1}
 @media (max-width:860px){.biz{grid-template-columns:1fr}}
 .bcard{position:relative;border:1.5px solid var(--ink);background:var(--paper);padding:44px 36px 38px;min-height:380px;
   display:flex;flex-direction:column;overflow:hidden;transition:transform .5s var(--ease);will-change:transform}
+.bcard{transform-style:preserve-3d}
+.bcard .bn{transform:translateZ(26px)}
+.bcard .bt{transform:translateZ(50px)}
+.bcard .be{transform:translateZ(36px)}
+.bcard .bd{transform:translateZ(22px)}
+.bcard .bl{transform:translateZ(40px)}
 .bcard::after{content:'';position:absolute;inset:0;background:var(--ink);transform:translateY(101%);transition:transform .5s var(--ease);z-index:0}
 .bcard:hover::after{transform:translateY(0)}
 .bcard>*{position:relative;z-index:1;transition:color .4s}
@@ -164,7 +187,8 @@ section{position:relative;padding:clamp(90px,12vw,170px) 0;z-index:1}
 .cta{background:var(--ink);color:var(--paper);overflow:hidden}
 .cta .big{font-family:var(--disp);text-transform:uppercase;font-size:clamp(48px,13vw,190px);line-height:.88;text-align:center}
 .cta .big .o{color:transparent;-webkit-text-stroke:1.4px var(--paper)}
-.cta .big .v{color:var(--verm)}
+.cta .big .v{color:var(--verm);text-shadow:2px 2px 0 #7a1c00,4px 4px 0 #5f1600,6px 6px 0 #451000,9px 9px 0 #2b0a00}
+.cta .big{transform-style:preserve-3d;will-change:transform}
 .cta p{text-align:center;font-family:var(--serif);font-size:clamp(16px,2vw,22px);margin:36px auto 42px;max-width:42ch}
 .btn{position:relative;display:block;width:fit-content;margin:0 auto;padding:20px 46px;border:1.5px solid var(--paper);
   font-family:var(--disp);font-size:13px;letter-spacing:.22em;text-transform:uppercase;overflow:hidden;will-change:transform}
@@ -212,8 +236,10 @@ footer{padding:70px 0 36px;position:relative;z-index:1}
 <div id="warp">
 <!-- ═══ HERO ═══ -->
 <section class="hero" id="top">
+  <div class="hstage" id="hstage">
   <canvas id="fx"></canvas>
-  <div class="vside">株式会社ハリテラス — 沖縄・豊見城</div>
+  <div class="cube3d" aria-hidden="true"><div class="cb"><i>H</i><i>T</i><i>沖</i><i>縄</i><i></i><i></i></div></div>
+  <div class="vside">株式会社ハリテラス — 沖縄・八重瀬／豊見城</div>
   <div class="wrap">
     <h1 class="khero">
       <span class="row"><b>HARI</b></span>
@@ -222,12 +248,13 @@ footer{padding:70px 0 36px;position:relative;z-index:1}
     <div class="hero-foot">
       <p class="hero-st">沖縄から、<mark>景色</mark>を変える。<br>テラスから見渡すように、半歩先の暮らしと移動をデザインする会社です。</p>
       <div class="hero-meta">
-        OKINAWA · TOMIGUSUKU<br>
+        OKINAWA · YAESE / TOMIGUSUKU<br>
         DETAILING / COATING / MOBILITY<br>
         HARI TERRACE INC.
       </div>
     </div>
   </div>
+  </div><!-- /hstage -->
   <div class="scrollcue">SCROLL<i></i></div>
 </section>
 
@@ -294,12 +321,14 @@ footer{padding:70px 0 36px;position:relative;z-index:1}
     <div class="tag reveal" data-scramble>03 — Company</div>
     <h2 class="h2 reveal" style="margin-bottom:46px">会社<span class="o">概要</span></h2>
     <dl class="ctable">
-      <div class="crow reveal"><dt>商号</dt><dd>株式会社Hari Terrace（ハリテラス）</dd></div>
-      <div class="crow reveal"><dt>所在地</dt><dd>沖縄県豊見城市字与根326-6</dd></div>
-      <div class="crow reveal"><dt>代表者</dt><dd>— <span class="todo">（確定後に記載）</span></dd></div>
-      <div class="crow reveal"><dt>設立</dt><dd>— <span class="todo">（確定後に記載）</span></dd></div>
-      <div class="crow reveal"><dt>事業内容</dt><dd>カーディテーリング・コーティング事業／レンタカー事業／その他モビリティ関連事業</dd></div>
-      <div class="crow reveal"><dt>連絡先</dt><dd><a href="tel:098-0901-3817" style="border-bottom:1px solid var(--line)">098-0901-3817</a>（LIME DETAILING STUDIO）</dd></div>
+      <div class="crow reveal r3d"><dt>商号</dt><dd>株式会社HariTerrace（ハリテラス）</dd></div>
+      <div class="crow reveal r3d"><dt>本社所在地</dt><dd>〒901-0513 沖縄県島尻郡八重瀬町玻名城105番地</dd></div>
+      <div class="crow reveal r3d"><dt>事業拠点</dt><dd>LIME DETAILING STUDIO — 沖縄県豊見城市字与根326-6</dd></div>
+      <div class="crow reveal r3d"><dt>代表者</dt><dd>— <span class="todo">（確定後に記載）</span></dd></div>
+      <div class="crow reveal r3d"><dt>設立</dt><dd>— <span class="todo">（確定後に記載）</span></dd></div>
+      <div class="crow reveal r3d"><dt>事業内容</dt><dd>レンタカー事業（ライムレンタカー&amp;コーティング）／カーディテーリング・コーティング事業（LIME DETAILING STUDIO）／運輸関連事業</dd></div>
+      <div class="crow reveal r3d"><dt>取り組み</dt><dd>IPA「SECURITY ACTION ★★ 二つ星」宣言事業者</dd></div>
+      <div class="crow reveal r3d"><dt>連絡先</dt><dd><a href="tel:098-0901-3817" style="border-bottom:1px solid var(--line)">098-0901-3817</a>（LIME DETAILING STUDIO）</dd></div>
     </dl>
   </div>
 </section>
@@ -320,8 +349,8 @@ footer{padding:70px 0 36px;position:relative;z-index:1}
       <div class="fbrand">HT</div>
       <div class="fcol">
         <h5>Office</h5>
-        <p>株式会社Hari Terrace</p>
-        <p>沖縄県豊見城市字与根326-6</p>
+        <p>株式会社HariTerrace</p>
+        <p>〒901-0513 沖縄県島尻郡八重瀬町玻名城105番地</p>
         <a href="tel:098-0901-3817">098-0901-3817</a>
       </div>
       <div class="fcol">
@@ -498,6 +527,39 @@ document.querySelectorAll('.reveal').forEach((el,i)=>{el.style.transitionDelay=(
     else if(w.style.transform)w.style.transform='';
     requestAnimationFrame(l);
   })();
+})();
+
+/* ─── hero 3D tilt stage（マウスで空間ごと傾く） ─── */
+(function(){
+  const st=document.getElementById('hstage');
+  if(!st||!matchMedia('(pointer:fine)').matches)return;
+  let tx=0,ty=0,rx=0,ry=0;
+  addEventListener('mousemove',e=>{
+    ty=(e.clientX/innerWidth-.5)*10;
+    tx=-(e.clientY/innerHeight-.5)*8;
+  });
+  (function loop(){
+    rx+=(tx-rx)*.06;ry+=(ty-ry)*.06;
+    st.style.transform=`rotateX(${rx}deg) rotateY(${ry}deg)`;
+    requestAnimationFrame(loop);
+  })();
+})();
+
+/* ─── CTA 3D tilt（巨大タイポが立体で傾く） ─── */
+(function(){
+  if(!matchMedia('(pointer:fine)').matches)return;
+  const cta=document.querySelector('.cta'),big=document.querySelector('.cta .big');
+  if(!cta||!big)return;
+  cta.addEventListener('mousemove',e=>{
+    const r=cta.getBoundingClientRect();
+    const px=(e.clientX-r.left)/r.width-.5,py=(e.clientY-r.top)/r.height-.5;
+    big.style.transform=`perspective(900px) rotateX(${-py*10}deg) rotateY(${px*8}deg)`;
+    big.style.transition='transform .1s linear';
+  });
+  cta.addEventListener('mouseleave',()=>{
+    big.style.transition='transform .7s cubic-bezier(.16,1,.3,1)';
+    big.style.transform='';
+  });
 })();
 
 /* ─── 3D tilt business cards ─── */
