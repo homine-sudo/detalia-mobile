@@ -101,6 +101,8 @@ header.nav{position:fixed;top:0;left:0;right:0;z-index:8000;mix-blend-mode:diffe
 .hero{position:relative;min-height:100svh;display:flex;flex-direction:column;justify-content:center;padding:110px 0 60px;overflow:hidden;perspective:1100px}
 .hero-stage{position:relative;flex:1;display:flex;flex-direction:column;justify-content:center;transform-style:preserve-3d;will-change:transform}
 .hero-stage .wrap{transform:translateZ(46px)}
+.fx{position:absolute;inset:0;z-index:1;mix-blend-mode:screen;opacity:.5;pointer-events:none;transform:translateZ(-30px)}
+#warp{will-change:transform;transform-origin:50% 50%}
 .hero-photo video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.42;filter:saturate(1.15) contrast(1.05)}
 .hero-bg{position:absolute;inset:0;z-index:0;
   background:
@@ -283,6 +285,7 @@ footer{border-top:1px solid var(--line);padding:70px 0 40px}
   </div>
 </header>
 
+<div id="warp">
 <!-- ═══ HERO ═══ -->
 <section class="hero" id="top">
   <div class="hero-bg"></div>
@@ -294,6 +297,7 @@ footer{border-top:1px solid var(--line);padding:70px 0 40px}
       <source src="https://www.pexels.com/download/video/6159204/" type="video/mp4">
     </video>
   </div>
+  <canvas class="fx" id="fx"></canvas>
   <div class="orb a" data-speed="0.18"></div>
   <div class="orb b" data-speed="-0.12"></div>
   <div class="wrap">
@@ -303,10 +307,10 @@ footer{border-top:1px solid var(--line);padding:70px 0 40px}
       <span class="row"><b class="solid">作品にする。</b></span>
     </h1>
     <div class="hero-sub">
-      <p class="hero-lead">塗膜という名のキャンバスに、<em>艶</em>という署名を。<br>下地から仕上げまで、ミクロン単位で magnify する完全主義のディテーリング。</p>
+      <p class="hero-lead">塗膜という名のキャンバスに、<em>艶</em>という署名を。<br>下地から仕上げまで、ミクロン単位で突き詰める完全主義のディテーリング。</p>
       <div class="hero-meta">
-        EST. 2018 — JAPAN<br>
-        CERAMIC · GLASS · PPF<br>
+        OKINAWA · TOMIGUSUKU<br>
+        CERAMIC · GLASS · DETAILING<br>
         BY APPOINTMENT ONLY
       </div>
     </div>
@@ -322,10 +326,12 @@ footer{border-top:1px solid var(--line);padding:70px 0 40px}
     <b>GLASS COATING</b><span class="dot"></span>
     <b class="fill">PAINT CORRECTION</b><span class="dot"></span>
     <b>INTERIOR</b><span class="dot"></span>
+    <b class="fill">細部に神は宿る</b><span class="dot"></span>
     <b class="fill">CERAMIC COATING</b><span class="dot"></span>
     <b>GLASS COATING</b><span class="dot"></span>
     <b class="fill">PAINT CORRECTION</b><span class="dot"></span>
     <b>INTERIOR</b><span class="dot"></span>
+    <b class="fill">細部に神は宿る</b><span class="dot"></span>
   </div>
 </div>
 
@@ -340,6 +346,7 @@ footer{border-top:1px solid var(--line);padding:70px 0 40px}
     </p>
     <div class="mani-foot reveal">
       <p>表面を整えるだけの作業を私たちは仕上げと呼ばない。光の反射角を変え、奥行きを生み、所有する歓びそのものを更新する——それが LIME DETAILING の流儀。</p>
+      <p style="font-family:var(--serif);color:var(--gold-hi);font-size:15px;letter-spacing:.06em">細部に神は宿る ― <span style="font-style:italic">God is in the details.</span></p>
     </div>
   </div>
 </section>
@@ -469,8 +476,8 @@ footer{border-top:1px solid var(--line);padding:70px 0 40px}
   <div class="wrap">
     <h2 class="big reveal">LET'S<br><span class="o">DETAIL IT.</span></h2>
     <p class="reveal">あなたの一台を、もう一度はじめての一台に。<br>無料カウンセリング・お見積もりを受付中です。</p>
-    <a class="btn" id="ctaBtn" href="mailto:contact@lime-detailing.jp"><span>予約・お見積もりへ →</span></a>
-    <div class="cta-sub reveal">完全予約制 · 全国対応相談可 · OPEN 9:00–19:00</div>
+    <a class="btn" id="ctaBtn" href="tel:098-0901-3817"><span>予約・お見積もりへ →</span></a>
+    <div class="cta-sub reveal">完全予約制 · ご予約はLINEまたはお電話で · 沖縄・豊見城</div>
   </div>
 </section>
 
@@ -481,10 +488,10 @@ footer{border-top:1px solid var(--line);padding:70px 0 40px}
       <div class="foot-brand">LIME</div>
       <div class="foot-col">
         <h5>Studio</h5>
-        <p>日本 / Japan</p>
-        <p>完全予約制</p>
-        <a href="tel:0000000000">000-0000-0000</a>
-        <a href="mailto:contact@lime-detailing.jp">contact@lime-detailing.jp</a>
+        <p>LIME DETAILING STUDIO</p>
+        <p>沖縄県豊見城市字与根326-6</p>
+        <a href="tel:098-0901-3817">098-0901-3817</a>
+        <p>完全予約制 / ご予約はLINE</p>
       </div>
       <div class="foot-col">
         <h5>Menu</h5>
@@ -501,11 +508,12 @@ footer{border-top:1px solid var(--line);padding:70px 0 40px}
       </div>
     </div>
     <div class="foot-bot">
-      <span>© 2026 LIME DETAILING — All rights reserved.</span>
-      <span>Crafted with obsession.</span>
+      <span>© 2026 LIME DETAILING STUDIO — All rights reserved.</span>
+      <span>細部に神は宿る — God is in the details.</span>
     </div>
   </div>
 </footer>
+</div><!-- /warp -->
 
 <script>
 /* ─── custom cursor ─── */
