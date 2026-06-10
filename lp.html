@@ -98,13 +98,16 @@ header.nav{position:fixed;top:0;left:0;right:0;z-index:8000;mix-blend-mode:diffe
 @media (max-width:760px){.nav nav{display:none}}
 
 /* ════════════════ HERO ════════════════ */
-.hero{position:relative;min-height:100svh;display:flex;flex-direction:column;justify-content:center;padding:110px 0 60px;overflow:hidden}
+.hero{position:relative;min-height:100svh;display:flex;flex-direction:column;justify-content:center;padding:110px 0 60px;overflow:hidden;perspective:1100px}
+.hero-stage{position:relative;flex:1;display:flex;flex-direction:column;justify-content:center;transform-style:preserve-3d;will-change:transform}
+.hero-stage .wrap{transform:translateZ(46px)}
+.hero-photo video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.42;filter:saturate(1.15) contrast(1.05)}
 .hero-bg{position:absolute;inset:0;z-index:0;
   background:
     radial-gradient(120% 80% at 80% -10%,rgba(184,233,134,.10),transparent 55%),
     radial-gradient(90% 70% at -10% 110%,rgba(201,168,76,.12),transparent 60%);
 }
-.hero-photo{position:absolute;inset:0;z-index:0}
+.hero-photo{position:absolute;inset:-4%;z-index:0;transform:translateZ(-70px) scale(1.16)}
 .hero-photo img{width:100%;height:100%;object-fit:cover;opacity:.42;filter:saturate(1.15) contrast(1.05)}
 .hero-photo::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,10,15,.66) 0%,rgba(10,10,15,.32) 45%,var(--bg) 97%)}
 .orb{position:absolute;border-radius:50%;filter:blur(70px);z-index:0;opacity:.5;will-change:transform}
@@ -146,6 +149,9 @@ section{position:relative;padding:clamp(90px,13vw,180px) 0}
 .tag::before{content:'';width:30px;height:1px;background:var(--gold)}
 .reveal{opacity:0;transform:translateY(40px);transition:opacity 1s var(--ease),transform 1s var(--ease)}
 .reveal.in{opacity:1;transform:none}
+/* 3D起き上がりリビール（revealと併用） */
+.r3d{transform:perspective(900px) rotateX(18deg) translateY(70px);transform-origin:50% 0}
+.r3d.in{transform:perspective(900px) rotateX(0deg) translateY(0)}
 .split{font-family:var(--serif);font-weight:800;line-height:1.05;font-size:clamp(34px,6vw,82px)}
 .outline-word{-webkit-text-stroke:1.2px var(--gold);color:transparent}
 
@@ -191,6 +197,20 @@ section{position:relative;padding:clamp(90px,13vw,180px) 0}
 .ba .knob{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:54px;height:54px;border-radius:50%;background:var(--bg);border:2px solid var(--lime);display:flex;align-items:center;justify-content:center;color:var(--lime);font-size:18px;z-index:6;box-shadow:0 0 30px rgba(184,233,134,.4)}
 .ba-copy h3{font-family:var(--serif);font-weight:800;font-size:clamp(28px,4vw,48px);line-height:1.2;margin-bottom:20px}
 .ba-copy p{color:var(--ink-dim);margin-bottom:18px;max-width:42ch}
+
+/* ════════════════ 3D RING GALLERY ════════════════ */
+.gal{overflow:hidden}
+.gal-head{text-align:center;margin-bottom:10px}
+.gal-head .tag{justify-content:center}
+.gal-head .tag::before{display:none}
+.stage3d{height:clamp(360px,52vw,480px);perspective:1500px;display:flex;align-items:center;justify-content:center;cursor:grab;user-select:none;-webkit-user-select:none;touch-action:pan-y}
+.stage3d.grabbing{cursor:grabbing}
+.ring{position:relative;transform-style:preserve-3d;will-change:transform}
+.pane{position:absolute;inset:0;border:1px solid var(--line);overflow:hidden;background:#000;box-shadow:0 30px 60px -20px rgba(0,0,0,.7)}
+.pane img{width:100%;height:100%;object-fit:cover;opacity:.85;pointer-events:none}
+.pane::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 55%,rgba(0,0,0,.75))}
+.pane figcaption{position:absolute;bottom:12px;left:14px;z-index:2;font-family:var(--display);font-size:10px;letter-spacing:.22em;color:var(--lime)}
+.gal-hint{text-align:center;margin-top:34px;font-family:var(--display);font-size:12px;letter-spacing:.3em;color:var(--ink-dim)}
 
 /* ════════════════ STATS ════════════════ */
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:30px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:60px 0}
@@ -266,7 +286,14 @@ footer{border-top:1px solid var(--line);padding:70px 0 40px}
 <!-- ═══ HERO ═══ -->
 <section class="hero" id="top">
   <div class="hero-bg"></div>
-  <div class="hero-photo"><img src="https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?auto=format&fit=crop&w=1800&q=80" alt="" loading="eager"></div>
+  <div class="hero-stage" id="heroStage">
+  <div class="hero-photo">
+    <img src="https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?auto=format&fit=crop&w=1800&q=80" alt="" loading="eager">
+    <video id="heroVideo" autoplay muted loop playsinline preload="auto">
+      <source src="https://assets.mixkit.co/videos/47833/47833-720.mp4" type="video/mp4">
+      <source src="https://www.pexels.com/download/video/6159204/" type="video/mp4">
+    </video>
+  </div>
   <div class="orb a" data-speed="0.18"></div>
   <div class="orb b" data-speed="-0.12"></div>
   <div class="wrap">
@@ -284,6 +311,7 @@ footer{border-top:1px solid var(--line);padding:70px 0 40px}
       </div>
     </div>
   </div>
+  </div><!-- /hero-stage -->
   <div class="scrollcue">SCROLL<i></i></div>
 </section>
 
@@ -327,37 +355,37 @@ footer{border-top:1px solid var(--line);padding:70px 0 40px}
       <p class="reveal" style="max-width:34ch;color:var(--ink-dim);font-size:14px">単品でも、フルコースでも。車両の状態と目指す質感に合わせて、メニューはオーダーメイドで組み上げます。</p>
     </div>
     <div class="svc-list">
-      <div class="svc reveal">
+      <div class="svc reveal r3d">
         <span class="no">01</span>
         <div class="name">セラミックコーティング<small>Ceramic / Graphene</small></div>
         <div class="desc">硬質ガラス被膜で塗装を装甲化。極上の艶と数年単位の防汚性能を両立する最上位メニュー。</div>
         <span class="arrow">→</span>
       </div>
-      <div class="svc reveal">
+      <div class="svc reveal r3d">
         <span class="no">02</span>
         <div class="name">ガラスコーティング<small>Glass Coating</small></div>
         <div class="desc">深い光沢と強い撥水。日常使いの車に最適なバランス型のベーシック被膜。</div>
         <span class="arrow">→</span>
       </div>
-      <div class="svc reveal">
+      <div class="svc reveal r3d">
         <span class="no">03</span>
         <div class="name">ペイントコレクション<small>Paint Correction</small></div>
         <div class="desc">スワール・線傷・水垢を機械研磨で除去。コーティング前の下地を一切妥協なく仕上げる。</div>
         <span class="arrow">→</span>
       </div>
-      <div class="svc reveal">
+      <div class="svc reveal r3d">
         <span class="no">04</span>
         <div class="name">ホイール＆キャリパー<small>Wheel &amp; Caliper</small></div>
         <div class="desc">焼き付いたブレーキダストを分解洗浄し、耐熱コートで再付着を防止。足元から印象を変える。</div>
         <span class="arrow">→</span>
       </div>
-      <div class="svc reveal">
+      <div class="svc reveal r3d">
         <span class="no">05</span>
         <div class="name">ヘッドライト・ガラス<small>Headlight &amp; Glass</small></div>
         <div class="desc">黄ばみ・くすみを研磨で透明化。フロントガラスの鱗（うろこ）除去と撥水施工まで。</div>
         <span class="arrow">→</span>
       </div>
-      <div class="svc reveal">
+      <div class="svc reveal r3d">
         <span class="no">06</span>
         <div class="name">インテリア・ディテーリング<small>Interior Care</small></div>
         <div class="desc">レザー・ファブリック・樹脂を素材別にケア。除菌消臭まで含めた室内の総合リセット。</div>
@@ -372,7 +400,7 @@ footer{border-top:1px solid var(--line);padding:70px 0 40px}
   <div class="wrap">
     <div class="tag reveal">03 — Before / After</div>
     <div class="ba-wrap">
-      <div class="ba reveal" id="ba">
+      <div class="ba reveal r3d" id="ba">
         <div class="layer before"><img src="https://images.unsplash.com/photo-1494905998402-395d579af36f?auto=format&fit=crop&w=1400&q=80" alt="施工前イメージ" loading="lazy"></div>
         <div class="layer after" id="baAfter"><img src="https://images.unsplash.com/photo-1494905998402-395d579af36f?auto=format&fit=crop&w=1400&q=80" alt="施工後イメージ" loading="lazy"></div>
         <span class="lbl b">BEFORE</span>
@@ -388,14 +416,35 @@ footer{border-top:1px solid var(--line);padding:70px 0 40px}
   </div>
 </section>
 
+<!-- ═══ 3D RING GALLERY ═══ -->
+<section class="gal" id="gallery">
+  <div class="wrap gal-head">
+    <div class="tag reveal">03.5 — Gallery</div>
+    <h2 class="split reveal">回して、<span class="outline-word">眺める</span>。</h2>
+  </div>
+  <div class="stage3d" id="stage3d">
+    <div class="ring" id="ring">
+      <figure class="pane"><img src="https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=75" alt="施工イメージ" loading="lazy"><figcaption>CERAMIC #001</figcaption></figure>
+      <figure class="pane"><img src="https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=800&q=75" alt="施工イメージ" loading="lazy"><figcaption>GLASS #014</figcaption></figure>
+      <figure class="pane"><img src="https://images.unsplash.com/photo-1525609004556-c46c7d6cf023?auto=format&fit=crop&w=800&q=75" alt="施工イメージ" loading="lazy"><figcaption>CORRECTION #032</figcaption></figure>
+      <figure class="pane"><img src="https://images.unsplash.com/photo-1494976388531-d1058494cdd8?auto=format&fit=crop&w=800&q=75" alt="施工イメージ" loading="lazy"><figcaption>CERAMIC #047</figcaption></figure>
+      <figure class="pane"><img src="https://images.unsplash.com/photo-1542362567-b07e54358753?auto=format&fit=crop&w=800&q=75" alt="施工イメージ" loading="lazy"><figcaption>PPF #058</figcaption></figure>
+      <figure class="pane"><img src="https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=800&q=75" alt="施工イメージ" loading="lazy"><figcaption>WHEEL #066</figcaption></figure>
+      <figure class="pane"><img src="https://images.unsplash.com/photo-1619767886558-efdc259cde1a?auto=format&fit=crop&w=800&q=75" alt="施工イメージ" loading="lazy"><figcaption>INTERIOR #071</figcaption></figure>
+      <figure class="pane"><img src="https://images.unsplash.com/photo-1511919884226-fd3cad34687c?auto=format&fit=crop&w=800&q=75" alt="施工イメージ" loading="lazy"><figcaption>CLASSIC #089</figcaption></figure>
+    </div>
+  </div>
+  <div class="gal-hint">⇠ DRAG TO SPIN ⇢</div>
+</section>
+
 <!-- ═══ STATS ═══ -->
 <section style="padding-block:0">
   <div class="wrap">
     <div class="stats">
-      <div class="stat reveal"><div class="n"><span data-count="1200">0</span><span class="u">台+</span></div><div class="l">累計施工台数</div></div>
-      <div class="stat reveal"><div class="n"><span data-count="9">0</span><span class="u">H</span></div><div class="l">被膜硬度</div></div>
-      <div class="stat reveal"><div class="n"><span data-count="60">0</span><span class="u">ヶ月</span></div><div class="l">最長メンテ保証</div></div>
-      <div class="stat reveal"><div class="n"><span data-count="98">0</span><span class="u">%</span></div><div class="l">リピート・紹介率</div></div>
+      <div class="stat reveal r3d"><div class="n"><span data-count="1200">0</span><span class="u">台+</span></div><div class="l">累計施工台数</div></div>
+      <div class="stat reveal r3d"><div class="n"><span data-count="9">0</span><span class="u">H</span></div><div class="l">被膜硬度</div></div>
+      <div class="stat reveal r3d"><div class="n"><span data-count="60">0</span><span class="u">ヶ月</span></div><div class="l">最長メンテ保証</div></div>
+      <div class="stat reveal r3d"><div class="n"><span data-count="98">0</span><span class="u">%</span></div><div class="l">リピート・紹介率</div></div>
     </div>
   </div>
 </section>
@@ -406,10 +455,10 @@ footer{border-top:1px solid var(--line);padding:70px 0 40px}
     <div class="tag reveal">04 — Process</div>
     <h2 class="split reveal" style="margin-bottom:48px">仕上げまでの<span class="outline-word">四</span>工程</h2>
     <div class="proc">
-      <div class="step reveal"><div class="sn">STEP 01</div><div><h4>診断 &amp; 計測</h4><p>塗膜の厚みをミクロン単位で計測し、傷の深さと素材を見極める。施工計画はここで決まる。</p></div></div>
-      <div class="step reveal"><div class="sn">STEP 02</div><div><h4>下地づくり</h4><p>鉄粉除去・脱脂・多段研磨。コーティングの善し悪しは、この素肌で9割が決まる。</p></div></div>
-      <div class="step reveal"><div class="sn">STEP 03</div><div><h4>被膜形成</h4><p>恒温・無塵ブースでコーティング剤を均一に施工し、硬化させて装甲を構築する。</p></div></div>
-      <div class="step reveal"><div class="sn">STEP 04</div><div><h4>検品 &amp; 納車</h4><p>多灯ライトで全面チェック。メンテナンスカルテと共に、生まれ変わった一台を返す。</p></div></div>
+      <div class="step reveal r3d"><div class="sn">STEP 01</div><div><h4>診断 &amp; 計測</h4><p>塗膜の厚みをミクロン単位で計測し、傷の深さと素材を見極める。施工計画はここで決まる。</p></div></div>
+      <div class="step reveal r3d"><div class="sn">STEP 02</div><div><h4>下地づくり</h4><p>鉄粉除去・脱脂・多段研磨。コーティングの善し悪しは、この素肌で9割が決まる。</p></div></div>
+      <div class="step reveal r3d"><div class="sn">STEP 03</div><div><h4>被膜形成</h4><p>恒温・無塵ブースでコーティング剤を均一に施工し、硬化させて装甲を構築する。</p></div></div>
+      <div class="step reveal r3d"><div class="sn">STEP 04</div><div><h4>検品 &amp; 納車</h4><p>多灯ライトで全面チェック。メンテナンスカルテと共に、生まれ変わった一台を返す。</p></div></div>
     </div>
   </div>
 </section>
@@ -604,6 +653,78 @@ document.querySelectorAll('.reveal').forEach((el,i)=>{el.style.transitionDelay=(
 (function(){
   const orbs=[...document.querySelectorAll('.orb[data-speed]')];if(!orbs.length)return;
   addEventListener('scroll',()=>{const y=scrollY;orbs.forEach(o=>o.style.transform=`translateY(${y*+o.dataset.speed}px)`);},{passive:true});
+})();
+
+/* ─── hero 3D tilt（マウスで奥行きが傾く） ─── */
+(function(){
+  const stage=document.getElementById('heroStage');
+  if(!stage||!matchMedia('(pointer:fine)').matches)return;
+  let tx=0,ty=0,rx=0,ry=0;
+  addEventListener('mousemove',e=>{
+    ty=(e.clientX/innerWidth-.5)*9;   // rotateY
+    tx=-(e.clientY/innerHeight-.5)*7; // rotateX
+  });
+  (function loop(){
+    rx+=(tx-rx)*.06;ry+=(ty-ry)*.06;
+    stage.style.transform=`rotateX(${rx}deg) rotateY(${ry}deg)`;
+    requestAnimationFrame(loop);
+  })();
+})();
+
+/* ─── hero video fallback（再生不可なら写真へ） ─── */
+(function(){
+  const v=document.getElementById('heroVideo');if(!v)return;
+  const bail=()=>v.remove();
+  v.addEventListener('error',bail,true);
+  setTimeout(()=>{if(v.readyState<2)bail();},6000);
+  v.play&&v.play().catch(()=>{});
+})();
+
+/* ─── 3D ring gallery（ドラッグで回す円筒ギャラリー） ─── */
+(function(){
+  const stage=document.getElementById('stage3d'),ring=document.getElementById('ring');
+  if(!stage||!ring)return;
+  const panes=[...ring.querySelectorAll('.pane')],n=panes.length;
+  let R=0;
+  function layout(){
+    const w=Math.min(innerWidth*.56,300),h=w*1.3;
+    ring.style.width=w+'px';ring.style.height=h+'px';
+    R=(w/2)/Math.tan(Math.PI/n)+34;
+    panes.forEach((p,i)=>{p.style.transform=`rotateY(${i*360/n}deg) translateZ(${R}px)`;});
+  }
+  layout();addEventListener('resize',layout);
+  let rot=0,vel=.12,drag=false,lastX=0;
+  const down=x=>{drag=true;lastX=x;stage.classList.add('grabbing');};
+  const moveX=x=>{if(!drag)return;vel=(x-lastX)*.28;rot+=vel;lastX=x;};
+  const up=()=>{drag=false;stage.classList.remove('grabbing');};
+  stage.addEventListener('mousedown',e=>down(e.clientX));
+  addEventListener('mousemove',e=>moveX(e.clientX));
+  addEventListener('mouseup',up);
+  stage.addEventListener('touchstart',e=>down(e.touches[0].clientX),{passive:true});
+  stage.addEventListener('touchmove',e=>moveX(e.touches[0].clientX),{passive:true});
+  addEventListener('touchend',up);
+  (function spin(){
+    if(!drag){vel+=(0.12-vel)*.04;rot+=vel;}
+    ring.style.transform=`translateZ(${-R}px) rotateX(-5deg) rotateY(${rot}deg)`;
+    requestAnimationFrame(spin);
+  })();
+})();
+
+/* ─── 3D tilt cards（工程カード/Before-Afterがカーソルに追従して傾く） ─── */
+(function(){
+  if(!matchMedia('(pointer:fine)').matches)return;
+  document.querySelectorAll('.step,.ba').forEach(el=>{
+    el.addEventListener('mousemove',e=>{
+      const r=el.getBoundingClientRect();
+      const px=(e.clientX-r.left)/r.width-.5,py=(e.clientY-r.top)/r.height-.5;
+      el.style.transform=`perspective(800px) rotateX(${-py*9}deg) rotateY(${px*11}deg) translateY(-4px)`;
+      el.style.transition='transform .08s linear';
+    });
+    el.addEventListener('mouseleave',()=>{
+      el.style.transition='transform .6s cubic-bezier(.16,1,.3,1)';
+      el.style.transform='';
+    });
+  });
 })();
 
 /* ─── magnetic CTA button ─── */
