@@ -87,26 +87,30 @@ header.nav{position:fixed;top:0;left:0;right:0;z-index:8000;mix-blend-mode:diffe
 @media (max-width:760px){.nav nav{display:none}}
 
 /* ════════ HERO ════════ */
-.hero{position:relative;min-height:100svh;display:flex;flex-direction:column;justify-content:center;overflow:hidden;padding:100px 0 70px;perspective:1200px}
+.hero{position:relative;min-height:100svh;display:flex;flex-direction:column;justify-content:center;overflow:hidden;padding:100px 0 70px;perspective:1300px}
 .hstage{position:relative;flex:1;display:flex;flex-direction:column;justify-content:center;transform-style:preserve-3d;will-change:transform}
-.hstage .wrap{transform:translateZ(60px)}
-#fx{position:absolute;inset:-5%;z-index:1;pointer-events:none;transform:translateZ(-60px) scale(1.12)}
+.hstage .wrap{transform:translateZ(90px)}
+#fx{position:absolute;inset:-5%;z-index:1;pointer-events:none;transform:translateZ(-120px) scale(1.18)}
 
-/* 回転する3Dワイヤーフレームキューブ */
-.cube3d{--s:clamp(130px,21vw,260px);position:absolute;right:6vw;top:16%;width:var(--s);height:var(--s);z-index:1;transform-style:preserve-3d;pointer-events:none}
-.cb{position:absolute;inset:0;transform-style:preserve-3d;animation:spin3d 17s linear infinite}
-@keyframes spin3d{from{transform:rotateX(-16deg) rotateY(0deg)}to{transform:rotateX(-16deg) rotateY(360deg)}}
-.cb i{position:absolute;inset:0;border:1.5px solid var(--ink);background:rgba(255,59,0,.045);
-  display:flex;align-items:center;justify-content:center;font-style:normal;
-  font-family:var(--disp);font-size:calc(var(--s)*.42);color:transparent;-webkit-text-stroke:1.3px var(--verm)}
-.cb i:nth-child(1){transform:rotateY(0deg) translateZ(calc(var(--s)/2))}
-.cb i:nth-child(2){transform:rotateY(90deg) translateZ(calc(var(--s)/2))}
-.cb i:nth-child(3){transform:rotateY(180deg) translateZ(calc(var(--s)/2))}
-.cb i:nth-child(4){transform:rotateY(270deg) translateZ(calc(var(--s)/2))}
-.cb i:nth-child(5){transform:rotateX(90deg) translateZ(calc(var(--s)/2))}
-.cb i:nth-child(6){transform:rotateX(-90deg) translateZ(calc(var(--s)/2))}
-@media (max-width:760px){.cube3d{opacity:.4;top:8%}}
+/* 光に反応して輝く3D水晶（玻璃） */
+.crystal-wrap{position:absolute;inset:0;z-index:1;display:flex;align-items:center;justify-content:center;pointer-events:none;transform:translateZ(20px)}
+.crystal{--s:clamp(150px,27vw,330px);position:relative;width:var(--s);height:var(--s);transform-style:preserve-3d;will-change:transform}
+.crystal .f{position:absolute;left:50%;top:50%;transform-style:preserve-3d;backface-visibility:visible;
+  border:1px solid rgba(127,178,240,.5);
+  background:linear-gradient(150deg,rgba(240,243,250,.10),rgba(26,79,160,.16));
+  box-shadow:inset 0 0 28px rgba(127,178,240,.25);
+  transition:opacity .15s linear,filter .15s linear}
+.crystal .edge{position:absolute;left:50%;top:50%;width:1px;background:rgba(127,178,240,.4);transform-style:preserve-3d}
+@media (max-width:760px){.crystal{--s:62vw}}
+
 .hero .wrap{position:relative;z-index:2}
+.proverb{font-family:var(--serif);font-weight:700;font-size:clamp(15px,2.3vw,24px);letter-spacing:.14em;margin-top:22px;color:var(--ink-dim)}
+.proverb span{color:var(--ink)}
+.proverb .hl{color:var(--verm);position:relative}
+.proverb .tr{color:var(--blue)}
+.hero-st mark.t{background:none;color:var(--blue)}
+.lighthint{position:absolute;left:50%;bottom:54px;transform:translateX(-50%);z-index:3;font-family:var(--disp);font-size:11px;letter-spacing:.28em;color:var(--ink-dim);text-transform:uppercase;opacity:.8}
+@media (max-width:760px){.lighthint{bottom:62px;font-size:10px}}
 .khero{font-family:var(--disp);text-transform:uppercase;line-height:.84;letter-spacing:-.01em}
 .khero .row{display:block;overflow:hidden}
 .khero b{display:block;font-weight:400;font-size:clamp(64px,17vw,250px);transform:translateY(112%);will-change:transform}
@@ -151,6 +155,23 @@ section{position:relative;padding:clamp(90px,12vw,170px) 0;z-index:1}
 .mani .w.lit{opacity:1}
 .mani .acc{color:var(--verm)}
 .mani-foot{margin-top:46px;max-width:62ch;color:var(--ink-dim);font-size:14.5px}
+
+/* ════════ ORIGIN / 由来 ════════ */
+.origin{background:linear-gradient(180deg,var(--paper) 0%,#0d1426 55%,#0d1426 100%);overflow:hidden}
+.origin .tag,.origin .secno{}
+.prov-big{font-family:var(--serif);font-weight:800;line-height:1.25;font-size:clamp(34px,8.5vw,108px);letter-spacing:.02em;margin:18px 0 50px;color:#fff;perspective:900px}
+.prov-big .pw{display:inline-block;transform:translateZ(0) rotateX(-90deg);opacity:0;transform-origin:50% 100%;transition:transform .7s var(--ease),opacity .7s var(--ease),color .5s,text-shadow .5s}
+.prov-big.lit .pw{transform:none;opacity:1}
+.prov-big .pp{color:#7a8198;font-size:.6em}
+.prov-big .hl{color:#7FB2F0;text-shadow:0 0 30px rgba(127,178,240,.6)}
+.prov-big .tr{color:#fff;text-shadow:0 0 40px rgba(127,178,240,.9)}
+.prov-big .sh{color:#fff;text-shadow:0 0 26px rgba(255,255,255,.7),0 0 60px rgba(127,178,240,.6)}
+.origin-grid{display:grid;grid-template-columns:1fr 1fr;gap:50px;color:#e8ecf5}
+@media (max-width:760px){.origin-grid{grid-template-columns:1fr;gap:28px}}
+.origin-lead{font-family:var(--serif);font-weight:600;font-size:clamp(18px,2.4vw,26px);line-height:1.9}
+.origin-lead b{color:#7FB2F0}
+.origin-note{font-size:14.5px;line-height:2;color:#aeb6c8;align-self:end}
+.origin-note b{color:#fff}.origin-note b.t{color:#7FB2F0}
 
 /* ════════ BUSINESS ════════ */
 .biz{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:20px}
@@ -238,15 +259,16 @@ footer{padding:70px 0 36px;position:relative;z-index:1}
 <section class="hero" id="top">
   <div class="hstage" id="hstage">
   <canvas id="fx"></canvas>
-  <div class="cube3d" aria-hidden="true"><div class="cb"><i>H</i><i>T</i><i>沖</i><i>縄</i><i></i><i></i></div></div>
-  <div class="vside">株式会社ハリテラス — 沖縄・八重瀬／豊見城</div>
+  <div class="crystal-wrap" aria-hidden="true"><div class="crystal" id="crystal"></div></div>
+  <div class="vside">瑠璃も玻璃も照らせば光る</div>
   <div class="wrap">
     <h1 class="khero">
       <span class="row"><b>HARI</b></span>
       <span class="row"><b>TERRA<em>CE</em></b></span>
     </h1>
+    <p class="proverb"><span>瑠璃</span>も<span class="hl">玻璃</span>も<span class="tr">照</span>らせば光る</p>
     <div class="hero-foot">
-      <p class="hero-st">沖縄から、<mark>景色</mark>を変える。<br>テラスから見渡すように、半歩先の暮らしと移動をデザインする会社です。</p>
+      <p class="hero-st"><mark>玻璃（ハリ）</mark>を、<mark class="t">照（テラ）</mark>す。<br>光を当てれば、人も車も街も輝く。その確信を社名にした会社です。</p>
       <div class="hero-meta">
         OKINAWA · YAESE / TOMIGUSUKU<br>
         RENT-A-CAR / DETAILING / USED CAR<br>
@@ -255,6 +277,7 @@ footer{padding:70px 0 36px;position:relative;z-index:1}
     </div>
   </div>
   </div><!-- /hstage -->
+  <div class="lighthint" id="lighthint">MOVE THE LIGHT — 動かして、照らす</div>
   <div class="scrollcue">SCROLL<i></i></div>
 </section>
 
@@ -285,6 +308,26 @@ footer{padding:70px 0 36px;position:relative;z-index:1}
     </p>
     <div class="mani-foot reveal">
       <p>株式会社HariTerraceは、沖縄・八重瀬／豊見城を拠点に、<b>レンタカー</b>・<b>ディテーリング＆コーティング（LIME DETAILING STUDIO）</b>・<b>中古車販売</b>の3つの事業を展開しています。細部に神は宿る — その信条のまま、車と移動にまつわるすべてを磨き上げます。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ NAME / 由来 ═══ -->
+<section id="origin" class="origin">
+  <div class="secno">01.5</div>
+  <div class="wrap">
+    <div class="tag reveal" data-scramble>01.5 — The Name</div>
+    <div class="prov-big" id="provBig" aria-label="瑠璃も玻璃も照らせば光る">
+      <span class="pw">瑠璃</span><span class="pp">も</span><span class="pw hl">玻璃</span><span class="pp">も</span><span class="pw tr">照</span><span class="pp">らせば</span><span class="pw sh">光る</span>
+    </div>
+    <div class="origin-grid reveal">
+      <p class="origin-lead">瑠璃（ラピスラズリ）も、玻璃（はり＝水晶）も、<br>光を当てれば、等しく美しく光る。<br>才能も価値も、<b>照らされてはじめて輝く</b>——古くからのことわざです。</p>
+      <p class="origin-note">
+        <b>玻璃（ハリ）</b>を、<b class="t">照（テラ）</b>す。<br>
+        社名「<b>HARI TERRACE</b>」は、この一節そのもの。<br>
+        私たちの仕事は、磨くこと・整えること・光を当てること。
+        まだ気づかれていない輝きを、引き出す側でありたい。
+      </p>
     </div>
   </div>
 </section>
@@ -544,20 +587,119 @@ document.querySelectorAll('.reveal').forEach((el,i)=>{el.style.transitionDelay=(
   })();
 })();
 
-/* ─── hero 3D tilt stage（マウスで空間ごと傾く） ─── */
+/* ─── 光源（カーソル/傾き）：照らせば光る ─── */
+const LIGHT={x:0,y:-.3,ang:0};
+addEventListener('mousemove',e=>{
+  LIGHT.x=(e.clientX/innerWidth-.5)*2;
+  LIGHT.y=(e.clientY/innerHeight-.5)*2;
+  LIGHT.ang=Math.atan2(LIGHT.x,0.6);
+},{passive:true});
+if(window.DeviceOrientationEvent){
+  addEventListener('deviceorientation',e=>{
+    if(e.gamma==null)return;
+    LIGHT.x=Math.max(-1,Math.min(1,e.gamma/35));
+    LIGHT.y=Math.max(-1,Math.min(1,((e.beta||40)-40)/35));
+    LIGHT.ang=Math.atan2(LIGHT.x,0.6);
+  },{passive:true});
+}
+
+/* ─── hero 3D tilt stage（マウスで空間ごと深く傾く） ─── */
 (function(){
   const st=document.getElementById('hstage');
   if(!st||!matchMedia('(pointer:fine)').matches)return;
-  let tx=0,ty=0,rx=0,ry=0;
-  addEventListener('mousemove',e=>{
-    ty=(e.clientX/innerWidth-.5)*10;
-    tx=-(e.clientY/innerHeight-.5)*8;
-  });
+  let rx=0,ry=0;
   (function loop(){
+    const tx=-LIGHT.y*11, ty=LIGHT.x*20;
     rx+=(tx-rx)*.06;ry+=(ty-ry)*.06;
     st.style.transform=`rotateX(${rx}deg) rotateY(${ry}deg)`;
     requestAnimationFrame(loop);
   })();
+})();
+
+/* ─── 光に反応して輝く3D水晶（玻璃） ─── */
+(function(){
+  const el=document.getElementById('crystal');if(!el)return;
+  const N=6;                       // 六角柱
+  const sides=[],tops=[],bots=[];
+  const mk=cls=>{const d=document.createElement('div');d.className=cls;el.appendChild(d);return d;};
+  function build(){
+    el.innerHTML='';sides.length=tops.length=bots.length=0;
+    const s=el.clientWidth||220;
+    const R=s*0.32;                // 外接半径＝辺長
+    const ap=R*0.866;              // アポテム
+    const Hh=s*0.42;               // 柱の高さ
+    const term=s*0.30;             // 先端の長さ
+    for(let i=0;i<N;i++){
+      const a=i*(360/N);
+      // 側面（縦長の長方形）
+      const f=mk('f');
+      f.style.width=R+'px';f.style.height=Hh+'px';
+      f.style.marginLeft=(-R/2)+'px';f.style.marginTop=(-Hh/2)+'px';
+      f.style.transform=`rotateY(${a}deg) translateZ(${ap}px)`;
+      f.dataset.az=a;sides.push(f);
+      // 上の三角（先端へ）
+      const t=mk('f');
+      t.style.width=R+'px';t.style.height=term+'px';
+      t.style.marginLeft=(-R/2)+'px';t.style.marginTop=(-term)+'px';
+      t.style.clipPath='polygon(50% 0,100% 100%,0 100%)';
+      t.style.transformOrigin='50% 100%';
+      t.style.transform=`translateY(${-Hh/2}px) rotateY(${a}deg) translateZ(${ap}px) rotateX(48deg)`;
+      t.dataset.az=a;tops.push(t);
+      // 下の三角
+      const b=mk('f');
+      b.style.width=R+'px';b.style.height=term+'px';
+      b.style.marginLeft=(-R/2)+'px';b.style.marginTop='0px';
+      b.style.clipPath='polygon(0 0,100% 0,50% 100%)';
+      b.style.transformOrigin='50% 0%';
+      b.style.transform=`translateY(${Hh/2}px) rotateY(${a}deg) translateZ(${ap}px) rotateX(-48deg)`;
+      b.dataset.az=a;bots.push(b);
+    }
+  }
+  build();addEventListener('resize',build);
+  let rot=0;
+  const D2R=Math.PI/180;
+  function shade(f,extra){
+    const az=(+f.dataset.az+rot)*D2R;
+    // 面の向き（方位）と光の方位の一致度
+    let d=Math.cos(az-LIGHT.ang);
+    d=Math.max(0,d)*(0.7+extra);
+    const lit=Math.pow(d,1.6);
+    f.style.opacity=(0.18+lit*0.82).toFixed(3);
+    const blue=`rgba(127,178,240,${(0.12+lit*0.5).toFixed(3)})`;
+    const white=`rgba(245,248,255,${(lit*0.5).toFixed(3)})`;
+    f.style.background=`linear-gradient(150deg,${white},${blue})`;
+    f.style.boxShadow=`inset 0 0 ${(20+lit*40)|0}px rgba(127,178,240,${(0.2+lit*0.6).toFixed(2)})`;
+    f.style.borderColor=`rgba(127,178,240,${(0.3+lit*0.6).toFixed(2)})`;
+  }
+  let vis=true;
+  new IntersectionObserver(es=>{vis=es[0].isIntersecting;},{threshold:0}).observe(el);
+  (function frame(){
+    if(vis&&!document.hidden){
+      rot=(rot+0.28)%360;
+      const tilt=-14+LIGHT.y*6;
+      el.style.transform=`rotateX(${tilt}deg) rotateY(${rot}deg)`;
+      sides.forEach(f=>shade(f,0));
+      tops.forEach(f=>shade(f,0.15));
+      bots.forEach(f=>shade(f,0.15));
+    }
+    requestAnimationFrame(frame);
+  })();
+})();
+
+/* ─── 由来：諺が起き上がって点灯 ─── */
+(function(){
+  const big=document.getElementById('provBig');if(!big)return;
+  const ws=[...big.querySelectorAll('.pw,.pp')];
+  ws.forEach((w,i)=>w.style.transitionDelay=(i*120)+'ms');
+  new IntersectionObserver((es,ob)=>{
+    es.forEach(e=>{if(e.isIntersecting){big.classList.add('lit');ob.unobserve(e.target);}});
+  },{threshold:.3}).observe(big);
+})();
+
+/* ─── lighthint：スクロールで消える ─── */
+(function(){
+  const h=document.getElementById('lighthint');if(!h)return;
+  addEventListener('scroll',()=>{h.style.opacity=Math.max(0,0.8-scrollY/300);},{passive:true});
 })();
 
 /* ─── CTA 3D tilt（巨大タイポが立体で傾く） ─── */
@@ -568,7 +710,7 @@ document.querySelectorAll('.reveal').forEach((el,i)=>{el.style.transitionDelay=(
   cta.addEventListener('mousemove',e=>{
     const r=cta.getBoundingClientRect();
     const px=(e.clientX-r.left)/r.width-.5,py=(e.clientY-r.top)/r.height-.5;
-    big.style.transform=`perspective(900px) rotateX(${-py*10}deg) rotateY(${px*8}deg)`;
+    big.style.transform=`perspective(800px) rotateX(${-py*16}deg) rotateY(${px*14}deg)`;
     big.style.transition='transform .1s linear';
   });
   cta.addEventListener('mouseleave',()=>{
@@ -584,7 +726,7 @@ document.querySelectorAll('.reveal').forEach((el,i)=>{el.style.transitionDelay=(
     el.addEventListener('mousemove',e=>{
       const r=el.getBoundingClientRect();
       const px=(e.clientX-r.left)/r.width-.5,py=(e.clientY-r.top)/r.height-.5;
-      el.style.transform=`perspective(800px) rotateX(${-py*8}deg) rotateY(${px*10}deg)`;
+      el.style.transform=`perspective(700px) rotateX(${-py*14}deg) rotateY(${px*16}deg) translateZ(30px)`;
       el.style.transition='transform .08s linear';
     });
     el.addEventListener('mouseleave',()=>{
