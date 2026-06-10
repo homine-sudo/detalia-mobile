@@ -14,6 +14,15 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:ital,wght@0,400;0,600;0,900;1,500&family=Shippori+Mincho:wght@500;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
+<noscript><style>
+/* JSなし環境（ファイルプレビュー等）でも全コンテンツを表示 */
+#polish,.polish-ui,.polish-skip,.flash{display:none!important}
+.reveal{opacity:1!important;transform:none!important}
+.kinetic .row b{transform:none!important}
+.mani .w{opacity:1!important}
+body{cursor:auto!important;overflow:auto!important}
+.cur,.cur-dot{display:none!important}
+</style></noscript>
 <style>
 /* ════════════════ TOKENS ════════════════ */
 :root{
@@ -68,8 +77,8 @@ img{max-width:100%;display:block}
 body.locked{overflow:hidden}
 #polish{position:fixed;inset:0;z-index:9300;touch-action:none;cursor:grab}
 .polish-ui{position:fixed;inset:0;z-index:9301;pointer-events:none;display:flex;align-items:center;justify-content:center;text-align:center;transition:opacity .5s}
-.ph-ring{width:74px;height:74px;margin:0 auto 22px;border:1.5px dashed var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;color:var(--lime);animation:spin 5s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
+.ph-ring{width:74px;height:74px;margin:0 auto 22px;border:1.5px dashed var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:30px;animation:rub 1.6s ease-in-out infinite}
+@keyframes rub{0%,100%{transform:translateX(-14px) rotate(-12deg)}50%{transform:translateX(14px) rotate(12deg)}}
 .ph-t{font-family:var(--serif);font-weight:700;font-size:clamp(20px,3.4vw,30px);letter-spacing:.08em;color:var(--ink)}
 .ph-s{font-family:var(--display);font-size:11px;letter-spacing:.34em;color:var(--gold);margin-top:12px}
 .polish-skip{position:fixed;right:22px;bottom:calc(22px + env(safe-area-inset-bottom,0px));z-index:9302;font-family:var(--display);font-size:11px;letter-spacing:.26em;color:var(--ink-dim);background:none;border:1px solid var(--line);border-radius:40px;padding:10px 18px;cursor:pointer;transition:opacity .4s,color .3s}
@@ -233,9 +242,9 @@ footer{border-top:1px solid var(--line);padding:70px 0 40px}
 <canvas id="polish"></canvas>
 <div class="polish-ui" id="polishUi">
   <div>
-    <div class="ph-ring">⟳</div>
-    <div class="ph-t">こすって、磨いてください</div>
-    <div class="ph-s">POLISH TO ENTER</div>
+    <div class="ph-ring">🧽</div>
+    <div class="ph-t">画面をこすって、磨いてください</div>
+    <div class="ph-s">RUB THE SCREEN — POLISH TO ENTER</div>
   </div>
 </div>
 <button class="polish-skip" id="polishSkip">SKIP →</button>
@@ -532,7 +541,18 @@ addEventListener('load',()=>{if(!document.getElementById('polish'))startHero();}
     setTimeout(kill,950);
   }
   skip.addEventListener('click',finish);
-  setTimeout(()=>{if(!done)finish();},14000); // 放置時の保険
+  // 1.8秒操作がなければ、お手本の「ひと拭き」を自動再生してこすり方を見せる
+  setTimeout(()=>{
+    if(done||rubbed>0)return;
+    const cx=innerWidth/2,cy=innerHeight*.42,t0=performance.now();
+    (function demo(now){
+      const p=(now-t0)/1100;
+      if(p>=1||done||rubbed>0)return;
+      erase(cx+Math.cos(p*9)*110,cy+Math.sin(p*9)*55+p*60);
+      requestAnimationFrame(demo);
+    })(t0);
+  },1800);
+  setTimeout(()=>{if(!done)finish();},9000); // 放置時の保険
   addEventListener('resize',()=>{if(!done){rubbed=0;paint();}});
 })();
 
