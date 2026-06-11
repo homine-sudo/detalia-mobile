@@ -59,8 +59,8 @@ html{scrollbar-color:var(--ink) var(--paper2);scrollbar-width:thin}
   background:
     linear-gradient(90deg,var(--line) 1px,transparent 1px) 0 0/25% 100%,
     linear-gradient(var(--line) 1px,transparent 1px) 0 0/100% 33.4%;
-  opacity:.5}
-.grain{position:fixed;inset:-150%;z-index:9000;pointer-events:none;opacity:.06;mix-blend-mode:multiply;
+  opacity:.25}
+.grain{position:fixed;inset:-150%;z-index:9000;pointer-events:none;opacity:.04;mix-blend-mode:multiply;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   animation:gr 6s steps(8) infinite}
 @keyframes gr{0%{transform:translate(0,0)}25%{transform:translate(-4%,3%)}50%{transform:translate(4%,-4%)}75%{transform:translate(-3%,-3%)}100%{transform:translate(0,0)}}
@@ -73,7 +73,7 @@ html{scrollbar-color:var(--ink) var(--paper2);scrollbar-width:thin}
 @media (max-width:760px){.cur,.cur-dot{display:none}}
 
 /* scroll progress */
-.prog{position:fixed;top:0;left:0;height:3px;width:0;z-index:9500;background:var(--verm)}
+.prog{position:fixed;top:0;left:0;height:2px;width:0;z-index:9500;background:var(--verm)}
 
 /* ════════ INTRO（スクランブル解読） ════════ */
 #introNoise{position:absolute;inset:0;width:100%;height:100%}
@@ -96,8 +96,7 @@ html{scrollbar-color:var(--ink) var(--paper2);scrollbar-width:thin}
 header.nav{position:fixed;top:0;left:0;right:0;z-index:8000;mix-blend-mode:difference;color:#fff}
 .nav .wrap{display:flex;align-items:center;justify-content:space-between;height:74px}
 .brand{font-family:var(--disp);letter-spacing:.16em;font-size:15px;display:flex;align-items:center;gap:10px}
-.brand i{width:10px;height:10px;background:var(--verm);display:inline-block;animation:blink 2.2s infinite}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+.brand i{width:8px;height:8px;background:var(--verm);display:inline-block}
 .nav nav{display:flex;gap:30px;font-family:var(--disp);font-size:11px;letter-spacing:.26em;text-transform:uppercase}
 .nav nav a{opacity:.85}.nav nav a:hover{opacity:1;text-decoration:line-through}
 @media (max-width:760px){.nav nav{display:none}}
@@ -121,14 +120,6 @@ header.nav{position:fixed;top:0;left:0;right:0;z-index:8000;mix-blend-mode:diffe
 #fx{position:absolute;inset:-5%;z-index:1;pointer-events:none;transform:translateZ(-120px) scale(1.18)}
 #qfield{position:absolute;inset:0;z-index:1;pointer-events:none}
 
-/* 量子：ブラケット記法のコピー */
-.ket{font-family:'Archivo',var(--sans);font-size:clamp(12px,1.7vw,17px);letter-spacing:.04em;margin-top:14px;color:var(--ink-dim);display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center}
-.ket .psi{font-style:italic;color:var(--ink)}
-.ket .arr{color:var(--verm)}
-.ket .col{color:var(--blue);position:relative}
-.ket .col::after{content:'';position:absolute;left:0;right:0;bottom:-3px;height:1px;background:linear-gradient(90deg,var(--blue),transparent);animation:ketpulse 2.6s var(--ease) infinite}
-@keyframes ketpulse{0%,100%{opacity:.3}50%{opacity:1}}
-
 /* 量子：タイトルの重ね合わせ（ゴースト） */
 .khero b{animation:superpos 6s ease-in-out infinite}
 @keyframes superpos{0%,92%,100%{text-shadow:none}94%{text-shadow:6px 0 rgba(127,178,240,.45),-6px 0 rgba(26,79,160,.4)}96%{text-shadow:-9px 0 rgba(127,178,240,.4),9px 0 rgba(26,79,160,.45)}98%{text-shadow:3px 0 rgba(127,178,240,.4),-3px 0 rgba(26,79,160,.4)}}
@@ -150,8 +141,6 @@ header.nav{position:fixed;top:0;left:0;right:0;z-index:8000;mix-blend-mode:diffe
 .proverb .hl{color:var(--verm);position:relative}
 .proverb .tr{color:var(--blue)}
 .hero-st mark.t{background:none;color:var(--blue)}
-.lighthint{position:absolute;left:50%;bottom:54px;transform:translateX(-50%);z-index:3;font-family:var(--disp);font-size:11px;letter-spacing:.28em;color:var(--ink-dim);text-transform:uppercase;opacity:.8}
-@media (max-width:760px){.lighthint{bottom:62px;font-size:10px}}
 .khero{font-family:var(--disp);text-transform:uppercase;line-height:.84;letter-spacing:-.01em}
 .khero .row{display:block;overflow:hidden}
 .khero b{display:block;font-weight:400;font-size:clamp(64px,17vw,250px);transform:translateY(112%);will-change:transform}
@@ -169,19 +158,14 @@ header.nav{position:fixed;top:0;left:0;right:0;z-index:8000;mix-blend-mode:diffe
 .scrollcue i{width:1px;height:42px;background:var(--ink);animation:drop 1.6s var(--ease) infinite}
 @keyframes drop{0%{transform:scaleY(0);transform-origin:top}45%{transform:scaleY(1);transform-origin:top}55%{transform:scaleY(1);transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}
 
-/* ════════ MARQUEE ════════ */
-.marquee{border-block:1.5px solid var(--ink);padding:18px 0;overflow:hidden;white-space:nowrap;background:var(--ink);color:var(--paper);transform:perspective(900px) rotateX(5deg)}
-.marquee .track{display:inline-flex;gap:46px;animation:mx 26s linear infinite}
-.marquee b{font-family:var(--disp);font-size:clamp(22px,3.4vw,40px);font-weight:400;text-transform:uppercase;letter-spacing:.05em}
-.marquee b.o{color:transparent;-webkit-text-stroke:1px var(--paper)}
-.marquee b.v{color:#7FB2F0}
-.marquee .x{align-self:center;color:#7FB2F0;font-family:var(--disp);font-size:20px}
-@keyframes mx{to{transform:translateX(-50%)}}
+/* ════════ RAILWAY TRACK（時計の分目盛り・章の区切り） ════════ */
+.railtrack{height:12px;border-top:1px solid rgba(20,32,59,.45);border-bottom:1px solid rgba(20,32,59,.45);
+  background:repeating-linear-gradient(90deg,rgba(20,32,59,.4) 0 1px,transparent 1px 14px)}
 
 /* ════════ SECTION ATOMS ════════ */
-section{position:relative;padding:clamp(90px,12vw,170px) 0;z-index:1}
+section{position:relative;padding:clamp(110px,14vw,200px) 0;z-index:1}
 .tag{font-family:var(--disp);font-size:12px;letter-spacing:.32em;text-transform:uppercase;color:var(--verm);display:flex;align-items:center;gap:14px;margin-bottom:34px}
-.tag::before{content:'';width:36px;height:2px;background:var(--verm)}
+.tag::before{content:'';width:36px;height:1px;background:var(--verm)}
 /* 観測前＝重ね合わせ（ぼやけた確率的存在）。測定面を横切ると収束 */
 .reveal{opacity:.18;transform:translateY(46px) skewY(.6deg);filter:blur(9px) saturate(.5);
   transition:opacity 1s var(--ease),transform 1s var(--ease),filter .9s var(--ease)}
@@ -195,13 +179,13 @@ section{position:relative;padding:clamp(90px,12vw,170px) 0;z-index:1}
 .mplane.pulse .ln{box-shadow:0 0 18px rgba(127,178,240,.9);height:2px}
 
 /* 観測ログHUD */
-.hud{position:fixed;left:14px;bottom:14px;z-index:8600;pointer-events:none;
-  font-family:'Archivo',monospace;font-size:9.5px;line-height:1.7;letter-spacing:.14em;
-  color:var(--ink-dim);background:rgba(240,239,232,.78);backdrop-filter:blur(4px);
-  border:1px solid var(--line);padding:8px 12px;min-width:158px}
-.hud b{color:var(--verm);font-weight:600}
-.hud .hud-log{margin-top:4px;border-top:1px solid var(--line);padding-top:4px;color:var(--blue);max-height:62px;overflow:hidden}
-@media (max-width:760px){.hud{font-size:8.5px;min-width:128px;padding:6px 9px}}
+.hud{position:fixed;left:14px;bottom:14px;z-index:8600;pointer-events:none;opacity:.72;
+  font-family:'Archivo',monospace;font-size:9px;line-height:1.7;letter-spacing:.14em;
+  color:var(--ink-dim);background:rgba(240,239,232,.6);backdrop-filter:blur(4px);
+  border:1px solid rgba(20,32,59,.14);padding:7px 11px;min-width:150px}
+.hud b{color:var(--verm);font-weight:500}
+.hud .hud-log{margin-top:4px;border-top:1px solid rgba(20,32,59,.12);padding-top:4px;color:var(--blue);max-height:62px;overflow:hidden}
+@media (max-width:760px){.hud{display:none}}
 
 /* タップ＝崩壊イベント */
 .burst{position:fixed;z-index:9100;pointer-events:none;width:14px;height:14px;margin:-7px 0 0 -7px}
@@ -252,7 +236,7 @@ section{position:relative;padding:clamp(90px,12vw,170px) 0;z-index:1}
 .helix .bcard:nth-child(2){transform:rotateY(90deg) translateZ(430px) translateY(-16px)}
 .helix .bcard:nth-child(3){transform:rotateY(180deg) translateZ(430px) translateY(16px)}
 .helix .bcard:nth-child(4){transform:rotateY(270deg) translateZ(430px) translateY(48px)}
-.helix-hint{font-family:var(--disp);font-size:10px;letter-spacing:.3em;text-transform:uppercase;color:var(--ink-dim);text-align:center;margin-top:6px}
+.helix-hint{font-family:var(--disp);font-size:10px;letter-spacing:.3em;text-transform:uppercase;color:var(--ink-dim);text-align:center;margin-top:14px;opacity:.6}
 @media (max-width:860px){
   .biz{height:auto;perspective:none}
   .helix{position:static;transform:none!important}
@@ -264,7 +248,7 @@ section{position:relative;padding:clamp(90px,12vw,170px) 0;z-index:1}
 .bcard .blogo img.clip{mix-blend-mode:normal;border-radius:18%}
 .bcard .blogo img.circ{mix-blend-mode:normal;border-radius:50%}
 .bcard:hover .blogo img{mix-blend-mode:normal;background:var(--paper)}
-.bcard{position:relative;border:1.5px solid var(--ink);background:var(--paper);padding:40px 32px 34px;min-height:380px;
+.bcard{position:relative;border:1px solid var(--ink);background:var(--paper);padding:40px 32px 34px;min-height:380px;
   display:flex;flex-direction:column;overflow:hidden;transition:transform .5s var(--ease);will-change:transform}
 .bcard{transform-style:preserve-3d}
 .bcard .bn{transform:translateZ(26px)}
@@ -287,7 +271,7 @@ section{position:relative;padding:clamp(90px,12vw,170px) 0;z-index:1}
 .bcard:hover .ghost{-webkit-text-stroke:1px rgba(127,178,240,.4)}
 
 /* ════════ COMPANY ════════ */
-.ctable{border-top:1.5px solid var(--ink);max-width:880px}
+.ctable{border-top:1px solid var(--ink);max-width:880px}
 .crow{display:grid;grid-template-columns:200px 1fr;border-bottom:1px solid var(--line);padding:22px 4px;gap:16px}
 @media (max-width:600px){.crow{grid-template-columns:1fr;gap:4px;padding:16px 4px}}
 .crow dt{font-family:var(--disp);font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:var(--verm);padding-top:4px}
@@ -315,7 +299,7 @@ footer{padding:70px 0 36px;position:relative;z-index:1}
 .fcol h5{font-family:var(--disp);font-size:11px;letter-spacing:.26em;text-transform:uppercase;color:var(--verm);margin-bottom:16px}
 .fcol a,.fcol p{display:block;font-size:14px;color:var(--ink-dim);margin-bottom:9px}
 .fcol a:hover{color:var(--verm);text-decoration:line-through}
-.fbot{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;font-family:var(--disp);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-dim);border-top:1.5px solid var(--ink);padding-top:22px}
+.fbot{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;font-family:var(--disp);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-dim);border-top:1px solid var(--ink);padding-top:22px}
 </style>
 </head>
 <body>
@@ -385,7 +369,6 @@ footer{padding:70px 0 36px;position:relative;z-index:1}
       <span class="row"><b>TERRA<em>CE</em></b></span>
     </h1>
     <p class="proverb hin">すべての車に、<span class="tr">光</span>を。<br>すべての人に、<span class="hl">価値</span>を。</p>
-    <p class="ket hin" id="ket"><span class="psi">|Ψ⟩ = α|未観測⟩ + β|観測⟩</span><span class="arr"> ⟶ </span><span class="col">観測すれば、収束して光る。</span></p>
     <div class="hero-foot hin">
       <p class="hero-st">私たちは、車を磨く会社ではありません。<br>人と車の可能性に<mark class="t">光</mark>を当てる会社です。</p>
       <div class="hero-meta">
@@ -396,23 +379,10 @@ footer{padding:70px 0 36px;position:relative;z-index:1}
     </div>
   </div>
   </div><!-- /hstage -->
-  <div class="lighthint" id="lighthint">OBSERVE — 観測して、収束させる</div>
   <div class="scrollcue">SCROLL<i></i></div>
 </section>
 
-<!-- ═══ MARQUEE ═══ -->
-<div class="marquee" aria-hidden="true">
-  <div class="track">
-    <b class="v">HARI TERRACE</b><span class="x">✕</span>
-    <b class="o">OKINAWA</b><span class="x">✕</span>
-    <b>OBSERVE</b><span class="x">✕</span>
-    <b class="o">|Ψ⟩ COLLAPSE</b><span class="x">✕</span>
-    <b class="v">HARI TERRACE</b><span class="x">✕</span>
-    <b class="o">OKINAWA</b><span class="x">✕</span>
-    <b>OBSERVE</b><span class="x">✕</span>
-    <b class="o">|Ψ⟩ COLLAPSE</b><span class="x">✕</span>
-  </div>
-</div>
+<div class="railtrack" aria-hidden="true"></div>
 
 <!-- ═══ ABOUT ═══ -->
 <section id="about">
@@ -520,6 +490,8 @@ footer{padding:70px 0 36px;position:relative;z-index:1}
     </dl>
   </div>
 </section>
+
+<div class="railtrack" aria-hidden="true"></div>
 
 <!-- ═══ CTA ═══ -->
 <section class="cta" id="contact">
@@ -1053,12 +1025,6 @@ if(window.DeviceOrientationEvent){
   new IntersectionObserver((es,ob)=>{
     es.forEach(e=>{if(e.isIntersecting){big.classList.add('lit');ob.unobserve(e.target);}});
   },{threshold:.3}).observe(big);
-})();
-
-/* ─── lighthint：スクロールで消える ─── */
-(function(){
-  const h=document.getElementById('lighthint');if(!h)return;
-  addEventListener('scroll',()=>{h.style.opacity=Math.max(0,0.8-scrollY/300);},{passive:true});
 })();
 
 /* ─── CTA 3D tilt（巨大タイポが立体で傾く） ─── */
