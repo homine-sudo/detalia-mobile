@@ -58,13 +58,13 @@
 | 項目 | 内容 |
 |---|---|
 | 商号 | 株式会社HariTerrace（ハリテラス） |
-| 代表者 | 代表取締役 大嶺 尚士（おおみね／読み未確定） |
-| 設立 | 2017年（平成29年）・3月決算 ※第6期=令和4年4月開始から逆算。正確な月日は要確認 |
+| 代表者 | 代表取締役 大嶺 尚士（おおみね ひさし）※補助金申請控えのフリガナ「オオミネ ヒサシ」で確定 |
+| 設立 | **2017年（平成29年）9月1日**（履歴事項全部証明書=謄本.pdf で確定・3月決算） |
 | 資本金 | 1,000,000円（発行済100株） |
 | 本社 | 〒901-0513 沖縄県島尻郡八重瀬町玻名城105番地（社長1名＝事務） |
 | 豊見城営業所 | 沖縄県豊見城市字与根326-6（LIME DETAILING STUDIO、現場3名：川武・末吉・金城） |
 | 従業員 | 4名 |
-| 連絡先 | 098-0901-3817（LIME DETAILING STUDIO） |
+| 連絡先 | 098-901-3817（LIME DETAILING STUDIO）※旧記載「098-0901-3817」は誤記（補助金申請控えで確認） |
 | 認定 | IPA「SECURITY ACTION ★★ 二つ星」宣言事業者 |
 
 ### 3事業
@@ -75,10 +75,12 @@
 ### ⚠️ 非掲載（社外秘）
 売上・利益率などの内部財務（参考: 第8期売上60,479千円→第9期96,204千円、営業利益率7.2% 等）は**公開サイトに載せない**。
 
-### 未確定 → ユーザー確認待ち
-- 代表者名の正確な読み
-- 設立の正確な年月日
-- 公開用の問い合わせメール（現状 `h.omine@h-terrace.net` を仮置き）
+### 確定済み（2026-06-11 ローカルPCの公的書類で裏どり）
+- 代表者の読み: **おおみね ひさし** ✓
+- 設立: **2017年9月1日** ✓
+- メール `h.omine@h-terrace.net`: 補助金の公式申請でも担当者メールとして使用実績あり（公開用として妥当）
+- 出典: `Dropbox/ライム共有DB/システム一時保管/補助金/謄本.pdf`（履歴事項全部証明書・令和8年6月3日発行）/ `申請完了.pdf`（LoGoフォーム申請控え）
+- 注: 登記上の商号は「株式会社Hari Terrace」（スペースあり）。サイト表記はユーザー指示によりブランド統一の **HariTerrace**（一語）のまま
 
 ---
 
@@ -147,6 +149,7 @@ Anton（ディスプレイ）/ Archivo / Shippori Mincho（明朝）/ Zen Kaku G
 - Gmail / Googleカレンダー / Figma / Canva / Exa(web_search/fetch) / GitHub。
 - **Dropbox は接続されていない**。PC・Dropboxローカルのファイルには直接アクセス不可。
   → 必要資料は Googleドライブに置いてもらうか、内容を貼ってもらう運用。
+  → ※ローカルPC（Claude Code）セッションならこの制約なし。Dropbox 内の謄本・申請書類等を直接読める（§10参照）。
 
 ### 主要DriveファイルID（参考）
 - 経営分析引継ぎ(md): `1LrV9WhMPr0Um-OxUVjUK_YNwyDiu4xpC`（要 download_file_content、巨大なのでpython slice）
@@ -165,7 +168,7 @@ Anton（ディスプレイ）/ Archivo / Shippori Mincho（明朝）/ Zen Kaku G
 ---
 
 ## 9. 残タスク / 次の一手の候補
-- [ ] **代表者の読み・設立年月日・公開用メール** をユーザーに確認して確定反映
+- [x] **代表者の読み・設立年月日・公開用メール** → 2026-06-11 ローカルPCの謄本・補助金申請控えで確定し hari-terrace.html に反映済み（電話番号誤記 098-0901→098-901 も修正）
 - [ ] **独自ドメイン** `h-terrace.net` を GitHub Pages に向ける（CNAMEファイル＋DNS）。手順案内するとよい
 - [ ] **OGP画像**（1200×630）を作って `og:image` 設定（SNSシェア用サムネ）
 - [ ] **沿革 / メンバー / お客様の声 / アクセスマップ** セクション追加 → Drive `メンバー情報`・`代車利用案内` を読んで素材化
@@ -175,6 +178,17 @@ Anton（ディスプレイ）/ Archivo / Shippori Mincho（明朝）/ Zen Kaku G
 ---
 
 ## 10. クイックスタート（次セッションの最初の一歩）
+
+### ローカルPC（Claude Code / Windows）で作業する場合 ← 2026-06-11 から推奨
+リポジトリは Dropbox 配下に clone 済み:
+```
+C:\Users\homin\Dropbox\ライム共有DB\システム一時保管\detalia-mobile\
+```
+- main ブランチ直接編集 → commit → `git push origin main` → Pages 自動デプロイ
+- このPCは Dropbox ローカルファイル（謄本・補助金申請書類・経営分析等）に直接アクセス可能
+- GitHub push 認証はこのPCに保存済み（lime-mobile と同一アカウント）
+
+### クラウドセッション（GitHub MCP）で作業する場合
 ```bash
 cd /home/user/detalia-mobile
 git checkout claude/original-homepage-design-5ncyft
@@ -182,3 +196,4 @@ git pull origin claude/original-homepage-design-5ncyft
 # 公開中: https://homine-sudo.github.io/detalia-mobile/hari-terrace.html
 ```
 編集 → コミット → main へマージ → push → Pages デプロイ確認、の順。
+⚠️ ローカルとクラウドの並行作業は衝突注意。どちらかで作業したら必ず push し、もう一方は pull してから。
