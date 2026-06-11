@@ -229,7 +229,7 @@ section{position:relative;padding:clamp(90px,12vw,170px) 0;z-index:1}
 /* ════════ ORIGIN / 由来 ════════ */
 .origin{background:linear-gradient(180deg,var(--paper) 0%,#0d1426 55%,#0d1426 100%);overflow:hidden}
 .origin .tag,.origin .secno{}
-.prov-big{font-family:var(--serif);font-weight:800;line-height:1.25;font-size:clamp(34px,8.5vw,108px);letter-spacing:.02em;margin:18px 0 50px;color:#fff;perspective:900px}
+.prov-big{font-family:var(--serif);font-weight:800;line-height:1.3;font-size:clamp(26px,6.4vw,84px);letter-spacing:.02em;margin:18px 0 50px;color:#fff;perspective:900px}
 .prov-big .pw{display:inline-block;transform:translateZ(0) rotateX(-90deg);opacity:0;transform-origin:50% 100%;transition:transform .7s var(--ease),opacity .7s var(--ease),color .5s,text-shadow .5s}
 .prov-big.lit .pw{transform:none;opacity:1}
 .prov-big .pp{color:#7a8198;font-size:.6em}
@@ -244,8 +244,26 @@ section{position:relative;padding:clamp(90px,12vw,170px) 0;z-index:1}
 .origin-note b{color:#fff}.origin-note b.t{color:#7FB2F0}
 
 /* ════════ BUSINESS ════════ */
-.biz{display:grid;grid-template-columns:repeat(2,1fr);gap:24px;margin-top:20px}
-@media (max-width:860px){.biz{grid-template-columns:1fr}}
+.biz{display:block;position:relative;height:640px;margin-top:8px;perspective:1600px;touch-action:pan-y}
+.helix{position:absolute;inset:0;transform-style:preserve-3d;will-change:transform}
+.helix .bcard{position:absolute;left:50%;top:50%;width:400px;margin:-210px 0 0 -200px;backface-visibility:hidden;cursor:grab}
+.helix .bcard:active{cursor:grabbing}
+.helix .bcard:nth-child(1){transform:rotateY(0deg) translateZ(430px) translateY(-48px)}
+.helix .bcard:nth-child(2){transform:rotateY(90deg) translateZ(430px) translateY(-16px)}
+.helix .bcard:nth-child(3){transform:rotateY(180deg) translateZ(430px) translateY(16px)}
+.helix .bcard:nth-child(4){transform:rotateY(270deg) translateZ(430px) translateY(48px)}
+.helix-hint{font-family:var(--disp);font-size:10px;letter-spacing:.3em;text-transform:uppercase;color:var(--ink-dim);text-align:center;margin-top:6px}
+@media (max-width:860px){
+  .biz{height:auto;perspective:none}
+  .helix{position:static;transform:none!important}
+  .helix .bcard{position:static;width:auto;margin:0 0 18px;transform:none!important;backface-visibility:visible;cursor:auto}
+  .helix-hint{display:none}
+}
+.bcard .blogo{height:46px;display:flex;align-items:center;margin-bottom:8px;transform:translateZ(30px)}
+.bcard .blogo img{max-height:46px;max-width:150px;object-fit:contain;mix-blend-mode:multiply}
+.bcard .blogo img.clip{mix-blend-mode:normal;border-radius:18%}
+.bcard .blogo img.circ{mix-blend-mode:normal;border-radius:50%}
+.bcard:hover .blogo img{mix-blend-mode:normal;background:var(--paper)}
 .bcard{position:relative;border:1.5px solid var(--ink);background:var(--paper);padding:40px 32px 34px;min-height:380px;
   display:flex;flex-direction:column;overflow:hidden;transition:transform .5s var(--ease);will-change:transform}
 .bcard{transform-style:preserve-3d}
@@ -419,16 +437,15 @@ footer{padding:70px 0 36px;position:relative;z-index:1}
   <div class="secno">01.5</div>
   <div class="wrap">
     <div class="tag reveal" data-scramble>01.5 — The Name</div>
-    <div class="prov-big" id="provBig" aria-label="玻璃を、照らす。">
-      <span class="pw hl">玻璃</span><span class="pp">を、</span><span class="pw tr">照</span><span class="pp">ら</span><span class="pw sh">す。</span>
+    <div class="prov-big" id="provBig" aria-label="瑠璃も玻璃も照らせば光る">
+      <span class="pp">瑠璃も</span><span class="pw hl">玻璃</span><span class="pp">も</span><span class="pw tr">照らせ</span><span class="pp">ば</span><span class="pw sh">光る</span>
     </div>
     <div class="origin-grid reveal">
-      <p class="origin-lead"><b>玻璃（はり）</b>とは、透きとおった水晶のこと。<br>原石のままでは、路傍の石と見分けがつかない。<br>けれど光を当てた瞬間、静かに澄んだ輝きを返す。<br>社名「<b>HariTerrace</b>」は、その一瞬の情景に由来します。</p>
+      <p class="origin-lead">ことわざに「<b>瑠璃も玻璃も照らせば光る</b>」とあります。<br><b>玻璃（はり）</b>とは、透きとおった水晶のこと。<br>すぐれた素質は、光を当てれば自然と輝きだす——<br>社名「<b>HariTerrace</b>」は、この一句から取りました。</p>
       <p class="origin-note">
-        磨く。整える。光を当てる。<br>
-        私たちの仕事は、つまるところ「<b class="t">照（テラ）</b>らす」ことです。
-        照らされた分だけ、車も、人も、光る。
-        その側に立ち続けるという決意を、名前に刻みました。<br>
+        <b>玻璃（ハリ）</b>を、<b class="t">照（テラ）</b>らす。<br>
+        磨く、整える、光を当てる。私たちの仕事は、この一句の通りです。
+        車も人も、照らされた分だけ光る。その手伝いを、ひとつずつ丁寧に。<br>
         ——本社の地名・八重瀬町<b>玻名城</b>にも、同じ「玻」の字があります。
       </p>
     </div>
@@ -442,39 +459,46 @@ footer{padding:70px 0 36px;position:relative;z-index:1}
     <div class="tag reveal" data-scramble>02 — Business</div>
     <h2 class="h2 reveal">手がける<span class="o">事業</span></h2>
     <div class="biz">
-      <a class="bcard reveal r3d" href="https://lime-oki.net/" target="_blank" rel="noopener">
+      <div class="helix" id="helix">
+      <a class="bcard reveal" href="https://lime-oki.net/" target="_blank" rel="noopener" draggable="false">
         <span class="bn">BUSINESS 01</span>
+        <span class="blogo"><img src="lime_logo_dark.png" alt="LIME" draggable="false"></span>
         <span class="bt">レンタカー</span>
         <span class="be">Rent-a-car / Insurance Fleet</span>
-        <span class="bd">事故や修理で、突然クルマを失った日。その日のうちに、整備の行き届いた一台を届ける——損害保険の代車を中心とするレンタカー事業です。非常時の足に、妥協は許されない。創業からの主力であり、すべての始まりです。</span>
+        <span class="bd">事故や修理で、突然クルマを失った日。その日のうちに、整備の行き届いた一台を届ける——損害保険の代車を中心とするレンタカー事業です。創業からいちばん長く続けている仕事です。</span>
         <span class="bl">VIEW SITE</span>
         <span class="ghost">01</span>
       </a>
-      <a class="bcard reveal r3d" href="lp.html">
+      <a class="bcard reveal" href="lp.html" draggable="false">
         <span class="bn">BUSINESS 02</span>
+        <span class="blogo"><img src="lime_detailing_logo.png" alt="LIME DETAILING STUDIO" draggable="false"></span>
         <span class="bt">ディテーリング</span>
         <span class="be">LIME DETAILING STUDIO</span>
-        <span class="bd">光を当てると、見えなかった傷が現れ、隠れていた艶が目を覚ます。下地処理からセラミック被膜まで、ミクロン単位で突き詰める豊見城の完全予約制スタジオ。社名の由来を、最も色濃く体現する仕事です。</span>
+        <span class="bd">光を当てると、見えなかった傷が現れ、隠れていた艶が目を覚ます。下地処理からセラミック被膜まで、ミクロン単位で向き合う、豊見城の完全予約制スタジオです。</span>
         <span class="bl">VIEW SITE</span>
         <span class="ghost">02</span>
       </a>
-      <a class="bcard reveal r3d" href="#contact">
+      <a class="bcard reveal" href="#contact" draggable="false">
         <span class="bn">BUSINESS 03</span>
+        <span class="blogo"><img src="navinchu_logo.png" alt="なびんちゅ" class="clip" draggable="false"></span>
         <span class="bt">電装品取付</span>
         <span class="be">Auto Electronics Installation</span>
-        <span class="bd">ナビ、ドライブレコーダー、ETC。小さな機器ひとつで、車の安心は変わる。依頼から施工・報告まで一件ずつ確かめながら進める電装品取付事業です。配線一本の収まりにこそ、神は宿る。</span>
+        <span class="bd">ナビ、ドライブレコーダー、ETC。小さな機器ひとつで、車の使い勝手と安心は変わる。依頼から施工・報告まで、一件ずつ確かめながら進めています。</span>
         <span class="bl">お問い合わせ</span>
         <span class="ghost">03</span>
       </a>
-      <a class="bcard reveal r3d" href="#contact">
+      <a class="bcard reveal" href="#contact" draggable="false">
         <span class="bn">BUSINESS 04</span>
+        <span class="blogo"><img src="ht_logo.png" alt="HARI TERRACE" class="circ" draggable="false"></span>
         <span class="bt">中古車販売</span>
         <span class="be">Used Car Sales</span>
-        <span class="bd">自社のレンタカーとして走り、磨かれ、記録され続けた一台を、次のオーナーへ。来歴のすべてが手元にあるから、見えない部分まで言い切れる。走らせ、磨き、整え、手渡す——4つの事業を結ぶ、循環の出口です。</span>
+        <span class="bd">自社のレンタカーとして走り、磨かれ、記録されてきた一台を、次のオーナーへ。整備と走行の履歴をそのまま開示できることが、いちばんの安心材料だと考えています。</span>
         <span class="bl">お問い合わせ</span>
         <span class="ghost">04</span>
       </a>
+      </div>
     </div>
+    <div class="helix-hint">DRAG — 回して、観測する</div>
   </div>
 </section>
 
@@ -492,7 +516,7 @@ footer{padding:70px 0 36px;position:relative;z-index:1}
       <div class="crow reveal r3d"><dt>豊見城営業所</dt><dd>沖縄県豊見城市字与根326-6（LIME DETAILING STUDIO）</dd></div>
       <div class="crow reveal r3d"><dt>事業内容</dt><dd>レンタカー事業／ディテーリング事業／電装品取付事業／中古車販売事業</dd></div>
       <div class="crow reveal r3d"><dt>取り組み</dt><dd>IPA「SECURITY ACTION ★★ 二つ星」宣言事業者</dd></div>
-      <div class="crow reveal r3d"><dt>連絡先</dt><dd><a href="tel:098-901-3817" style="border-bottom:1px solid var(--line)">098-901-3817</a>（LIME DETAILING STUDIO）</dd></div>
+      <div class="crow reveal r3d"><dt>連絡先</dt><dd><a href="tel:098-901-3817" style="border-bottom:1px solid var(--line)">098-901-3817</a></dd></div>
     </dl>
   </div>
 </section>
@@ -1095,21 +1119,49 @@ if(window.DeviceOrientationEvent){
   },1000);
 })();
 
-/* ─── 3D tilt business cards ─── */
+/* ─── 事業カード：らせんカルーセル（自動回転＋ドラッグ・mobileは縦積み） ─── */
 (function(){
-  if(!matchMedia('(pointer:fine)').matches)return;
-  document.querySelectorAll('.bcard').forEach(el=>{
-    el.addEventListener('mousemove',e=>{
-      const r=el.getBoundingClientRect();
-      const px=(e.clientX-r.left)/r.width-.5,py=(e.clientY-r.top)/r.height-.5;
-      el.style.transform=`perspective(700px) rotateX(${-py*14}deg) rotateY(${px*16}deg) translateZ(30px)`;
-      el.style.transition='transform .08s linear';
-    });
-    el.addEventListener('mouseleave',()=>{
-      el.style.transition='transform .6s cubic-bezier(.16,1,.3,1)';
-      el.style.transform='';
-    });
+  const hx=document.getElementById('helix');if(!hx)return;
+  const biz=hx.parentElement;
+  const mq=matchMedia('(max-width:860px)');
+  let rot=0,vel=0,dragging=false,hover=false,lx=0,moved=0,resume=0;
+  const AUTO=0.12; // deg/frame ≒ 30秒で1周
+  (function frame(){
+    if(!mq.matches){
+      if(!dragging){
+        if(!hover && performance.now()>resume) rot+=AUTO;
+        rot+=vel; vel*=.94;
+      }
+      hx.style.transform='translateZ(-430px) rotateX(-4deg) rotateY('+rot+'deg)';
+    }else{
+      hx.style.transform='';
+    }
+    requestAnimationFrame(frame);
+  })();
+  if(matchMedia('(pointer:fine)').matches){
+    biz.addEventListener('mouseenter',()=>hover=true);
+    biz.addEventListener('mouseleave',()=>hover=false);
+  }
+  biz.addEventListener('pointerdown',e=>{
+    if(mq.matches)return;
+    dragging=true;lx=e.clientX;moved=0;vel=0;
   });
+  addEventListener('pointermove',e=>{
+    if(!dragging)return;
+    const dx=e.clientX-lx;lx=e.clientX;
+    rot+=dx*.3;vel=dx*.08;moved+=Math.abs(dx);
+  },{passive:true});
+  function endDrag(){
+    if(!dragging)return;
+    dragging=false;resume=performance.now()+2400;
+  }
+  addEventListener('pointerup',endDrag);
+  addEventListener('pointercancel',endDrag);
+  addEventListener('blur',endDrag);
+  // ドラッグ後の誤クリック（リンク遷移）抑止
+  biz.addEventListener('click',e=>{
+    if(moved>10){e.preventDefault();e.stopPropagation();moved=0;}
+  },true);
 })();
 </script>
 </body>
