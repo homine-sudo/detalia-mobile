@@ -1284,6 +1284,13 @@ function renderCaseDetail(c){
       ${E('tel','電話番号','090-1234-5678',{type:'tel',inputmode:'tel'})}
       ${E('contact','担当者名（会社案件のみ）','空欄でOK')}
       <div style="margin-top:8px;border-top:1px solid var(--border);padding-top:12px">
+        ${E('receptionDate','受付日','',{type:'date'})}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          ${ESel('receptionStaff','受付担当',STAFF_DEFAULTS.concat(c.receptionStaff&&!STAFF_DEFAULTS.includes(c.receptionStaff)?[c.receptionStaff]:[]))}
+          ${ESel('category','区分',['業販','一般','見積'])}
+        </div>
+      </div>
+      <div style="margin-top:8px;border-top:1px solid var(--border);padding-top:12px">
         ${E('arrival','入庫日','',{type:'date'})}
         ${E('deliveryPlan','納車予定日','',{type:'date'})}
       </div>
@@ -1328,7 +1335,8 @@ function renderCaseDetail(c){
     ${sCard(3, '作業内容＋料金', `
       <!-- 作業項目の選択／変更（ここで選ぶ） -->
       <label style="font-size:10px;color:var(--gold-deep);letter-spacing:1px;display:block;margin-bottom:6px">作業項目（タップで選択）</label>
-      <div id="work-checkbox-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:6px"></div>
+      <input id="work-search" type="search" placeholder="🔍 作業項目を検索（例: リンサー）" oninput="_workFilter(this.value)" style="font-size:14px;padding:9px 12px;margin-bottom:8px;width:100%">
+      <div id="work-checkbox-grid"></div>
       <button class="btn btn-secondary" style="font-size:11px;padding:6px 10px;margin-top:8px" onclick="_addCustomWorkItem()">＋ 自由追加</button>
       <!-- 作業進捗（完了チェック）── 選んだ項目をタップで完了入力 -->
       <div id="work-progress-block" style="margin-top:16px"></div>
@@ -1398,6 +1406,17 @@ function renderCaseDetail(c){
       ${E('delivery','✅ 納車日（実際）','',{type:'date'})}
       ${ESel('paymentMethod','支払方法',['振込','現金','クレジット'])}
       ${E('paymentDeadline','支払期限','',{type:'date'})}
+      <!-- 請求・入金（PC↔モバイル一体化: 現場で入金確認・記録できるように） -->
+      <div style="margin-top:8px;border-top:1px solid var(--border);padding-top:12px">
+        <div style="font-size:12px;font-weight:bold;border-radius:8px;padding:9px 12px;margin-bottom:10px;${c.paidDate?'color:#0F0F1A;background:linear-gradient(135deg,#B8E986,#9ED96A)':'color:var(--orange);background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.35)'}">
+          ${c.paidDate?`✅ 入金済　${esc(fmtDate(c.paidDate))}`:`💰 未入金　合計（税抜） ${fmt(total)||'¥0'}`}
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          ${E('billMonth','請求月','例: 6月')}
+          ${E('paidDate','✅ 入金日','',{type:'date'})}
+        </div>
+        <div style="font-size:10px;color:var(--text-dim);margin-top:2px">入金日を入れるとステータスが「入金済」になります</div>
+      </div>
       <!-- 次回メンテナンス -->
       <div style="margin-top:16px;padding:14px;background:var(--bg2);border:1px solid var(--gold-border);border-radius:10px">
         <div style="font-size:11px;letter-spacing:2px;color:var(--gold-deep);margin-bottom:10px">🔧 次回メンテナンス予定</div>
@@ -1480,28 +1499,57 @@ function _renderWorkCheckboxes(c){
   const allItems = WORK_MASTER.flatMap(cat=>cat.items);
   // 自由追加項目も含めるため、現在の項目で master に無いものを追加
   const customItems = current.filter(it=>!allItems.includes(it));
+  const itemLabel = (item, checked, lime)=>`<label data-wk="${esc(item)}" style="display:flex;align-items:center;gap:6px;padding:6px 8px;background:${lime?'rgba(184,233,134,.1)':checked?'var(--gold-dim)':'var(--bg2)'};border:1px solid ${lime?'var(--lime)':checked?'var(--gold-border)':'var(--border)'};border-radius:6px;cursor:pointer;font-size:12px">
+        <input type="checkbox" ${checked?'checked':''} value="${esc(item)}" onchange="_toggleWorkItem('${esc(c.id)}', this.value, this.checked)" style="width:14px;height:14px;flex-shrink:0">
+        <span style="${lime?'color:var(--lime-light);font-weight:600':checked?'color:var(--gold-light);font-weight:600':'color:var(--text)'}">${esc(item)}</span>
+      </label>`;
+  // カテゴリ折りたたみ: 選択中の項目があるカテゴリだけ開く（50項目の常時全表示をやめて探しやすく）
   let html = '';
   WORK_MASTER.forEach(cat=>{
-    html += `<div style="grid-column:1/-1;font-size:10px;color:var(--gold-deep);letter-spacing:1px;margin-top:6px;padding-bottom:3px;border-bottom:1px solid var(--border)">▼ ${cat.cat}</div>`;
-    cat.items.forEach(item=>{
-      const checked = current.includes(item);
-      html += `<label style="display:flex;align-items:center;gap:6px;padding:6px 8px;background:${checked?'var(--gold-dim)':'var(--bg2)'};border:1px solid ${checked?'var(--gold-border)':'var(--border)'};border-radius:6px;cursor:pointer;font-size:12px">
-        <input type="checkbox" ${checked?'checked':''} value="${esc(item)}" onchange="_toggleWorkItem('${esc(c.id)}', this.value, this.checked)" style="width:14px;height:14px;flex-shrink:0">
-        <span style="${checked?'color:var(--gold-light);font-weight:600':'color:var(--text)'}">${esc(item)}</span>
-      </label>`;
-    });
+    const selCount = cat.items.filter(it=>current.includes(it)).length;
+    html += `<details class="wk-cat" ${selCount?'open data-keepopen="1"':''} style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;overflow:hidden">
+      <summary style="font-size:11px;color:var(--gold-deep);letter-spacing:1px;padding:9px 12px;cursor:pointer;list-style:none;user-select:none;display:flex;align-items:center;gap:8px">
+        <span style="flex:1">▼ ${esc(cat.cat)}</span>
+        <span style="font-size:10px;color:${selCount?'var(--gold-light)':'var(--text-dim)'}">${selCount?selCount+'件選択 / ':''}${cat.items.length}項目</span>
+      </summary>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:0 8px 8px">
+        ${cat.items.map(item=>itemLabel(item, current.includes(item), false)).join('')}
+      </div>
+    </details>`;
   });
-  // カスタム項目
+  // カスタム項目（常時表示）
   if(customItems.length){
-    html += `<div style="grid-column:1/-1;font-size:10px;color:var(--lime-deep);letter-spacing:1px;margin-top:6px;padding-bottom:3px;border-bottom:1px solid var(--border)">▼ 自由追加</div>`;
-    customItems.forEach(item=>{
-      html += `<label style="display:flex;align-items:center;gap:6px;padding:6px 8px;background:rgba(184,233,134,.1);border:1px solid var(--lime);border-radius:6px;cursor:pointer;font-size:12px">
-        <input type="checkbox" checked value="${esc(item)}" onchange="_toggleWorkItem('${esc(c.id)}', this.value, this.checked)" style="width:14px;height:14px;flex-shrink:0">
-        <span style="color:var(--lime-light);font-weight:600">${esc(item)}</span>
-      </label>`;
-    });
+    html += `<div style="font-size:10px;color:var(--lime-deep);letter-spacing:1px;margin-top:6px;padding-bottom:3px;border-bottom:1px solid var(--border)">▼ 自由追加</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px">
+        ${customItems.map(item=>itemLabel(item, true, true)).join('')}
+      </div>`;
   }
   wrap.innerHTML = html;
+  // 検索中なら再描画後もフィルタ状態を復元
+  const q = document.getElementById('work-search');
+  if(q && q.value.trim()) _workFilter(q.value);
+}
+
+// 作業項目のインクリメンタル検索（DOM表示切替のみ＝キーボードフォーカスを保つ）
+function _workFilter(q){
+  const wrap = document.getElementById('work-checkbox-grid');
+  if(!wrap) return;
+  q = (q||'').trim().toLowerCase();
+  wrap.querySelectorAll('details.wk-cat').forEach(d=>{
+    let visibleCount = 0;
+    d.querySelectorAll('label[data-wk]').forEach(lb=>{
+      const hit = !q || (lb.getAttribute('data-wk')||'').toLowerCase().includes(q);
+      lb.style.display = hit ? 'flex' : 'none';
+      if(hit) visibleCount++;
+    });
+    if(q){
+      d.style.display = visibleCount ? 'block' : 'none';
+      d.open = visibleCount > 0;
+    }else{
+      d.style.display = 'block';
+      d.open = !!d.getAttribute('data-keepopen');
+    }
+  });
 }
 
 function _toggleWorkItem(caseId, item, checked){
@@ -1521,6 +1569,15 @@ function _toggleWorkItem(caseId, item, checked){
   const ta = document.getElementById('e-workDetail');
   if(ta) ta.value = c.workDetail;
   _renderWorkProgress(c);
+  // チェックの見た目とカテゴリ別選択数を更新（開閉状態は維持・検索中はフィルタ復元に任せる）
+  const grid = document.getElementById('work-checkbox-grid');
+  const ws = document.getElementById('work-search');
+  if(grid){
+    const searching = ws && ws.value.trim();
+    const openIdx = new Set(Array.from(grid.querySelectorAll('details.wk-cat')).map((d,i)=>d.open?i:-1).filter(i=>i>=0));
+    _renderWorkCheckboxes(c);
+    if(!searching) Array.from(grid.querySelectorAll('details.wk-cat')).forEach((d,i)=>{ d.open = openIdx.has(i); });
+  }
   const ind = document.getElementById('save-indicator');
   if(ind){ ind.textContent='💾 保存済'; ind.style.opacity='1'; setTimeout(()=>{ ind.style.opacity='0'; }, 1200); }
 }
@@ -2054,8 +2111,9 @@ function _renderEditForm(c){
   const isNew = !c;
   const data = c || {id:_nextCaseId(),customer:'',tel:'',carModel:'',carYear:'',size:'',chassis:'',colorCode:'',
                     arrival:'',deliveryPlan:'',delivery:'',workStaff:'',
+                    receptionDate:new Date().toISOString().substring(0,10),receptionStaff:'',
                     optExt:0,optInt:0,optOther:0,discount:0,
-                    paymentMethod:'',paymentDeadline:'',workDetail:'',
+                    paymentMethod:'',paymentDeadline:'',billMonth:'',paidDate:'',workDetail:'',
                     snsPermitted:false,snsNote:'',category:_newCaseKind==='quote'?'見積':'業販'};
   const isQuote = isNew && _newCaseKind==='quote';
   document.getElementById('header-title').innerHTML = isNew
@@ -2069,6 +2127,25 @@ function _renderEditForm(c){
       <div class="form-row">
         <label class="form-label">受付No</label>
         <input id="e-id" type="text" value="${esc(data.id)}" ${isNew?'':'readonly style="opacity:.6"'}>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="form-row">
+          <label class="form-label">受付日</label>
+          <input id="e-receptionDate" type="date" value="${esc((data.receptionDate||'').substring(0,10))}">
+        </div>
+        <div class="form-row">
+          <label class="form-label">受付担当</label>
+          <select id="e-receptionStaff">
+            <option value="">―</option>
+            ${STAFF_DEFAULTS.concat(data.receptionStaff&&!STAFF_DEFAULTS.includes(data.receptionStaff)?[data.receptionStaff]:[]).map(s=>`<option value="${esc(s)}"${s===data.receptionStaff?' selected':''}>${esc(s)}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">区分</label>
+        <select id="e-category">
+          ${['業販','一般','見積'].map(o=>`<option value="${o}"${o===(data.category||'業販')?' selected':''}>${o}</option>`).join('')}
+        </select>
       </div>
       <div class="form-row">
         <label class="form-label">顧客名 <span style="color:var(--red)">*</span></label>
@@ -2183,6 +2260,16 @@ function _renderEditForm(c){
         <label class="form-label">支払期限</label>
         <input id="e-paymentDeadline" type="date" value="${esc((data.paymentDeadline||'').substring(0,10))}">
       </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="form-row">
+          <label class="form-label">請求月</label>
+          <input id="e-billMonth" type="text" value="${esc(data.billMonth||'')}" placeholder="例: 6月">
+        </div>
+        <div class="form-row">
+          <label class="form-label">✅ 入金日</label>
+          <input id="e-paidDate" type="date" value="${esc((data.paidDate||'').substring(0,10))}">
+        </div>
+      </div>
     </div>
 
     <button class="btn btn-primary btn-full" style="margin-bottom:8px" onclick="saveCaseEdit()">💾 ${isNew?'登録':'保存'}</button>
@@ -2210,6 +2297,8 @@ function saveCaseEdit(){
     chassis:  g('chassis'),
     colorCode: g('colorCode'),
     workStaff: g('workStaff'),
+    receptionDate: g('receptionDate'),
+    receptionStaff: g('receptionStaff'),
     arrival:   g('arrival'),
     deliveryPlan: g('deliveryPlan'),
     delivery:  g('delivery'),
@@ -2220,9 +2309,11 @@ function saveCaseEdit(){
     discount: g('discount',true),
     paymentMethod: g('paymentMethod'),
     paymentDeadline: g('paymentDeadline'),
+    billMonth: g('billMonth'),
+    paidDate: g('paidDate'),
     snsPermitted: snsPermitted,
     snsNote: g('snsNote'),
-    category: existing?.category || (_newCaseKind==='quote'?'見積':'業販'),
+    category: g('category') || existing?.category || (_newCaseKind==='quote'?'見積':'業販'),
     updatedAt: new Date().toISOString(),
     org_id: existing?.org_id || 'self'
   });
