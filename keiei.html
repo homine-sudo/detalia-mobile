@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="HT経営分析">
+<meta name="theme-color" content="#0A0A0F">
+<meta name="robots" content="noindex,nofollow">
+<title>Hari Terrace 経営分析</title>
+<link rel="icon" type="image/png" href="ht_logo.png">
+<link rel="apple-touch-icon" href="ht_logo.png">
+<style>
+:root{
+  --bg:#0A0A0F; --bg2:#10101A; --card:#1A1A2A; --card2:#22223A;
+  --gold:#C9A84C; --gold-light:#E8C96A; --gold-deep:#A38A36;
+  --gold-dim:rgba(201,168,76,.15); --gold-border:rgba(201,168,76,.28);
+  --lime:#B8E986;
+  --text:#F4E9C6; --text-dim:#A89D7B; --muted:#6B6B5A;
+  --border:rgba(201,168,76,.18);
+  /* chart series — validated (dark surface #1A1A2A) */
+  --s1:#AD8F3A; --s2:#3987e5; --s3:#199e70; --s4:#9085e9; --s5:#e66767;
+  /* status — fixed scale */
+  --st-good:#0ca30c; --st-warn:#fab219; --st-serious:#ec835a; --st-crit:#d03b3b;
+  --grid:rgba(255,255,255,.07); --axis:rgba(255,255,255,.16);
+  --safe-top:env(safe-area-inset-top,0px); --safe-bottom:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Yu Gothic',system-ui,sans-serif;
+  font-size:15px;color:var(--text);background:linear-gradient(180deg,#0A0A0F,#10101A);
+  -webkit-font-smoothing:antialiased;overscroll-behavior:none;
+}
+button,input,select{font:inherit;color:inherit}
+button{background:none;border:none;cursor:pointer;padding:0;user-select:none}
+.num{font-variant-numeric:tabular-nums}
+svg text{font-family:inherit}
+
+/* ── shell ── */
+#hdr{position:fixed;top:0;left:0;right:0;z-index:30;padding:calc(var(--safe-top) + 10px) 16px 10px;
+  display:flex;align-items:center;gap:10px;background:rgba(10,10,15,.86);backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--border)}
+#hdr .t{font-size:15px;font-weight:700;letter-spacing:.06em}
+#hdr .d{font-size:10px;color:var(--text-dim);margin-top:2px}
+#hdr .sp{flex:1}
+#hdr .lockbtn{font-size:11px;color:var(--text-dim);border:1px solid var(--border);border-radius:14px;padding:5px 11px}
+#main{padding:calc(var(--safe-top) + 64px) 14px calc(var(--safe-bottom) + 86px);max-width:640px;margin:0 auto}
+.page{display:none}.page.active{display:block;animation:fin .22s ease}
+@keyframes fin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+#tabs{position:fixed;bottom:0;left:0;right:0;z-index:30;display:flex;
+  background:rgba(10,10,15,.92);backdrop-filter:blur(14px);border-top:1px solid var(--border);
+  padding:6px 4px calc(var(--safe-bottom) + 6px)}
+#tabs button{flex:1;text-align:center;color:var(--muted);padding:5px 0}
+#tabs button .ic{font-size:19px;line-height:1}
+#tabs button .lb{font-size:9.5px;margin-top:3px;letter-spacing:.04em}
+#tabs button.on{color:var(--gold)}
+
+/* ── cards ── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px 15px;margin-bottom:14px}
+.card h2{font-size:12px;letter-spacing:.14em;color:var(--gold);font-weight:700;margin-bottom:12px}
+.card h2 .sub{font-weight:400;color:var(--text-dim);letter-spacing:0;font-size:10px;margin-left:8px}
+.note{font-size:11px;color:var(--text-dim);line-height:1.65;margin-top:10px}
+.hairline{border:none;border-top:1px solid var(--grid);margin:12px 0}
+
+/* stat tiles */
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.tile{background:var(--bg2);border:1px solid var(--grid);border-radius:11px;padding:11px 12px}
+.tile .l{font-size:10px;color:var(--text-dim);letter-spacing:.05em}
+.tile .v{font-size:20px;font-weight:700;margin-top:4px;letter-spacing:.01em}
+.tile .s{font-size:10px;margin-top:3px;color:var(--text-dim)}
+.up{color:#4fc06c}.down{color:var(--st-serious)}
+.gold{color:var(--gold-light)}
+
+/* hero score */
+.hero{display:flex;align-items:center;gap:18px}
+.hero .ring{flex:0 0 auto}
+.hero .hh{font-size:11px;color:var(--text-dim);letter-spacing:.1em}
+.hero .hv{font-size:17px;font-weight:700;margin-top:3px}
+.chip{display:inline-block;font-size:10.5px;padding:3px 10px;border-radius:12px;border:1px solid var(--gold-border);color:var(--gold-light);background:var(--gold-dim);margin-top:8px}
+
+/* risk / status */
+.risk{display:flex;gap:11px;padding:11px 0;border-bottom:1px solid var(--grid);align-items:flex-start}
+.risk:last-child{border-bottom:none}
+.risk .dot{flex:0 0 auto;width:9px;height:9px;border-radius:50%;margin-top:5px}
+.risk .rn{font-size:13px;font-weight:600}
+.risk .rv{font-size:12px;margin-left:6px}
+.risk .rd{font-size:11px;color:var(--text-dim);line-height:1.6;margin-top:3px}
+.stt{font-size:9.5px;letter-spacing:.08em;padding:2px 7px;border-radius:9px;margin-left:7px;vertical-align:1px}
+
+ul.plain{list-style:none}
+ul.plain li{font-size:12.5px;line-height:1.7;padding:6px 0 6px 16px;position:relative;color:var(--text)}
+ul.plain li::before{content:"";position:absolute;left:2px;top:14px;width:6px;height:6px;border-radius:50%;background:var(--gold-deep)}
+ul.plain.dim li{color:var(--text-dim)}
+
+table.kv{width:100%;border-collapse:collapse}
+table.kv td{font-size:12px;padding:7px 0;border-bottom:1px solid var(--grid);vertical-align:top;line-height:1.5}
+table.kv tr:last-child td{border-bottom:none}
+table.kv td:first-child{color:var(--text-dim);width:34%;padding-right:10px}
+
+/* data tables */
+table.dt{width:100%;border-collapse:collapse;font-size:11.5px}
+table.dt th{font-size:10px;color:var(--text-dim);font-weight:400;text-align:right;padding:4px 4px;border-bottom:1px solid var(--axis)}
+table.dt th:first-child,table.dt td:first-child{text-align:left;padding-left:0}
+table.dt td{text-align:right;padding:6px 4px;border-bottom:1px solid var(--grid)}
+table.dt tr:last-child td{border-bottom:none}
+
+/* charts */
+.chart{margin-top:6px}
+.legend{display:flex;flex-wrap:wrap;gap:12px;margin:2px 0 10px}
+.legend span{font-size:10.5px;color:var(--text-dim);display:flex;align-items:center;gap:5px}
+.legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.bench{padding:10px 0;border-bottom:1px solid var(--grid)}
+.bench:last-child{border-bottom:none}
+.bench .bh{display:flex;align-items:baseline;gap:8px}
+.bench .bn{font-size:12px;font-weight:600;flex:1}
+.bench .bv{font-size:14px;font-weight:700}
+.bench .tag{font-size:9.5px;padding:2px 7px;border-radius:9px}
+.bench .bnote{font-size:10px;color:var(--text-dim);margin-top:3px}
+
+/* sliders */
+.sl{margin:13px 0}
+.sl .slh{display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px}
+.sl .slh b{color:var(--gold-light);font-weight:700}
+input[type=range]{-webkit-appearance:none;width:100%;height:26px;background:transparent}
+input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:var(--card2)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;
+  background:var(--gold);border:3px solid var(--bg);margin-top:-9px;box-shadow:0 1px 6px rgba(0,0,0,.5)}
+.tgl{display:flex;align-items:center;gap:10px;font-size:12.5px;margin:12px 0}
+.tgl input{width:18px;height:18px;accent-color:var(--gold)}
+.out{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.out .o{background:var(--bg2);border:1px solid var(--grid);border-radius:10px;padding:9px 11px}
+.out .o .l{font-size:9.5px;color:var(--text-dim)}
+.out .o .v{font-size:16px;font-weight:700;margin-top:3px}
+.judge{margin-top:12px;padding:11px 13px;border-radius:10px;font-size:12.5px;line-height:1.6;border:1px solid}
+
+/* actions */
+.act{display:flex;gap:11px;padding:10px 0;border-bottom:1px solid var(--grid);align-items:flex-start}
+.act:last-child{border-bottom:none}
+.act input{width:19px;height:19px;margin-top:1px;accent-color:var(--gold);flex:0 0 auto}
+.act .at{font-size:12.5px;line-height:1.6}
+.act.done .at{color:var(--muted);text-decoration:line-through}
+.act .tag2{font-size:9px;color:var(--gold-deep);border:1px solid var(--gold-border);border-radius:8px;padding:1px 6px;margin-right:6px;vertical-align:1px}
+
+/* lock */
+#lock{position:fixed;inset:0;z-index:100;background:linear-gradient(180deg,#0A0A0F,#10101A);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px}
+#lock img{width:64px;height:64px;object-fit:contain;margin-bottom:18px;opacity:.9}
+#lock .lt{font-size:16px;font-weight:700;letter-spacing:.12em}
+#lock .ls{font-size:11px;color:var(--text-dim);margin:8px 0 26px;text-align:center;line-height:1.7}
+#lock input[type=password]{width:100%;max-width:320px;background:var(--card);border:1px solid var(--gold-border);
+  border-radius:12px;padding:13px 15px;font-size:16px;text-align:center;letter-spacing:.08em;outline:none}
+#lock .lbl{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-dim);margin:16px 0 22px}
+#lock .lbl input{width:17px;height:17px;accent-color:var(--gold)}
+#lock button.go{width:100%;max-width:320px;background:linear-gradient(135deg,var(--gold),var(--gold-deep));
+  color:#0A0A0F;font-weight:700;font-size:15px;letter-spacing:.14em;border-radius:12px;padding:14px}
+#lock .err{color:var(--st-serious);font-size:12px;margin-top:14px;min-height:16px}
+.shake{animation:shk .4s}
+@keyframes shk{0%,100%{transform:none}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+
+#toast{position:fixed;left:50%;bottom:calc(var(--safe-bottom) + 96px);transform:translateX(-50%) translateY(16px);
+  background:var(--card2);border:1px solid var(--gold-border);color:var(--text);font-size:12px;
+  padding:9px 16px;border-radius:20px;opacity:0;pointer-events:none;transition:.25s;z-index:60;max-width:86vw;text-align:center}
+#toast.show{opacity:1;transform:translateX(-50%)}
+.secnote{font-size:10px;color:var(--muted);text-align:center;margin:6px 0 20px;line-height:1.7}
+</style>
+</head>
+<body>
+
+<div id="lock">
+  <img src="ht_logo.png" alt="">
+  <div class="lt">経営分析 — Hari Terrace</div>
+  <div class="ls">財務データは暗号化されています。<br>パスフレーズを入力してください。</div>
+  <input type="password" id="pw" placeholder="パスフレーズ" autocomplete="current-password" enterkeyhint="go">
+  <label class="lbl"><input type="checkbox" id="pw-keep">この端末で記憶する</label>
+  <button class="go" onclick="unlock()">開 く</button>
+  <div class="err" id="pw-err"></div>
+</div>
+
+<header id="hdr" style="display:none">
+  <div>
+    <div class="t">経営分析 <span style="color:var(--gold)">HT</span></div>
+    <div class="d" id="hdr-date"></div>
+  </div>
+  <div class="sp"></div>
+  <button class="lockbtn" onclick="relock()">🔒 ロック</button>
+</header>
+
+<main id="main" style="display:none">
+  <div class="page" id="pg-home"></div>
+  <div class="page" id="pg-fin"></div>
+  <div class="page" id="pg-bench"></div>
+  <div class="page" id="pg-asset"></div>
+  <div class="page" id="pg-plan"></div>
+</main>
+
+<nav id="tabs" style="display:none">
+  <button data-p="home" class="on"><div class="ic">📊</div><div class="lb">概況</div></button>
+  <button data-p="fin"><div class="ic">📈</div><div class="lb">財務</div></button>
+  <button data-p="bench"><div class="ic">⚖️</div><div class="lb">比較</div></button>
+  <button data-p="asset"><div class="ic">🚗</div><div class="lb">資産</div></button>
+  <button data-p="plan"><div class="ic">🎯</div><div class="lb">戦略</div></button>
+</nav>
+
+<div id="toast"></div>
+
+<script>
+"use strict";
+/* ════════ 暗号化データ (AES-256-GCM / PBKDF2-SHA256 310k) ════════ */
+const BLOB = "y7CShpuKG+3SoN5KJno5fhC/dKFqX+bi2szISGEWxfPsAXm5TdXDiY2QwBkQV5d923GPNghtHB/ap/qR2G6HUDad2zA+vv/IjmAJNTlqdgUuxB3x0vIba7HSiZBhM5rtt9NThuZ0ZrfxF8Cpp1B8GKJJPTvwLuYAW+gY1lMKqHTt5SmLJ4ffSOqCtfJU/sf1eSqMTuRuY8aJjo8LBxXWSGrLI43nWsPTZe6MT4BbFBIdwXgRtqQ3dPLlJ/4t5xV3Gh6J2q2HocoVTosiBfCswJHoehrWYhzb8G7YkxG0ZpABAoN/tK5NOoPW0cn0tWhGiQ23/yRgqFZMsz9fmpLKaiTWyzgP71D/zaGChJzbdVlci/2Qhrn3XI8fZb4rVu3z1I+tjROGmTyzsy9qYj/PLOWyvNvgRgF/AUvesYG6gzVRbDLd+prD/Cfr5L3kmoPFIw4dY0oAy2JQw6Dfb9VNnmn2pTGgF810JIzevV/ivXw4S0E5Zrm41WxxRJh06LzeVfQj48n7REKt4S+nRWbmfyh7TaropEhQJ1othEDf7dwxhj9RNLt0ZMVA++4sCrv2i//JRWJ/+UZxSLSKxYUsVwh1r74poG79F3n7PRfbYKA7fSTe8wsiPmqcs1glzySx6qdRZBw6gKX9XA1JudEI4n3jRxcstGr1wcWR68nSjnik8y5TXvT1smPo2pOPArkggPuAUM+AQz8MSr1p+JK7caqCYn5wl/dLKSWeMklgzPJJYYXMbP4V/3G2KDVlyQ+NcGm196YS3aahprLA5eHIYDfMINt8+QJi850QjgBoASTq/jqI+5JA2/bmRWLyRb6HnI3+yoaNFS37EKS6seRH81skoGxY2mJF44BGTpJvjVo4UfZ94xspbhXiwDqvFyQ0g1ol482V9YkRNZQjBbtjVz6e/lG6CjC0D6KTX0xBXdaEe6xVUhnFV6AsgMarqIm7i2wiV2103NK0PW2FU96TKnelX2uyJPXmuHRv1wiMXaw4RbNrJEXRvmLYK58acCI9QNl3olqjE4Bo4fapCIkd4DvKFtV/HfuTZtP1XV8YWSDwtYwhN8/hyePpSN5/7zOaNmMAMREyjG1RJ3dh0g37e8nY9qELPqHDNFbGCV5+Vjl/M58GHSp1POxMTrVyxHiWrbRqeMv2462IusAHUiCduXMIAjee/TeHPlbnn7E6uGxxEu9Rhl+RS0yuGcHDAPdRYXCT7j3xsV9fJI7tm2wYG2eKzEunU25Ci3Zm7p4chbrRPSXKvi8DxpWYbD5jy907iAQXzMsDq34xB7ClRAnB+ZgDu77D6e1+BebGWGpuzFy62JtMUds3H1eZedDC5Yb9V72nm0qzTrEb3iK4ydWuwpYkwCtWwIGo24gmX1ctLIMfd8N1zhrpOr6rxH4traopceKXoakaS+AGyjHlUA1Lov2fKLxmB0k+KHzFv84vxJO6gfc9XVYyzK0puYErGm+3uwuZIoRWGK66FWgj26EicJp5eBQu+p5oRSDMZll+GP5+vDyMDqvVNa3Ww+1tOT27VULPdgdfTuW28FIQgQO0QyGz34QWvf9sAN2lXpSUa/erFHo7sphKAKcQmR5WLaR5tge7msXDdFmrJKR087Mxu7q5umadzGeQVE8ETDk6s96X30QyCTQyWX6ldZwS6R3pe3sw0m2SADABjTGudDKdSgraq+OO3bjpKgyncKBEGSxmw4+6vxu2X44iHfoN/CW9og946oFcLfPPj8LAn9GhkE/XoaWOLl8jdWw7W0bOOSBe3jTJlTK7G0ihEYuQ3rZzL/dT1A+mdRHWwvQRQNrdyMjka7bvS5495RRbyM1zwtewBvc3NEHFqtRgttB9hINqArfzt/AqKvzvl0hrXhj/1yi77C/fK3VGozrjBfa1FFb37SfJrzrah0+kbvFD3zIGKYnfexjTIOJB7ypUK9g/oE0IReqIOTtvOdZver3IZ6P0KDbimG90SviqGfKJUrjjLCwJJ77mi98cN4zafPvhPUKyt0/IgQ6hN3KwGQo5G7xzOJN95r71StztS1nRGAy2KOFo/KpN3BxLqh/66WuHXRdcCGxeHqxsOdpc0xi8XqyzOdWP6uMkzsbkhCwzt5cq41dhOFB8kHQsf+/3GFHyW/ajK4qfBNTamzZnV0KftD4pQCgB+ILsP54mAnzpaq6rg5VStJCEuAL/NzrwknqECozdD5LyZZnlvIYF5fhu1felB4sS3cFqpqJW9Csly5I5zh2901wzUjJxhP4OaccWVV3Bxux23e+NnzNmZziNcIU9MKFgCO6/lv4/NvJ0lO5whnE7Q2hX0/eXWuYCI+LwYE4Z3m4ZzL6YQwQUBM39p30JQbT/jHBcgFNTtZMY113zzBjbW4zhcTPRw3ThS8LIJ/o8wTf8Wa5Uv5M8iyQulrPpkQSUUGM25/I6IELwLbPn1bjzT0vqwHs0T8MYVCjKHydX9O7rOdGQgdQ+/RDVoBPbZbnOI92/xvabJcgJcx91YN7TTrysM8AHDVu25OHT4mZEo0LmHhyFD3lVvZFWrXB1PstWCdtp+Z4JpMZgah45EAnhvbgzdwgV9oE1Hsp2aiWy3tZsiIdEdfaMQ0svXy+D9mNBeI1tfbZHNoJqJIyRujqgJ8tE/NjNCNgUzZsP58t7vaiqdC/bsZs5P6GPFSupBexn+AGoFH3bxVKOEAi76o6MnDEZh3ND7LZKJqgdAx+cGU152oYxo5jHr5Gae3jzxg4s8N9gULOzU5/MJ6QiqkhkUt5XwjiRViTxLpKhvC+mO23OsLHzmMTVT0MEMrwN0exkE9PqNKFZx9XyGcNPTBxrag2aouWjC4HSQ4mxZzW7hyqvML9b/RNoMKpIfzds/dytR/VWzLe6WuW+TfKWW5Du3q+FNNh3XuZS+BhpEdFQLRtv1eKl4kv/P6VvYDeZvRyrgQESzBQUZAT7bfOES5AtWGcjs9KfYHAnT7ejZnyxvNXq07U1s18r/wJV1wCWBtgEuUME1iMxdt18hSDdDlibItiAzACxbyU6oOqDScc5nRyyixOuYmvnYZU5fSq8rkU+UCAhgeOiiailhJqe5t53EtNRD9YdD/AOclrKJofGVp0F1aQYbyIwCXMqDlahbGvp2IApWPo7VLgdToMsGCGTWOAQ9bdBqub5BO6SIBtARJbuH+4A9pOm6taLpbCCjlinTjd7smfLqWHuWyLidAXlDro98Vatz3ZSl6nhWUp1GLGE3j8ulhr5XDDOTonebm0PQxnaO5JaYpyehldNkYi9iRTW99aDWLqdzpDiAP+9xwK3c86BKzaAs/leMw8XOEHxByPaynY/3vI7VUiEgGRHXsRZI4ZVZnSkPqF4wxJD1iIGlanBYZJursL90BNFIm6ZOkhAidsZgfz2XCX3ME+8CKig+iy52hlZNflciKFF7Qxxmu8hy9ZMIX0jpBcEWfmnrpXgmDQcBAh+waZPg7pbmELXY0h49bL7+gfsGvClTdzNKSFtSgf3WXenls22PcrRgJ1VtOBnCVfAGLD5RO6RA4bYWupbqpk4IyEawkC2iTrcgg8xvmhGAWmDz+LnBG9B1it3SRMql9oUbAzHQ9hPKgl7RbXm6H9vVIKMRRr+nFHkQ9xMFkvdOavfQ2EQ2uSbUVYB6j7PPPhby/yx2jjo8HMBibw2zxCdpYQK3HvBNXhlBjB4/rNUxbSKb0YrTat+4Hol9xtHIeM/eq0WzZ1+jn+ANn0UEerbwy2HC0HGKTkQ+ba32ds6tuSheF1iRs4LmWRR1pdRj/zkLc+92OHaSCNzLqEib4AFOyqSjX+SvTOoNIdPE1wD0MusxPn1TPtc8GqYbL3jYQkeMt10NMH3ejaoUMpPyk3FdHXXnmAJQYUWovKo1cMGXiUQQUvtv1h7wQ+fKut6Puk3TE6GvzxnMzzado83nmECG52oH3nD8mmiaBRyILjSY0lVP900aTN3e6DpQEJJRoGLon62oTcaHNwWFE0bh5QEwZC4QL0qpwCQH6e4jiM1pkqgKi2fFTvTYUVc/4Nr/DpeOMHHQoCpE1ZRilrNMdHpXLLWSLAfaqzQbzY0LlwP11BUU/eWc8fIWZk4IqWV3udNP78lr30JUzG+zn9UqTKo6cQ/u06QY4Aqg85nRMTwqJUk+kEd6lLeNC5PEgGnuE8cKqJowyppOUmcIO7MxcGZRmV0s3cB05LsQdITIeTGqTcDhWgDQvj8rQYypqdYYttZgZAzoumQoeJcdaIFHa0L7MV1GD08Ik1LyyokPHSdsSjDSQJPHrVDRp1wo4o/D68vKrcLVClN5DlZmKK9zH7bjh0HDlVeEYafVLd3J2f0OX0WGjd824n6KPtT66lCv23XQW8IhoW28yLznO4FiiNn3ANyiDA40CU3OPoXWY7PK0fyRFKaegZ3vFevMfDAXhseJn5BhW+rKY7RFMYuHevyM7OZ0w/IeFB7ycP7vTgGLVp8FzE+V/BUg2QC6K2Upq34ellVuV+k2OmLjr3VWyEK81oXMUD50VIvcD7TvjlH5nO3XQsYp85sCMVOhy82/8cWpLXQUm0S7WXDIE7J9j0UnGk50VHPlevPbspIDiTfQSZc/fWtu1ToLHbpuuzL9eKUljXDIws/soCSG7tG+Bej+flqLqd9o8rorGuleBhR2pCRPHRKhqafqaor20gHZ3XAv9VvHsklEgN9a+kEdLyofKnEM+gHsxT3BDYUGUoPEruLB1iyA6lY8Th/H10d9yx5XsDFSxS2iqohwgDv5ZKIL3jywKTgO2te///Vhi7f70uIV9AwRpmfJ6gKsfW9/w2EVI6AqaMA4AIyCBcTdYbynvqToDV/n3XXiuuNW1lVeChpdh5lu8HFAPi1S9ig9PDaVoCyuIKruJobyO+vvtPr/kOGAwpNgSic+jvrqTVMVSi1o3WTT9UufeLJ5QsXi/DqTl2DsPYcDHrBD48zuRJH4+Pxr/fPqxBiKVAjgbCcxF38ZT76Wt8crcyHqBVCf16chGOERf2GI7HDwdzpjd/EuoPBo++JzhJ1aebdqICR1Ut/LOb9ey+bzNMQ4ixJA85oa8gTFX0oCc0HbaqqMgkstLvwEv5orScWwpQRmcFW/aBXk+nWq9MBqTzhqc98LpN4kLA1Bz9B9Bd0PNfmiDslIDnHg+/so0a2CCUJXhmJ9rJihqTHiQ6h0mx3v84gz0iibstisSSE0fLGt6kZVKLaX605jUoDPaWnFhXhU7yCcVTi8ayEANrMLf8bWf3UOXy255+4Gv/3Kb60Qaz6h+gpD8UrJYiItlY0hrHP7p72okTW0HhiqkIbgqXJM74rOgnCZ+edb0E6ZdQYrxHpHLCU4iX5g6XHvcAxSbU1bl0URoZVQY497gEZEf44VIIzEDS5OsAS7QepRdq6Q8An9aQihZfe6/DrW23WChAjvVw2geoTuaKri88OsJhjCFq0rePeikU0v0aHWVVoGuUPuc9sbAok7792E5mERmuY9uGMB9tZfqYH3s2DG3ZgJ/6lbvQBQCAdSNzabE7NvQgPGqsKiYc0q6LnE+L2fR7vt3t7Lki9wSwqaMSkiY6x+WeECNYduM+curwgWkSPBIs9SbWQWX/cqXrsjScHYlqjgKukWUOeOK/al+o+3Tvtc2LAsrwDCi3SF+Efzql93AeTkE+7jvV++m5YQTTe+dGf9i+VKZ+1M+hySU3jOLc7BnzpTtVgdylMlzB7PRue6RSbLMkY+Zkx7i2rleU9Gs++Z4CE4NsUOmies72uaQ1HM9yd0pTD5btfNnScKJoGfTgIlLsUqfEPw15A7CoA642Wnxofc1GQGbJqx6yX2acLnR3Q4EatDNxG1A5o5UL86dHytaFUixvIWn6xjG9jP4cCFBhaz5IJoJzPejmrUEcBVUConC0pU5WxT7PfygqAi+Ro2n/w+6ZI3yeGOzPkml9HRYoBCoxk3oFJJ9i06zFf9AOXqiZZnD1lsU+l7c4XIOwUyeZyhJSG0zTuUJO/awFPpptTSC3feWWr6J9YJ2lHWXG7mpHlybztZ8KFyr6F1RVJNbubPpqzqZ2aWC2Z1ZM9YhMUJ2uSgtz0+hP6F3m+QCXgVdvNAMqb3c9Ue9OoiZR9gZKuZZmkAe2aRRZAWkacWKhhPLLwTXKxqE2ghpIkP5Pfd9eG/n68g/Q+FWmglaJqga4Be4jKXPLmxvyXmZ3q/RBvGrANo1+n/ZDHyvwqIuJ1aDJnp59cwHjKbF3bwWZ6aYjrZDGG3lOdPndyZ2vQtzr/6K/g0GovWyADf7F77t4gsTlZFw6cBH6jigS3C03Q0RrdY+O0Zk0v1LEkKs4/al8BMtgcyUUwuvPZtkznqd8PxU0RIIHyxb7R4WX8E+FPk/ElKXCFBU9rru7YB00fifLQvxPJ8lZqegXpleOCn5yjfdnM3eSR1lfj4QuMKwVP33dp1BXar3x172OevajjYek0ahnJMQEBtAt0gs0c4IuLE3JR7DIQIjPT+OfNSNkKOaoFOEo7S6rzx6y8vDBCojfq8sfcofjyD9tOU3UR7FoQeWHJLM9ORpQQBOnGkDglAQmY172XmrFfwNyta6MOpFSLt3kGoxI1yZDt9vzf4aJ8gaWMGtTrsNuaotmNzgo4mzaZKvrBOFsSFYT6Gc1puwojmvN4p810i4pY4QWOoU1j5btxTTMbJkBzCVPITXMPzYKMaAmic5ZsmzfjI6qMcvYxvyXDmP2ffxPm0tcxknjarNxgK5dLa5MWdTmKtV3URYNxqX3pEftf3fbca5rAyirAWUErQDQu3Qh7u9pEHrZQ0XZyiEX/hRTwdIfCE2GETMTrW3mPVo4LhsOLz4KF4GPaes5WN5pSs/36KbP30rCFG3L1cOGCoREtpKX2fZII+XAO5zVdeavFGS7nQVilmb7Ytq42e3ToPmbxX/0eYMbHD4VeuraRCG/BXbZ8NvCkUcmDrh2mirjjotqDxDiiMif8c/5hE5N1bjevFZ+lL6ZqELKeOddbfkPfl7eGMomeKiAjl1aik8jrTkU48wUVO3i2SjpfaiTQW15C0BlPn9KoqG0/uWiC6fu2XwK0N95HxsRFc0akYSb1Y85970kdDB41ui9nkJMc1y86J86RlCr0GA9BMc4oFmcxpybluWGOP5agpECOUUoE7QQQQyOpMfTbaI7248pt/JVziPqiSdxaka2O9SwaRz6wzHu/HoRJFM4nSPdeplnch0rhkJ0ztg2vh3+ExMBi4miAgCdCNsYdF/XeUf+sAnIYJEjWEek3PLeN21H+b4HGpt441TZ9OSGf/4gmcrjGNBa+VEtxVwJHGSCPwm0x34ISXAITvVvKd5D/uztQ0dkYsWikt1jYgoGeYmCKXDkgVota2CuRRAfJPXtUbLst/xVL5KlWEwqI3p+XeADYAgVcUuzpgf6uceywgMhGWfTAkDIzrAFAXYL91us9WxJ/Snd6RAkSzunQp58xhYfsEbBySOTOQSkB2DwOb1AfyPkagqk6OogY1SpYIEK1ANQT3ev3rB98UcDa3LCcPmw/w41J21jUk/6a4zu+D1r+Or5f6CPX0UvQNlZ3P6qvHQBffKhiyXB+9eCFq629ZSEOf47V9QD9hkgqbG3rnBSWlggy28CbkD/ItxiBPF4x8pTOS4siS1774jQDjI652WSkdnXnJ9k3BddVV7kdVkojg8HvKZkpXzZvLOveIa9Zd4hnRSuRdAxLoSdU9SPZRuKdibxcyoSC95f0kpwvC92kcHWTy1HwXBGo8esigIBb9a8aHqzgyYTKh9NnbyAF85G2J2ldeeyNvypMh8ew2Js8NC7D+yRY7yLO3a4iaaNK5alNR4lURYNFL5VBTrOTUZjRXHAPWKQwz8lr7GeSRYNX2h3oHBTWGWDuHZ2K/SzPKu95g8Pk4OYIKrn3Vusl8HanmDwj59wwzfa8U1MH2fMQK7xOP5WUj925X1CYUiNrwkTCRNvUNghwSmWFI+pdLPuf1aUHPTYuZgxlIphVM+D+nVD+G4m7AIOwhd0B/iepxFVA9L0HA+p6PYu7s/lX2soxOzmt1fWpvYi/ZDJwx44e5VK6WHsH/D6o/336K6+Bkpj0BlKHLl/Z7JMKqxchY9sklf4c3MJWrwkzz4Lm6oeVE7+Hdb86ZIJXjCYpQ06jHyBakPIb1YCuPISCBxMQkaQeK27dKXL13AKCqw47opN/fwFRQgXlHqNixdBp/WG7DOI2Q0YfjYDXAbzEpX2kiEhO44fNOpDakqRw8ajb/0KuD7IKbfuzCq41GXLFwiS75pr+6ovb+o86cPhugF7nQbFyi0DTbZ70Pf3zHEpx0rid4CWd+xklfn6P9c6uU+fc4gjKz2nJpD+DhDUM1RSi1UobCOblEkRwd8jpzd0gHVJ1CKMW8T0UAqyhoUq8EVT5f/81jAMF3HsqJfrOp5uB7ckomRse5il7Sg2WSFh+ouhaO1z89pnD8YPhfB6WIasJlo2kWfduLOtLhyXxGyzTmQSklWJ82+1sfcwEU61aON1H8rCcoZ82jukkIMgHTBIGOPh7xT1rImo9Gi+57bCTe0A0M5/7XfhN28UU31UQLnGXx9el83QipQQCcGPrRoC0GkNqltcGHGyE1XzI4UcsVcPPZEEtzlaAQGrP2nJWCt67eM+W9QkcmA4A5+afMw1Jt4njIS21DKEgt1rzHO8/HVArMagdEEvrsnkNadYiOhRPhCZ+C5nrzC2yXFVlzBG393HM4dHy2RgEeJR7k9F2ejfRQCVNmCevgwFARCI9EzOqm5zho8E66bxrGwPNKpfAR3Qq3KwjNMYFlaJz1/H3f9XxaTB+pR8FymivOPlwiWLx8Ypvu3L9Ek5P4w2nH8P43MrSwTkvhtrd5+nyaoI2W0p32KYr2rZh32rwylaIYjCj4XFJNVEOWZirFLsLJnLwMOzsQAEv7y765plTsQ3JlmbGwHzdPtz7ldTNRm01VgluS5EAtwzJLNztl+j5w3/REbVsE+Dd6M37qcfqKaijLKm15kTjs4B5OMF+vstdQw38c5Rjx7Y7D4K1nFvz5rR82V98Cdhztl3I+rlpIRKogSsDK8Y+t1xk1IMxnX0l1pFGUofTxN38cXHokQDir/EkPN60Y7BH9DbYRWnPm/PEl8EC7fVivPdNVc97Z5M49ItIWiRPu26CSdNoNxiAanl2pZoWlXWPnqp7k83E/9NwqA8UGzovdtcx4H2cOJUX84aiMHEdcCWOrQ4LHKNEPPRPK7dyjEnZD8CuRbKPSm6WEDOph3y8cbqHdWfMs7gV7CTyMux07682dZm1DPEH+Z7h+lOGhTSW5IdMHHTRJSJ/EzxdVBdzDioL+/ituNygDCYTUFn62vigMUYtXLEL3U+LHll6ioz5f28AUyayAScTi8+WkwRTzMykfPRdT2rdFsvHPrJBKpf66nbhH0ad0krnf56epHoYB+Ul7s/hzYzLZStUPs4Oz3E6/hxoWdvGUTt7PnDm3Dj8OcUEKNF5wR4K2XrTGYvyUMPXJlmdV8aF57ZZOOJxceeFwuMmITZXJl7PJmiQS/sMUGJU4PL6Oef0THL/dBPBbf2AD6+fJUN8UIdDCgp5xWIxamjWx9GSCZdfdoZkcL737O481O6viLR2IBnlbRp43E/kLNYAc0cAS19ygDpYQuM4YV7VC5VzPcEbBZJLplPlO1BQ7QTNhAZEPW+SUByPUIq64Xjj2CvwxoADbZsl7Nb0kUEgtQI6/PzoLenNs/evuCbg3kZF7X9Hai5HI84t3LiDz4Qi8UYeGwIyPrN8whoXL85xdaooeMIFMBmjDQ4iUVs6Fvkhr6r7yxgkWFS4WymQWao4Z9FhJZ2SEViveFQa7/xR2zComOD00D71Ju318XhaHh2XbPyQ0VJUEU/FWzLN5y20SRY3OtAwHUgl93VKHjoFbgjYvtEPpZkb2kNvQTToC7kFVrQeyYyGt5SYhAyAu2NatgPMUIuyXbIv9oeOOL9Ic3MO6ysdd4w8zexOJRVe4MhnWLtlv1eJbo5QU9sVnZ979i+0hEpT5GuvpvFYU/HCJGsP02Gayhprn+sQsqzf5kcj+0q7KhpveLPZWWJv9Avqe1hZFsrY6PiItySADuyEfR1L1W9VxBH2DPDrZ69KsIjsSAKhnkyEnJ+Z75rdEzSN5yVh/TSBMups8LBV7DpFGrahrq3+4tNGAaZzEhDo76qqjt1uLU4J2VMlbkooiR0wiLi28/Ti0zQClsEyG6WgcRC7gEcai5E00pFgZlAfdN0PAKe8FIbfzRZpXwhlaODHYaAKdY/40lC/H3IgbWVNkeRp5OQryGqY2zGognYk6bAvV5sDGQom6wR/igx3JhaymYSrHkRaW6hys36v2rkn8qnToMEhDbkPRdqLt/2SL+OXrAYLEvUKvBEoVw92mgsz6HqBIqFNgtkwyeCAoWvqXwmLNFZbSnV7jvPuDvmnQJ9ZgdDtY0hQpk2npDtBC9aPlxzfZZPopT0dCVsP9CIqLWnDvIcYoLJelHo1a6ms23eyzcxpIn8fjyZkHFBnvplhGZrqpf8NxBFci/6m8CCvBkZgSMYVCPB8rWGwpN9FjFOkbmO2aggsWo0nNnkG5WQDv2rA6jDplzaMnMV8xJ1rhnt+gwbr5gSINBTL6A4KHq8pp+HN8v9aae+GDloqzGa24hEVaQE959uQjkT0loEjceMOIO/SvmZMmoByg9SxqJdAEAfCdgeD+/ml5k4l6SiduMPH40pPaHUPWZkpZ7MyHqHWd4Fw1M0IA7kFsuXIUhciSbEsprGEUUpKVh+ifoJ31F4hakJ8AnCjIQh0jCFlsDeX8Vxa5026icK2Xdfor1eWqQ+9vkYDhyB6nBLomDWdVbq+F7W9PnBrjJNGf9RwrJoxUjpzpGNRf/M7q2rs1TXdrOGtlGQnjafa/cTL/4K1h7he+5zL37D0+omw+ieK1rPy+eD9O9uGnU/QdPLz0CrEwiGrGTHahuQY0NN0A7U54csKOnJ0tmlBlCzchFesTwUs+L22inGversJXilnH0dsQbSuljlDQw4ueCymwOaNtumooy5YAMkEXajCHOh+dLd3b6qtUZQ+/RfUOJR0hAPpxBc7/9+s+BheqeG9BGjDBIJR5GK6sgJxVki21rAkJK8zSPzG/Frn8vukGqeWhplsAK/2tQhvYfj5W/kUYczqvJltgY25Cdyt2UrhDUslyYqYgF4/hcrjB+cFhkahEznAPvFZAmrw7reJo63FeQuZHI+1wAajDQmJ1ca9/jrkL5WP400njuzovWty/R6UAgxlzdDYb2gHBTDUg3U9H0SzjCjDmZPoYvtA3uR3gKrXNmcoNte/GpxpHFeo99q77iaPQ4QUk+/RI4nkTrdxY0CBwBfkRTkwMvDFmqJvLUHGMzwTXYF71enhvqxnZMQddmy9vYvtvezHRGNXcXqEwulhcCOqNeckHDHAoRaJ0r2+PA4Ly03kja/Ny22wq5wYEaChiuKlZfmI5B44ZG1QflyDx6UgwrnAQtrAJskXEr1m3t6gs33zydrpx81QMtpvToG+GxidCuJ1Z4XbGr5d8jSHY0/k2e/A3Z2S6RbZu7hEdjoQoP+GDllg+pU87Y1aHEyRrRyjQQsuUGCcM71XStqZarfczKMQv3B6Y3bvdLTud3sFDl8qg8CuwscCLP0pYmdbj2Jct0snWdqAwXBP35Q6wtlpQqjATrgsiXgRP08R/H9x3DcSuM2+b5K7s9HhLHi/BsS2gWsNbN1CRIJBeP7AJ6L5s656JHq0cr974ZmPx5L+vEAYJFaw2Xr37Ro7d84abPu0EnEZl9FOXIU59Nm7jvCa14zXpE2+F+tMBeTgKIUcUKFd3QGI87P3SdRsg1VYx5dcCUMuDXueLeA2ABauarfvlHiwDoz1eFTB/IK/TBKugHiZhom75Ip3LemPWMWkbCIltJHGsZVJ25bXTQ6zNGz889J+IwXbdqQYiQm2Y995z0rW1JBw5pqzJu0uU9LeTKmIoD/9FvIiZ6UNNhg+K8P0b5dhCE+7P30lSi0mNwUniGorlXrflK2zdO+0kexX4Hw6lB6vCkHTRi56abdj4mqlAjyHF4eeDfwu5pKAxa/6Yv0y2/d6asDBEghleLSHvdqJTQt9ZMN7SQlPZHEdc3DT6RM5Hf01cijAQ+04PM1W2qbmEmeX7DMYgnymcFDe/9IlTbtm6dtZF2OL1D1JWSzY03s5I8DxkIhdEkjtENzHz+nSzy4dJDYBgWHsBl1ukPiimFJMome+QkwkeqacSfkYsp6ZYKvS+RIS0RaGtfVX3UGOYp3CsmkESglWn1/6G8nSI8Av3E5dLtN/b+x3+2wwzIsFu7esQ73HbMJJ+jexbxA2c18+bTqL82MhyIf0ZXAQEe6b4MVtvPfM3upid4aupIIHEy0/nDC4lTbQCNC/drTPo+VrTpqg09KF/iwyunW1E48efWB7rAT9QbJFrdM+cOSZ+s1BXo8oTlYX9B65ZGY7zlzPOh8EFHgrn897oWhGMVLraZ1G/2lTFwD3SNqv4UcU+XsY0X8+a/ZAf88QbnHgY+W4M9bj61aNZ5JzpcAwh2wSZsu6OroLzGGo6vRd7+/bqpN7np+HJ9ES0sOYM3epRyY69nvKkLiZXA8I9e0qfONEptMeGSMjp6HVUD0xVrjhVViz53lCBuR93pHFWE55kZSMuSi9UyIQvxg0+p4nPdEXcgJmVtR2uJHieP72aIbvZsDW0QJGnCyre4rVnAryWeWoGovUcCmKsbW8LPVUuPfvGN+SrbtV90R0yArJJwIquuq9kNIfd8ToMge3l+9EeWTe1Ud+ckI6IzfC29Jv9MGWteENFDYCaI+Ulhh9ypwGpIUM5juMLabvnI6j4zJYb/HLEeniefTH7YNbavjx5EHZFwLOogxnKFSXiDrgrxVydE+REN6vl7e5uDV1sSzt3BaZHoGyfCx90iEX8VTOyfiCb0/wr10YqnlXdwrnIWo+ROu5zHoPd1dhc+9aseKOjbXLfr1Eeu4z52ZXcc6ilv3tnOE20bPjicpuPLQxXgflmksQg5XmoxBAspqLIDScGaYCDW0v4/nnGkcV9dwIr0MDij8NfcxNm2TnY3Dia3i4ylAC+sK6lrc8JAhb7WaOTbhLUXPI+67rl9HVEsBaMkAYFJZ9SmkWFdhp/wiwVON3Xj0t+BRbc4X96wt9kEmbBIuQbVRjlYCh1JE3OB2e0Eb/UUPiD7+IQtEiJwGkKWUk1ubI1b0Kd9r/Ayw91U49j4Z0skdmj/xdk9FwnKdPfLJHGGAG6fUfNjVdVlvtciCYJZ9tH2WJTvp00pSqcFgG5Pd9wpjNpY4H+OKdZbLgDbRfRO0NfsTZWEeHUM80IaLAZcVa6n8L1dL5y68n+LuecS4/2izYjQwlbU7lla61NS9tu/ejakeW3CkupwFKhpSlHP/MDrDCQ6ljDia4WYwsY3X+5M8Df6+8xJ7F978iAkXQboHv6f9qahGAH8rlAnsiMGppu6yQT7Nycxbx/RUeAu/qMntPerFL6aZCAVJo9/vKV0uGNqpkXTwR2Cjj+Ial1C86VoSOe/iobkN9ImXoVR4U/Uh9SEetEtNm3qFGOmYVgqc+Xy1VGZ5ZSd0jZqK+xxu+6nSQAZwpgU+nNJnRgzCozguWZ5YgKjl4Uz/iqfc4xGnN6IPqcZKmMWvJnJjFRJ7uDoB+f2FJx57B+pX8MfQPymztnHZ84XHc5OepQ69YyS+y2qSjSjwB9tLUjK8oxFQy0HUcIeMO5hJqjA8OGXnK/rtoHVctLaNwWDAbW7bj8wlgGbDMiVGoJTF/dhbibJca49/4a06yti0YvEIEt6hfdmMbcUZnfjdk5BJsKaT0Xp6GkXwJ9zSg4/tiF6ViHLEN62gImMcXvu0iiYOr1OeZDBIdU1F6ZhcqwZpqvwsQdPARr43AHxSAie5QN/C1H1rIjQTZryRsi5tOyHrUKXAYebuZPaIoPp+wIQY8hoocRXh2DC3YaEplfn/AARk9tX23q72z4dm6GKuxhUawZnsC6CLQ/t5KAIEaMD8oeqj/ylW6EjJYCCZ7rHGahxk85qSzq/TEqtiS9pBjWkSbdJZPuBuWpbqwhQ/WQWduiT1JhR4SNGtFJwUcIx1KOzW64PiCSzUr9xOTtmX7F9G8lWMARbln2kwv9Od6yA/3h/VNGMxtZZKCwS+5XRxMsrvn3VPpTo2PJ4tmiNsllP/pHBUKc13HIM0yYjq2GOqVjhoRFMeWeiGlom2FX/J05MfHcnILmx97tS98UyPPzG+huodFrl82rqoyB7jD8kQ8iwKPS92BWBp87EX3Ki0TjNvbGhJFG8VkYpw6iTWcvZo7OUOLi2GamZRia0XVyOslC1jS4RvEinPZU8SBLNJFv/pbYU/AMe4JQtp6DdxHyJWdp5JZ5y7AE6eJ+cpps/el1tuJalZqdGI5LaQfOFEyEe4m+psQPLlIX4fzaLSf4ay4vD7tF0Jbk/1veIv6Bf/LAzjHgpcJ+RnPio9PmrL6j5hI/VXKj4t0Uiix2Y/kYFQiPfwMr9Eo6qZykWInlQqf9B7TwMCGoW9OVnJN2X4FDJ6+rFc+Gpj1DryovDP2mdbHR3DqW3wGJqj5DAuuAwm7drTbw6iZFoLyxtqaaJbcUWikbBANUKMK0fbbzL3x3ou1YpI3j2fKDZFgR2LweDbTqBkoKlk/axLQCO5bHFxMoTl3OfjRCX8nvZWbgZaUJeTHGvtqskpJkjx93AwWoWf5nwQ+bn0OkBclRXxLPhwQeU42wqwW7RgO3yLTtLRkBpcun/fDb22E4jpqisGcskOXIbXl/XII3TMXwBc0wB0QLpRJ7uJjedMQr6Nl0mzAEd0NuYgHuawa1SZ0cA4wpBVpS9wc7Ap5hbUkFcv/pPR/kWbLh3h5s2uzrrQv4SPZXAIJxYcR4jT8boAt3gQgEh1inJlksIB3txWg/M/oEPqqRm77AWjQs86oQh0heggLVHNdqBj2X903yXbjCinFffPcxhvfvHLQqRtWwzspozXP1bEadfK8+F5tHnWUZiu52aq6kZOzQUBn43y5mcryRqfd1LWdTvy+/BEIdur6FZ9F73KzPEJFoNgkN0MBl+Rm/B4+wG4dV5wh87Dtwak1fi3AYneQrmF+YkddzJPU/JBjWhCOMeHlP+eAlTbAvx+98GmbScNliVwIyVPHrnb/c4rr6vKnqXEZHTIAuhLf2yG9cJ1vGrwuW8LOTxndVUV9YHbenBhFg7mVl1Afl66dxCnjcQxfUQA/lYNQZMSNvcgPvFF8adybhLlUBuCL69+o4dK0hs8WO8BhwnunlY2X2L1ipPUcfyc3H5pwtGpJ+UbRFean8cunUsaVS7OD3LnGKz07GUgCpz94Hy47/LRy8pGtLHly5/RfODVN1V8t3ZDiEKyJYMScV1eOzbFaPp8hb57ePfmhH9CCzXkNQEOhSb4WzfJJ+yJu/5IKeNbJTdTVESENBBZjE+z5d3SZzeOPbHucbJ51YjQDRTPBHws3CndcuHArwj3Yso1gpxeHtKaOXlfe90vXsXZJhoPx9+Ded1puqRDhYp7aggPLdlSI6QWUitSCUwaqUfcwwL27qFCKHTIjpen+/Ty0CvjF6vvgTMbej4pmHYUCc/wvJ+opEJmkHgJ6OSJDoAiGMKsLaNt3sdrSLk4/MCqo/Q5HnvfBBW98QD7KH8yrm2pDA/CExpt0IrmPlLuU0LbLHAJ1ozDkzlGGVYafYVBRzyWnWEBsOT+q9NhLsHTgZO7EIfEvRqeO4SJUklNhGEn53MuuapiyHdNkpT79cX4x4WPWfjE4hpUqVzZ5s/zoX89jPqLEaBy44YP12o46BvFR3vfHaVAbVNtC7We+gSx7zimRpqWZdb8VyP/3BoS4xpb/rBcfmEVuCWD4aaRYHlIKbDwtC/ZlCIoOHGBHlH5DZDXYdfVFSlFoiLs+KC7Eu1XwOtOZqbysR3MnK2ybXSH9ZFbthKZXLd6c4U3E/l8deUdVWRZTeCojBdg5XnbkT0itXW05kv2lUWHzky3QP9LhEQ97MT25CuMaRUKfaqVkmcs/paCUSqdjMee+dwkcPKhOKTF5GEWf2whMgXKs7SWE9MTHL9S/KwQojO+cpEL4QpgOqxS5sENTkBnHTBqBrDTRwn+tsHoE6Af6ND9a3j/hV3BQG4ZNs3coIUpQcOOOTc4OH5nG5XM+IH9Tn6TSqgWFXgm7v8MykkYGMuO7C10Ce+iC13BpWUYuomydTECwPWh8cUK2RIxXi4yEur56ucgujrwqNsn6gZtSeHaBIdZba8hCbLsC1qRsuHa14QnfvfiyJGi5/M2TGk1QYXoqRmjF/u5BGKtTV0ONVea5RYKLGergMv0ivu5tyyfkqkfynV4tr64cdfa9dPbZY3NGwrqJXymB0cIbyPmtHst5Ew4kjTu40i+W15Q3uR4iu4/v6mcp1CVHGH4gsO/J/gzDsdL1MuyifEi9UHwjTlIrHyEIVjZjjawCmxxlH9bqRknbkrb3VFcaLnLUSYUaGH43MF8f06ii5emXmTnd+VlM1fCUa6vgESQORyfGd0UvYXs6pUIeXnIK3XxDouI/FkCqgrkVfMHrlICAEtkEknR7anHm6/9XNTcfDqQBgb90UigJUyjvtPXjXgKM99TH5rUTakOiYntLYnIL9kAFEj7/AewtL7m9ZSd/dirfddMsv0dqT1e7wh4fY/hShjhtXfJOKEPfNBwqMFCwdcHsMveoCQh0m0VM90WdTGAsACfqRZEicy1vyZ2ekH8FTMcdWHE4Axx1wfkWxJ09CFbSpauiixtz+v4UaX831EkB7yUpbLE/3tw2PndglAhi7yn+ZR+Ms+B5nADxXVqN6BelcrLWUIFSYhhATRV7xBr75wLPTFz5l6yV/133EBb9KuI0NWvyPtm3cdj+awjmNZloH62AlOhHg83G9NS7Va5NIv8KL0c37PErlvceMJPKPJxwIkuiM6006dex5GCsrPP9kiHvhQcjFeQ3eMZutOiJ/Aj5CAij51FqsHavIDCbIyWoMtFr1SViXsY52qEOj0Chs5MhGrUFFkty46WkSJY/wi+48cGdYuJC7AbAuqbu1muQP/FR1zeCRFai8PJGZcfK7kVOFR5tPryBwXvXLtGw7Ygdp2iZd7+eHCLPu84W0LECEWuc7UgfvDgkbMfnQUm0xPwC7vBd1CYh/uG2Y8PwNFg7SvGd/j7PaBDLFGF4XabXrtzi80PP9Ax/8BqDxRtDp1dds6XjeHuu1pRNTe0yQbrXBhtC6d2/CiDnIgVek0s9KlNlBks54U/V4bvAUqj+6kw8njMP2V1/HgPDzPkMCoSsgPeaq/gRtEvgKBmIQYzXA0wGIaAFQcf7F7XkYwE+/Gdy4Ptb0DsZkM8gB48bs6Yh9ROadwpjYdozeP9XIy/K0xXTnZM0+fqGkHbX36I4vQA7lyCvf1M7KYKzgRrcpzl8JpGo4zjufShwSXiWjwzHJSGksyKzwkGKxJTZjZ5Zr6C+Zoyhyy2iQI/O3by4fQGa9TaLgJY6dpI48/OuUcJcgIIo8o4mV7KF4J038+2T+/0X1X0Dm4N4FxQ3BbiaX5+iorgOXE2XBVpuVltJUVAM5m7M3/8UrCRwJjYWHUhk6axr9v1inUzGvZGVztwV5vsSZ22nn5yu0+0Sy2IIEsXxa3yTNOTqkpCwRcK0ZTFAKQSr5kIRxEMEm/pFDyC66/a9uHAiXI0DwvSl1Zt7uDn74/D8xi5s+D5BBFZD4kczuOEFrCHYEZ1zEpttN8n90Icl1dpWhQORVszdSVhzr9jCEF9istjUVEYL6h+Qp5Hnnk46PV/ZyjlFgF7rB3+3p3xDoSk7JqNMEWOdc4YCuPCdLBJsDKgGb5fdsN4b0MWwGUxvGj1Nihjv2qYV3wbNVjjvbkL8U0StgiARIeY+S9nY+8+NS5Ez41+k6fYuCeHtkOk4hO2mBNA4pswsZsYuqimDO1V9UxIeoOdEN/JmCwrhzfCzf7HVG8Vc6gQaAaf0gFJ0cwhtQ6UNrzxtWOpv2NZwaPNMOiW0fWzbPMMYJqqHVIbFefBTehqS3qqbTaa3P+telCOmzOjzlMTZXTVbm09F5+pwaq7A+K304a+vZJ+sSmNlrXgf36Dqb3YDpAUqBgMMslWL3Agml7/h2NaY8f/c4EUJWtkFU0fjdp0dTD9EN3qLt5XKITFIx1Ly4fVBqVzvIrrNut6rsNj4HO5jmmgTeHFeDkVHJoNg5EKMtDf8xZ0zYcRbX/kiLB07kDGD9f3kNWaeQHqQ3GbXARxewI5IaoG6ajDBImJ8ZmnI9s0UOKWKmrbD/72ClEXAadTp7rLbaYuqiT4ZOhdGHYje6OzXPGdKsfG/lP5Hm6dkdsaa1dEzYUrIw/5hRUCY6Zl5OlaaF89m28U16sMlU5xA/cjWgZZ33mwca+/EiKJjrA79+XdZrvP8TivAY7IAmPAQo5ofejpinfS32AOWZ+isziKZYQA6/GekWg6/JYM5RTl/jN1oJjGrDvGLCrLXFBOFBOTWew8hfzFy7kc9eXFAhiuqUxLTpWvjs+bhPERJK0Ba+jJgVPE7JZF8jk0UdvcNuzSVMjBuIPqCiXAJ2nzxPcrSX+zA533bYJAJuCdM8bSiO3BXKTsGfrgWxYo7A7CrQiGGx6+FiXhzyqWnTB4sQMaE9Wt1lqE8jYxOKpZgOA9WAsepXT5lUWS3/MmXBjdb6T0R0yCkGnQ7yHb3u9syGReylPReNFNSdqyNgc7EnkC7VeWDqnuYMeqtGoJ1+kOfzX+QKtfv17PEpFruWtPFrUoI7vDL1o09PAPVw4rTZRXe5Ss/dSvwju7O4MbYlhPld0+FeyLsCzLzPpGAfZ+lE24sCj4cNgktPZ7HAXdkuX9Minp4cQNMbnZS01lczoITpdGdO779kpPK1du/RHvYbxPMjYwnSCE0CADkmCb/5Ws4Z0OVWX4nH3/zR6pT+Ur8YVrqVV9TqSysEB/hldaOvdRUytamOIJ4TrwyLLQp+HeEA15R0EH/aY21EuVCa0rZa+4ZN/j/D4xkd7Y3FeFT3Z/9fonay+48/NOGbKZFHk7lUSwq+RU0VWFbZbHWTaDIScNk3NuDW5At6HUSn+RsQBlnK39JZptSVaRXfrUquzO+Gp9Kju4ndg8EdBRNB/zsNE6tSkO6EOORbKrFC0TTd5XW3xJsBz5qGfDjCiKXxorIv6rzox+FrMzhXiM3Mz5KJKvDXdLyUNE6okRS1JfmVxJH4z2KD39Q0Njq94VY21uc2QFnu+UIcVjy5k/Tt2AuCGi0tRUIgrJsRDeuivXmobSaD9hhSHZHTiP3TM6jtr4mFfOtMOyLm/FRJZh88TnNNCSHlf0pnLbyRmfTOhCq8w0ZjXTfxGMJz1kBjZ5hWaKgRO79ovaX42H9J+1nWcMT2Zwungmy35qdqztDbO8cgF3Q6kA1jCAWFcYRAcPUYaksqy1fROmQvpDXDj0h+BzgMNfkycSImdRWXe5TyQ760eW858KI1TnrH/Zne06XRrQNgqYOfNq/A1LJ6Y6TjelEMSWZAwC758xfgZzkI30v0g+thpEl6yGJ71xlbYgrgTvkcocvG3KrLIPG++IF2iW14SNPEOF4HFSAfUdQ6xZtAFKXNg8ORwp0uoXTA/XHcj6QKhKCnZmz+8N+ModDwS15Nau0ega+OeLUk6r3rx9WmusXiXZtYhrWuG/flavllWbb9nQ4vckrTnUSZthNpmElAbctLNw7vxDwIfKpMyMEPQCHTRCcRbSCIKddcGQGFBnVnNb+1/TZmIE/9ZMWFUzsKLk8TBDxTGePf1gAFL+mV37MhetVlDXHz+37YgpaqZptQa3YpPTAjM5PskXc6NHyUYRRJ4loHA4218QwL9p2vQVWfHRt3xn3MfRvnK2aloc51jQ6wV2RvAhZS9SPj2nvvtJaqVoN6/1V3/e137vP5Ona+LbNSKPhXQyP37x9TccSqFyEXrBX7A+GKuxDOFbMPDPDWGcrF4UuAwV8ZsQh+BAZivld0Ql9rD6j+XZZi8qf4lh/Wn8lj7BzH3ANM2bQwD64pK/cnNPoyUyDPAhII+m8NFdyrEf9mzgcUgRBXxtLDXySlQDP4cImKwgc4e/jnagFJo6O4k7NCkVqo7lZeGAC3J4WCWOtaA+mDx7n3NcPYzBy3LYKnNI7BJsXqlbw4Hthf94bIop7ykPQDe/Z4YMibXRAnXCOmd8aLcp78vngOTnMSRGXmwHvGJtdKzn35c/w4vnlYLR4vJ8veGMtbT0j5sF9We24EY1x/sJK3yhwbEx1Q34dybAGw5llBW/izhC1efJ1LgksMs85t8EfMbZeugi+XE+Hf+T6tyeCDOv7nFOqW8oZnWEMDGIPuV+Dyqu1Lp9svbKqXMHyzT/D3YC1in5VUw3E1NqvzX/a+ZADyvZSFPgjLHWoO9jYtPxA4VE3osH4dmK/4zXruh1tIJ3f0Q6BFdfc1A5ffZGYq1n6qeBLTFcWEZrFBNGAAaKiYKJsBy8ZCc7mkSHYPek2rozvGTdOPG2Ct0yXmeAH1oLVGjluC8sgurldsuqgpW+NLXJfQDUWXbl48L79n+gNwAJ3isBsLHCjX1mw7ueQEUGOKdIc9sAyn4LKPzcyMa0DtgR4Wd59w0DrKfdM/DhIVZLUbZbzi/dEgKI9NaQszo4UhSETwEWusY47P+NCEsoIc6MnmRZh8FoqCyLNvlOP8D6TIcGtTLt3QOEeZTmQ+rYqYV8Sn9QRpSOAiOhjvlBMaAFac8LpPIjwGgF8FXWu23O+l53lxoGt04gmVYjJRxBNv3LLy0HsHWu1Ql6SscERWfmKP3+yVc/fl2AcUjVsW7WHzfPPw2frSOmFm4LH+smsWasrMhusEHHOQIkzb+At1LXWLqx3dufFSn4ZehZ4G2x6tRX5BcTIBLXohClamGZU2aaEN4+RXV3S7NLBgxU987coF1W0XkMDip7VL6vkfWsifGZVs7BykIGc8C87m+U5plZOJvBHnPSv5N2ShiZb2JJo4ECv4hnaGVZGUe6wPxlvjAqjGdu1sfluiQAD0Wz0hQ9a0TqS7zepvodaRdmMoShmZd7kucanTvki7kXqxuzHqPiNLxB3UkY6FRY4sm+fa+VABGuk1bqROTt7bwyJs/GC4TJ6CCTG6DC3WcXThM7S16T7vMLjCNRLCN4AAv4Zsce08QXKniBP6nGluWz1gOM3Tebc5UgPy0U3s/1waHni3xM7Ww81JRUTL4bsjskk3MrLptQ01BlxT47vrf+yAMM5XlrUhEg+WOtSItodlO1N/8FB/vIwtr7QlvLDUySb3h6gcmo5nz8lQ+MuL+2/zItLwybDnTjYmkv++IY2c2u/A7K6QLFYsDfY1mKExlN92xJfTUtBocD1dl1DO85BCkjMHkXj86NKEaWFUD+pj+2eODTd9Nvd3coes+wBBEV+mQm2/jIu8tIPmY9zLhj2Hiwun7vxehw26mFpZKZf6yhbkR/pfgdqgl4OxIglxGF0vLTWXZv4Rwihn0e7E6hvjg190lkxHXHM9vzwXFJnaWlxoHgfST2dF0HzxEMa9XJqkPSiXnwGvep2m94AOO+vi7YJz8PNMLVk+E/YvOs3PUZOTUxmUe5kZ0k+9zN24vNaXbrnjs7F+tDUrNYWhcp1T+qARZ/vr4A1pyPOSHPvG66MCz4fweFVxWN53PI3sCaRe6TWTePpsfrwZg/tep93DrXTrgyeZ+IetaPTiw8TXhryeSQALkO6io4ym6NG5Y8ZLcLuK4sxUO+2OC2aZcBsuh1qH/vaNJNLk4wXqa3OnAcDEPuFQtmzVSCGZGnVAxwytDjAWBmESE0oP5/lrXReNDHb2pD9gJKIhHTnJf5qsrwR5cssGbC4cYMCj+Op2ztaMpAC8FiiDT8pw3XJNGa+p7OmebBGd2s6/yMWtbVVfhtGXoJVzGqMmM6ElLj9oHxmEK8HCMI0IvJ4ezruurKf7x+JRGzJyHwsXximRRQissizMewLgt98taxuplJrxwvczGUsjjKZyc/Q9gKXhsXnehvQbpdgg0+CwwGsXF8VS606HGOBfzhJK9Tp3ZP3S4W49lB2c+mmgEXQyWWzaqTwuQiPDpir/3S2Ife7BQ1xIsY9DFYThkKY2SLgE9Jnbu4CyJ2+mMDxYYJrqO3QJysvupZWn6vDw2Rur7xwhV6LX0DqUdpX2FRfZYMX6x8RzIcOozWHaxsFyohuB/eWD7ncF65tYxqjz0rCjE7o+Dug/xe1aHx700D9B9//93MINJg+mu8pR04CGol6EwDZ04hzq7SVfn3in4RS1wo8ZbqJXtGDPR8MysggXbVDBSHmu6rfd9TKPrMu2bl6gYp1UHaqgMYpqMMJ4+fp/jOMjz/w/Quo4ltPPY/9oeuleSegfRV7QycZKxWw+/9Nvlua2gmPta1Vw5G/rz7HgKg5NK7NBLKJGUBogWe+8sX/Myj/vLsENp1Cdi7oE0UOyNILhxPvZhWMcBGbB5ZYYTwTjG3n+LF6d8afnZF2rRinPXo24mtZz/wNlPE9hNgGqIJyCqsY2pCp7uKh8NljYTWbpwEb1jmHTmwGQZi4nXb4/I1qtV0a6VSBYeLXwIzWZcV0uo1XLoWRrSYw0olWcOjPCZ99sBVspIjlg8qRr0UKAlb1BahHFOFA6e1Xn9QgMfK38MSPjhJSJpCArmico7QMK6RR6WKkBohKP/NZ8TwFxE/XfaqpfFa6Je4c07bSJZtwH8sE/gxilH5OXlheL5TIRS0NIFGCUkKt83Agm3ijr4g7KzZBd6zYC0sEf9sUTQ2QESxzC1xp2Dev8aVjhL9Z/GiCEjWWLKjaV/mlB7SGhlxl1Ihn/5fTBcrCtr9Y381Ho3Q2GgKv4Pejugd2/XygvNz2UY2gDB+h3sSHKBqT/CXjfaZHvW+ZaymYvYmZp2BrMpDllVXmwo7If2Gj2VijaREQmWShOK83BS3KmWj7MKTZxGZorAq4GDf0b5O0xz75gDY508mZivbHf7Q9Lhjiv2ByhqvN/9rMcuSJqNXWOTw3dDqyT7L75Svb/JSqgnBx7qoSgRGKAjLx5hwndkZn+u4dOpnL9jNKMwqdVP5Z2aOm3kkJN2NJLljR9x2ODQ4QG1Mfkn7ZFScXqbF/otnlBjg2b7urV1LWpK772ZR0LJXQIfQp9ggPI6UsDFoZ1V1DYSzngt14mSMUmOJY8WeRiY42pYCqMfA3gXq8LyL+NoWCIoq70eCrV/D+Yn+FgS5HfzgC/trYpgG8XteSJnvSN9NtrI0FyGQXNjFryhyXkOrKu2Mdp+tITpiELFeAbm1hfpMHNbDNVZszDA4EYQjjywhbSLJmWDcVMrYzEnRkNYref8whFoRqtlUQJe20Ds5lMm9RyCzu6N/axEC18/dTwG7qSQAUnHm+T9bdHpK5q8F6gYSf1V4eL98bMJP8Px43g339HruzQjSzKloLVC+S2PedN4QXhMLw7Fen4ezOJlDuZedMzmvYaac3CgcAZ8u5umq7rhZwZWd22OdU8GUiJhR8Lj3ooilUcWObEzZrXTSESYK62HZaNvX+Xj8ewN432Jwq1HRyhWXaWQXarZ4pUQhSaSS4RtgZzOGbSHjmM7YgXzcaBes2UJJJb659/QUSuEbNWCFnmdqpHRPtmBWFbufBog2ipl4uase+gowilZFl+mUlOL0OEQJhopQYutM4FL70QEBFElYg9SFEBVN4pU+cx+GjTGhzx7J/xVeOpqcHXAC7v8PVe7EXyA/k4q3m/KAGAa8Lrqxyh7qdVofVIcl6NkomcY3uUaNpxwIRA4wokBn7Gw/l8/DbWjLQ5+OTTR/M29z79UN8fd/yDslR4ANq/79RpAHNsuNxxUpr2HvBv4bu0WmEYHz7LhKtxhI+196PPQcR41rwy35DtBazX7WeSjNYAq3tjI/+/7cM9v/AAHMv/SVMewbjyaA/gTjQpyweNN0xhK77siITsCyO8gTzGKmhfGp0vYNlyv6Qnlq+GgJA/LAp2X/Z6EoBhXR8eMUCBnW0LR+hDkVyFbxn83/M+ITY3wYmt3o9+iw9F66LZuOQSbKxsghToad/AlgMzHsKXjazGt/u1X1Gat2Ttv0x6EFUei4IsWpXx0gpsAusqvHjjhlXB4koP+jMFcC9ND745jsZc7jXNBusm/lApbpVoYJyDhQ4FO4HwKHkGndBa7PaVHmfzjSqumI/nqB48c/ZMmHD+D4GS5+06Mfu2kRKDWEX7WRgg1wygqZRGcXJ0ADOzefT/7m66lYcqZUmvtYr5hWk9ugZJaGy/S6L6Z8DmJIdsGYgVsN26KZxOZMHhBjXXbe3caM/j5XUwmeA4D+IrXlvMDaZnKR+nY7UY1vsRKuB5968u021/KjbbIwpFYtOUNnXPcvfWnfXtSF26rmKffxhKvgTnnK9KSoXDvGLWZl6bzdpMZD+XfU+gQuVc24yiqQbXjh+0xnHsKjOROM+j9BakCrPkeX54W+gw1iSjTBXt1tD6WPuBVaEmeWONiLGcSc/cCSVH6duGld5a/Aauml9BXdR/Iq/J6C2iQOOkBD8BS3uwHIuEdcsJHSE4B+AySx82dGbsvN6X9TMSx07r67Vsal/FZZKGOoowrm+t2uJ2+dYrylk9lvB3EAnFJ5wwML/Rz3vPZX07h1ZpUpjRaHbyvOb1jqOsWr1S6/hMqvXO+BzhSKvs8P+dnjMxvCwX3Mr8LWIqcsHCOI/jmEAFofBkqn2AqrR+hWs7IGf9Lvr3BuVm2Kp+EeeSn0qMA0Lyk8KPYRzPC5Qm1lWXlCkPDV4FqOI6T3QXv8/ASp+Uf9HB4u4IbL50jdDAIqevb6anDbQC9lLaaulAWYYfsAbFdTCmOt6oyFiBMiG8zBDwqbNCxiJczN4BcFyrhlRMNTprpEJ9QgyexmXK65//pN7XlM+hMQ+LH0bxtqxbT97asb/9fBt5ukdoSAEqwrQ1Jq2oauVSvlyh0LWeRWhUL4Daj/SzOHjFartvQ90RwOJQs5gr0rBM01CqCILGGocvHpe3OqWYxagrdSz8RM7p5Vj7mwfA5aoQig2Lh8Ie3qnVdzofF1s33fV1vJ9mtTmycLxwOkuI+wY+Bj3VYpwaQvnUC4kq4jEZxitCLMSHgpNIrQa/HAi2apUM4k9tstegx6CknMQxxFAD1iuKQZKABPMZPPeyNGZuInTSdwKgnrL2hsdcTWkkmsoUMoZSTTxoFxXQ1v+LCeG/bFZB4fqC4g8+9vFXZ7bZT5d48BqNNjtaFtP4liRiyHxTTEV68PbBPYElzybXIuzOLnFHJx1G9CnaWkhoCY28hJqCmZgGpj10Cm+kmC2DD0pCc7+LsGRwx5SjhC9AGuBIz4KPrzpFUiDCtNMPGCycEBC0TKwqH6RAE4uSa3HfE4VfnE7zn2r1BNqZBHwenIxeF6++4mlskArM0qFvNIcIUkvEb50bg9K2pNKYWTwebZusZ6SZwP3T5wYuZHi7uD39KLhhDhSeEwM2SKAkG6Ujks6rUUUuSsebMACYtKs4DQXfTohPMc8zTy/B6jlUXMJO7FMtUEsfXEnaKTMOcv6N6AiHMu4U5p64eqjugDbXBARwvAoCJdeWPqBuxmNU/v7ylvJDuWXJe9ukxH1xsdbGSk4+CSFosNE/7JYwlFUZPsoMduoMD8sE82CiadwyU/scxJ1J9bBNpYdCA9TidhxaoQhHMLMgKIUU3C7DMC6x938onO19LkSAktDN6lXf4BSsljbtkFSdGMBhXj59B/nqSKrv3d/z+SEesXwi27KTd0Zt60koJSSLXBFKjStnafwRaNkWXSy5Im9tc0NGZSpyN13G6bJ9ACTZXnECd3KN3fRIGUK6xkNovCDt00z0Zv+9bifJdNDTQ9TQW8IwrrWNQgRyQ+RcuCU1DppsL4fED6rkRJJ1dGGNmlex1PaEZeDkM0F9Xa4L1kR7U1HpRazvVzfwT8q9PqGluwLZwRN0R5Y66n73M4etFLHSLekp9egpx3twctLwFAeM1tnYvV/uwedD+0ienhoeoriYxDZDTLFzD4+g+rkMY3RlJIE8PeptS0X55gB3bdtPOND9A+AB1pS1rkeHeEl/pGHsZWuvsP73cqMO8AwRytBmhq+bSMbpZv9UlU6tQatEcyVutSp3ApMGpR27ZJH7PGZvZKAaCHspWw+zLjazeXymUdD3EfTOzuRxS/jOcjCiWIl0szWTTC/10B66PYHou+1ThJcyBopPzT+YEG5xwufEZypx73RnFGmvo5dyrmJEWmhMQ3P31a5b281E4xrMLMAEplNoVxDiYzIf8J4049A42fiqWSKdfLvkH7takoxHCFIfE7M5iGgTfHi+SWZNIgW1b46wvQce+P06P2mzOlcE51xntCgW/C+0ZUrCmYamo6qGd4PIS495Ojkj86IQ3FT9KFTyA/T40rsW4nrEQ2p00iM7UfbWGKJ4nV+j8bPz4lhsq3fy27xkJg139fkQh2dWhqqVyxbsaHIl2HzQe6U5+4g2fWOS8/HoepqYDm7XmhShP57NE2r4e+LmSZI/q1v7LerGLqb+sW4D++Hm090VdsBgLb6EZKgxQAaTFYIndZkAjyEhakMhq6A7aC/MuX6Hqyz1GMuQ8mQd3kKX6QMIew+oCf6SerZIUC4FLkxM0KP0x3VVPm3bx9YBDREU71ONyCzVCWFx4PwkFZnKRmR0cj+cwGJI39CnixGIJyUbfSyl/OZhxhbX5cLDY1CC/VFDv8v6XMg7JcFZOiEZq1PZ0QYaDfXx2VELyWrFc3OPv3QMVquBmRO6rMLPL9MnEd3BQCfJpUAKbVQamqaVUtgkbABiYACV8W5b0AaxKHYbzx0nK70d45IX41oKcqZq29NRTHP7me8spXYzTHQw72PwnDpC2k6Sd589haeTg2jMPCD9hHV2qBWtWhXk2xCTynjVMrrqEOkkYAJn+7SDSiOd8yRftppPeCso8I1JjC5UM8BqbvFHCC2mVupA5Y3ewJDidr8xXmj+X56kYSSyF5Df4D0gqJMzfQigIctp6vkUSxtt61Tf46leL/7uP99xWeUhfpSM52eYVfK5cgrDuQDxxor3wjyWPVDGrMTJmtSKsYvBPfgTxFcfZol9QV9eTZYDv10uAcgK80fnjwHhqnurh/sT7d+v/vZKBtwxXXnzfQYMkhAKFwexBlbczMimuPUewKT+cjv2fggmvmUcXl5j+vFdavF5znj032MH+i/z2AbRbmqLuLHpmpRD/px2rPlyhk0H2eOGZUrXwMAhP2xHHNU2cRW6ZLGEdjsUpMP3/UftdO9zeaN8O20o31GvEsZo/vfWixXPRyOdhbCpa7v/ZG5nCFChTYB/34vu3apJY44YB3nIxT+RxF8owooYRe9QUYX9nZ9Yo569MECLYllCUagKvKR+RfOie26uCm+E3BcKH2u6mIOoaklSAKmCFPgdmipoRozhes7rFtqSSOA3irVs3eliSg5wd2IJUaRr+APwFFqHKRZm9UgZGBPU3/LaGv+wlGPOLinVefelWtEVSsqjLMzX4S/tYmXgbszvvNlU8lblZwtihf9oNxzS4AHjLVS2wMAu9b+TmE3bXng6/kmGaq2VYFwtttYVGn5CvcKslrWl+JVLZrW7FzU9AV+MS3jSaXYcMv8hiEhdrXQadQtcbLIjBGRwIiSLKLnmRPPJNXj3/M4OjtR/GaORhHqSpV74vgbhBHtW1CCTcjh/mQISPdl7Oct7OQ0WnidgilKnbeMLB0RomatqBjFGxAEg00f/Kzw1vOEKp4dQZn1r4akhKO0sNjSGMUTY07exnyxApSRznVHJMyZ4FY4KmDny9f6fySzZjvI5ffk1t8RADmq42j7LsDSJAOIBbuc0fcweZe7lSE7yNRr7y9gXC6H7wMc3YmXyi9xZNFNrKTdoLXswQUA7DO0sJlw6rdwaNA1lEGgkRxsLmMblSAPpIkdglFijgfqYm0kpZb+cAwGJfrFNRKi9Rxtl+q37zWU7Bz245dXgnlte8LxCdTT0rjSEXteRdmFRvqgRvg37h9MMD9SIQS1U1pC8BucSAtnA6DWZR8XTVdxzuiIo/M/Cc4w+zc5pWrQpGErtkJK4m0QCPNg6aHcqP5R/hkadiYmIUuiojrcnhEoCK7oK/TglLtERIMrzRYMgbGedkiFGvab+rIcEgFc1CznrNCwYGmupLcM66NJZyTCtNgYMlEMjw7GMqYm6PAm61PiKh1xhMW5fEHe+YV+8belOeFDkpIJSZVApb704mUx7yukRgfom4rA+H2FynarROEUXfGbLJFYXzu0sCYbM0HMMsMYthOpnuCRxZLKXAG9wpKByaeNt1FhhrNQvWDt5II+CjUGzJXG0CztBWWg22pLlYdV390wj4z+DMvqcVE5rUGM83oz+jdKWleHT+CZ7VhNOl1ZrrH8Yn0z6VNykqrzeLlTXisFX9QydkuqAkhd1hvchQV5HGMIT7Bc/h56yXSwESo9yfw+3Aj6yjs/LBOtFGBgBSjJbmXb+ngRuCWveFO4NsPidkhMCxtJZvpCc38AXGgKE+pzorjYUKx4oNmCHcBL/oV74DRRHyh2sfWoX2RS+dLeJA/YhJb5AxAUSKB8VipP7PyhMVPF9knd5ck9afK8oMARB0r8kQ/ue3ydOaTG6Ix+p/+VeL1YuyLktbwH6KNoHoUZ2Z6gO7vwOYLBYDI5Fp3pN/37lNUxCchAybFG+E8mpJVf2ghzzu+8ROU5SOR7HBnbiouClS3nlM4f1uZNcnXWYUSLlXyI9d6o8vqTq4Dc235QpjZc2DJ7V5U/e1BJ6UzGxNDZqc36SDqWOm8BZnYEJJ/XQ1/9y848dRWqAoYtMOIQ7C78ZLqh/aZwitx9iiT+ZgnD7EFPSMRzHfwZBDcnpdA2nu6Zj0mWHjb85IN9VypSebKccrtrwh0MfD7WurmKQicagboJpduadFr2MJ/qWzfXFXCAo1jE3PrnHW3DxacGN70UovFssEBetr52FppLr0KROaWe1AEJo0VUdbTY6i6peeMflrwnyI1Z486EELRaU79POvuouitZe7EjQ5CCFNvLqJwKQ/ur8Nu1RwsVPsNIiondSDv+IhsJBbKYNQORldc1ZPHpt2XHQteWpDkvtjYU3fyK09boZqzEgshvuGNwqEWC8kvPCu4rUZGj9StWLmGEzixSuCYIur+p3TY0s6j2pLFyg80TvsRiJqQcff/prD5QvU6cwCnVpeq6KsyaiSnhuHneLTd8kbolJVWhYtLZ5oxdzDbAgb71jXmjNVd4Leas29s3o4x9v40ejRW10TX6Be7KK/dLeV62aN+iBFbIc5ltmPQfIndGlgQx3uPefhfsqSRKh3Uyv9KH87wlS4UtzXsCZqZ1Fli91xj8v3vB54/G+eX4TQXZ87E3mvoMQV7Uxvg=";
+const PBKDF2_ITER = 310000;
+let DATA = null;
+
+/* ── crypto ── */
+const b64d = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+const b64e = u => btoa(String.fromCharCode(...u));
+async function deriveKey(pass, salt){
+  const km = await crypto.subtle.importKey("raw", new TextEncoder().encode(pass), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey({name:"PBKDF2", salt, iterations:PBKDF2_ITER, hash:"SHA-256"},
+    km, {name:"AES-GCM", length:256}, true, ["decrypt"]);
+}
+async function decryptWith(key){
+  const raw = b64d(BLOB);
+  const iv = raw.slice(16,28), body = raw.slice(28);
+  const pt = await crypto.subtle.decrypt({name:"AES-GCM", iv}, key, body);
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+async function unlock(){
+  const pw = document.getElementById("pw");
+  const err = document.getElementById("pw-err");
+  err.textContent = "";
+  if(!pw.value){ err.textContent = "パスフレーズを入力してください"; return; }
+  try{
+    const raw = b64d(BLOB);
+    const key = await deriveKey(pw.value, raw.slice(0,16));
+    DATA = await decryptWith(key);
+    if(document.getElementById("pw-keep").checked){
+      const kb = new Uint8Array(await crypto.subtle.exportKey("raw", key));
+      localStorage.setItem("kh_key", b64e(kb));
+    }
+    pw.value = "";
+    boot();
+  }catch(e){
+    err.textContent = "パスフレーズが違います";
+    pw.classList.add("shake"); setTimeout(()=>pw.classList.remove("shake"), 450);
+  }
+}
+async function tryStoredKey(){
+  const s = localStorage.getItem("kh_key");
+  if(!s) return false;
+  try{
+    const key = await crypto.subtle.importKey("raw", b64d(s), {name:"AES-GCM"}, false, ["decrypt"]);
+    DATA = await decryptWith(key);
+    boot(); return true;
+  }catch(e){ localStorage.removeItem("kh_key"); return false; }
+}
+function relock(){
+  localStorage.removeItem("kh_key");
+  location.reload();
+}
+document.getElementById("pw").addEventListener("keydown", e => { if(e.key === "Enter") unlock(); });
+
+/* ── format ── */
+const C = { s1:"#AD8F3A", s2:"#3987e5", s3:"#199e70", s4:"#9085e9", s5:"#e66767",
+  good:"#0ca30c", warn:"#fab219", serious:"#ec835a", crit:"#d03b3b",
+  ink:"#F4E9C6", dim:"#A89D7B", grid:"rgba(255,255,255,.07)", axis:"rgba(255,255,255,.16)", gold:"#C9A84C" };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function yen(v){
+  const neg = v < 0 ? "△" : "";
+  const a = Math.abs(v);
+  if(a >= 1e8) return neg + (a/1e8).toFixed(2).replace(/\.?0+$/,"") + "億";
+  if(a >= 1e4) return neg + Math.round(a/1e4).toLocaleString() + "万";
+  return neg + a.toLocaleString() + "円";
+}
+const yenFull = v => (v<0?"△":"") + Math.abs(v).toLocaleString() + "円";
+const pct = v => (v>0?"+":"") + v + "%";
+
+/* ── tiny SVG chart helpers ── */
+const NS = s => s; // template passthrough
+function chartWrap(inner, h){ return `<div class="chart"><svg viewBox="0 0 360 ${h}" width="100%" role="img">${inner}</svg></div>`; }
+
+/* grouped vertical bars: groups=[{label}], series=[{name,color,values[]}] */
+function vbars(groups, series, opt={}){
+  const H = opt.h || 190, padT = 26, padB = 22, padL = 4, padR = 4;
+  const W = 360, plotW = W - padL - padR, plotH = H - padT - padB;
+  const all = series.flatMap(s => s.values);
+  const max = Math.max(...all, 0) * 1.12 || 1;
+  const min = Math.min(...all, 0);
+  const lo = min < 0 ? min * 1.12 : 0;
+  const y = v => padT + plotH - (v - lo) / (max - lo) * plotH;
+  const y0 = y(0);
+  const gw = plotW / groups.length;
+  const bw = Math.min(30, (gw - 14) / series.length);
+  let out = `<line x1="${padL}" y1="${y0}" x2="${W-padR}" y2="${y0}" stroke="${C.axis}" stroke-width="1"/>`;
+  groups.forEach((g,gi)=>{
+    const cx = padL + gw*gi + gw/2;
+    out += `<text x="${cx}" y="${H-6}" font-size="10" fill="${C.dim}" text-anchor="middle">${esc(g.label)}</text>`;
+    series.forEach((s,si)=>{
+      const v = s.values[gi];
+      const bx = cx - (bw*series.length + 2*(series.length-1))/2 + si*(bw+2);
+      const by = Math.min(y(v), y0), bh = Math.max(Math.abs(y(v)-y0), 1.5);
+      const r = Math.min(4, bw/2);
+      // rounded data-end only (top for +, bottom for −)
+      const path = v >= 0
+        ? `M${bx},${by+bh} V${by+r} Q${bx},${by} ${bx+r},${by} H${bx+bw-r} Q${bx+bw},${by} ${bx+bw},${by+r} V${by+bh} Z`
+        : `M${bx},${by} V${by+bh-r} Q${bx},${by+bh} ${bx+r},${by+bh} H${bx+bw-r} Q${bx+bw},${by+bh} ${bx+bw},${by+bh-r} V${by} Z`;
+      out += `<path d="${path}" fill="${s.color}" class="tt" data-tt="${esc(g.label)} ${esc(s.name)}: ${esc(opt.fmt ? opt.fmt(v) : v)}"/>`;
+      if(!opt.noLabel && bh > 4){
+        const ly = v >= 0 ? by - 5 : by + bh + 11;
+        out += `<text x="${bx+bw/2}" y="${ly}" font-size="9.5" fill="${C.ink}" text-anchor="middle" class="num">${esc(opt.fmt ? opt.fmt(v) : v)}</text>`;
+      }
+    });
+  });
+  return chartWrap(out, H);
+}
+
+/* horizontal bars: rows=[{label,value,color?,sub?,right?}] */
+function hbars(rows, opt={}){
+  const rowH = opt.rowH || 42, W = 360;
+  const H = rows.length * rowH + 4;
+  const max = opt.max || Math.max(...rows.map(r => r.value)) || 1;
+  let out = "";
+  rows.forEach((r,i)=>{
+    const ty = i*rowH + 12;
+    const by = i*rowH + 20, bh = 12;
+    const bwFull = W;
+    const bw = Math.max(bwFull * (r.value/max), 2);
+    const col = r.color || C.s1;
+    out += `<text x="0" y="${ty}" font-size="11" fill="${C.ink}">${esc(r.label)}</text>`;
+    out += `<text x="${W}" y="${ty}" font-size="11" fill="${r.rightColor||C.dim}" text-anchor="end" class="num">${esc(r.right||"")}</text>`;
+    out += `<rect x="0" y="${by}" width="${bwFull}" height="${bh}" rx="4" fill="${C.grid}"/>`;
+    out += `<path d="M0,${by} H${Math.max(bw-4,0)} Q${bw},${by} ${bw},${by+bh/2} Q${bw},${by+bh} ${Math.max(bw-4,0)},${by+bh} H0 Z" fill="${col}" class="tt" data-tt="${esc(r.label)}: ${esc(r.tt||r.right||r.value)}"/>`;
+    if(r.sub) out += `<text x="0" y="${by+bh+11}" font-size="9" fill="${C.dim}">${esc(r.sub)}</text>`;
+  });
+  return chartWrap(out, H);
+}
+
+/* line chart for ratios: series=[{name,color,values[]}] labels[] */
+function lines(labels, series, opt={}){
+  const H = opt.h || 170, padT = 18, padB = 22, padL = 22, padR = 42, W = 360;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const all = series.flatMap(s => s.values);
+  const max = Math.max(...all)*1.1, min = Math.min(Math.min(...all), 0);
+  const x = i => padL + plotW * (labels.length===1 ? .5 : i/(labels.length-1));
+  const y = v => padT + plotH - (v-min)/(max-min)*plotH;
+  let out = "";
+  [0,.5,1].forEach(f=>{ const gy = padT + plotH*f;
+    out += `<line x1="${padL}" y1="${gy}" x2="${W-padR}" y2="${gy}" stroke="${C.grid}" stroke-width="1"/>`; });
+  labels.forEach((l,i)=> out += `<text x="${x(i)}" y="${H-6}" font-size="10" fill="${C.dim}" text-anchor="middle">${esc(l)}</text>`);
+  series.forEach(s=>{
+    const pts = s.values.map((v,i)=>`${x(i)},${y(v)}`).join(" ");
+    out += `<polyline points="${pts}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    s.values.forEach((v,i)=>{
+      out += `<circle cx="${x(i)}" cy="${y(v)}" r="3.6" fill="${s.color}" stroke="#1A1A2A" stroke-width="2" class="tt" data-tt="${esc(labels[i])} ${esc(s.name)}: ${v}%"/>`;
+    });
+    const last = s.values.length-1;
+    out += `<text x="${x(last)+8}" y="${y(s.values[last])+4}" font-size="10" fill="${C.ink}" class="num">${s.values[last]}%</text>`;
+  });
+  return chartWrap(out, H);
+}
+
+/* waterfall for 実質純資産 */
+function waterfall(items, opt={}){
+  // items: [{label, value, kind:'base'|'add'|'total'}]
+  const H = 210, padT = 24, padB = 40, W = 360, padL = 4, padR = 4;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const total = items.filter(i=>i.kind!=="total").reduce((a,b)=>a+b.value,0);
+  const max = total * 1.1;
+  const y = v => padT + plotH - v/max*plotH;
+  const bw = plotW/items.length - 10;
+  let run = 0, out = `<line x1="${padL}" y1="${y(0)}" x2="${W-padR}" y2="${y(0)}" stroke="${C.axis}"/>`;
+  items.forEach((it,i)=>{
+    const bx = padL + (plotW/items.length)*i + 5;
+    let b0, b1, col;
+    if(it.kind === "total"){ b0 = 0; b1 = total; col = C.gold; }
+    else { b0 = run; b1 = run + it.value; run = b1; col = it.kind==="base" ? C.s2 : C.s3; }
+    const by = y(b1), bh = Math.max(y(b0)-y(b1), 2);
+    out += `<path d="M${bx},${by+bh} V${by+4} Q${bx},${by} ${bx+4},${by} H${bx+bw-4} Q${bx+bw},${by} ${bx+bw},${by+4} V${by+bh} Z" fill="${col}" class="tt" data-tt="${esc(it.label)}: ${esc(yen(it.value))}"/>`;
+    if(it.kind!=="total" && i < items.length-1)
+      out += `<line x1="${bx+bw}" y1="${by}" x2="${bx+bw+10}" y2="${by}" stroke="${C.axis}" stroke-dasharray="2 3"/>`;
+    out += `<text x="${bx+bw/2}" y="${by-5}" font-size="9.5" fill="${C.ink}" text-anchor="middle" class="num">${esc(yen(it.value))}</text>`;
+    const words = it.label.split("\n");
+    words.forEach((w,wi)=> out += `<text x="${bx+bw/2}" y="${H-26+wi*11}" font-size="8.5" fill="${C.dim}" text-anchor="middle">${esc(w)}</text>`);
+  });
+  return chartWrap(out, H);
+}
+
+/* benchmark row: value vs up to 3 ranges */
+function benchRow(r){
+  const ranges = [
+    r.oki ? {label:"沖縄中小", col:C.s2, v:r.oki} : null,
+    r.jp ? {label:"全国中小", col:C.s3, v:r.jp} : null,
+    r.ind ? {label:r.indLabel||"業界", col:C.s4, v:r.ind} : null
+  ].filter(Boolean);
+  const highs = ranges.map(x=>x.v[1]);
+  const max = Math.max(r.y9, r.y8||0, ...highs) * 1.15 || 1;
+  const W = 360, laneH = 7, gap = 3;
+  const H = ranges.length*(laneH+gap) + 14;
+  const sx = v => Math.min(v/max*W, W);
+  let out = "";
+  ranges.forEach((rg,i)=>{
+    const ly = 8 + i*(laneH+gap);
+    out += `<rect x="0" y="${ly}" width="${W}" height="${laneH}" rx="3" fill="${C.grid}"/>`;
+    out += `<rect x="${sx(rg.v[0])}" y="${ly}" width="${Math.max(sx(rg.v[1])-sx(rg.v[0]),2)}" height="${laneH}" rx="3" fill="${rg.col}" opacity=".45"/>`;
+  });
+  const lanesBottom = 8 + ranges.length*(laneH+gap) - gap;
+  if(r.y8 !== undefined){
+    const x8 = sx(r.y8);
+    out += `<line x1="${x8}" y1="4" x2="${x8}" y2="${lanesBottom+4}" stroke="${C.dim}" stroke-width="1.5" stroke-dasharray="3 3"/>`;
+  }
+  const x9 = sx(r.y9);
+  out += `<line x1="${x9}" y1="2" x2="${x9}" y2="${lanesBottom+6}" stroke="${C.gold}" stroke-width="3" stroke-linecap="round"/>`;
+  // verdict vs best available range (業界 > 全国 > 沖縄)
+  const ref = (r.ind || r.jp || r.oki);
+  let tag = "", tagCol = "";
+  if(ref){
+    const above = r.y9 > ref[1], below = r.y9 < ref[0];
+    const goodSide = r.invert ? below : above;
+    const badSide = r.invert ? above : below;
+    if(goodSide){ tag = r.invert ? "基準より良好" : "基準超え"; tagCol = C.good; }
+    else if(badSide){ tag = "基準未達"; tagCol = C.serious; }
+    else { tag = "基準圏内"; tagCol = C.dim; }
+  }
+  const lowBadTag = r.lowBad && tag==="基準未達";
+  return `<div class="bench">
+    <div class="bh"><div class="bn">${esc(r.name)}</div>
+      <div class="bv num" style="color:${C.gold}">${r.y9}</div>
+      ${tag?`<span class="tag" style="color:${tagCol};border:1px solid ${tagCol};opacity:.95">${tag}${r.invert?" ↓良":""}</span>`:""}
+    </div>
+    <svg viewBox="0 0 360 ${H}" width="100%" style="margin-top:5px">${out}</svg>
+    <div class="bnote">${r.y8!==undefined?`第8期 ${r.y8} → 第9期 <b style="color:${C.gold}">${r.y9}</b>`:`第9期 ${r.y9}`}${r.note?` ・ ${esc(r.note)}`:""}</div>
+  </div>`;
+}
+
+/* ── tooltips (tap) ── */
+document.addEventListener("click", e=>{
+  const t = e.target.closest(".tt");
+  if(t) toast(t.dataset.tt);
+});
+let toastTimer;
+function toast(msg){
+  const el = document.getElementById("toast");
+  el.textContent = msg; el.classList.add("show");
+  clearTimeout(toastTimer); toastTimer = setTimeout(()=>el.classList.remove("show"), 2200);
+}
+
+/* ════════ render ════════ */
+function scoreRing(score){
+  const r = 34, c = 2*Math.PI*r, f = c*score/100;
+  return `<svg width="92" height="92" viewBox="0 0 92 92" class="ring">
+    <circle cx="46" cy="46" r="${r}" fill="none" stroke="${C.grid}" stroke-width="7"/>
+    <circle cx="46" cy="46" r="${r}" fill="none" stroke="${C.gold}" stroke-width="7"
+      stroke-dasharray="${f} ${c}" stroke-linecap="round" transform="rotate(-90 46 46)"/>
+    <text x="46" y="44" text-anchor="middle" font-size="22" font-weight="700" fill="${C.ink}" class="num">${score}</text>
+    <text x="46" y="60" text-anchor="middle" font-size="9" fill="${C.dim}">/ 100</text>
+  </svg>`;
+}
+const stColor = l => ({critical:C.crit, serious:C.serious, warning:C.warn, good:C.good})[l] || C.dim;
+const stIcon = l => ({critical:"⛔", serious:"⚠️", warning:"△", good:"✓"})[l] || "";
+
+function renderHome(){
+  const d = DATA, p9 = d.pl[3], p8 = d.pl[2], b9 = d.bs[3];
+  const growth = ((p9.sales/p8.sales-1)*100).toFixed(1);
+  document.getElementById("pg-home").innerHTML = `
+  <div class="card">
+    <div class="hero">
+      ${scoreRing(d.meta.score)}
+      <div>
+        <div class="hh">総合スコア (第9期 財務分析)</div>
+        <div class="hv">${esc(d.meta.rating)}</div>
+        <span class="chip">金融機関目線: 新規融資余力十分</span>
+      </div>
+    </div>
+    <hr class="hairline">
+    <div class="note" style="margin-top:0">${esc(d.meta.verdict)}</div>
+  </div>
+
+  <div class="card"><h2>第9期 ハイライト<span class="sub">${esc(p9.fy)}期 実績</span></h2>
+    <div class="tiles">
+      <div class="tile"><div class="l">売上高</div><div class="v num gold">${yen(p9.sales)}</div><div class="s up">前期比 +${growth}%</div></div>
+      <div class="tile"><div class="l">営業利益</div><div class="v num">${yen(p9.op)}</div><div class="s">利益率 ${p9.opm}% <span class="up">(前期2.5%)</span></div></div>
+      <div class="tile"><div class="l">当期純利益</div><div class="v num">${yen(p9.net)}</div><div class="s up">+34.9%</div></div>
+      <div class="tile"><div class="l">EBITDAマージン</div><div class="v num">36.4%</div><div class="s">業界上位 (平均20-25%)</div></div>
+      <div class="tile"><div class="l">現預金</div><div class="v num">${yen(b9.cash)}</div><div class="s">手元流動性 4.72ヶ月</div></div>
+      <div class="tile"><div class="l">実質純資産</div><div class="v num gold">${yen(d.offBalance.realEquity)}</div><div class="s">公式 ${yen(d.offBalance.official)} の約4.5倍</div></div>
+    </div>
+  </div>
+
+  <div class="card"><h2>リスク・要注意<span class="sub">構造課題</span></h2>
+    ${d.risks.map(r=>`<div class="risk">
+      <div class="dot" style="background:${stColor(r.level)}"></div>
+      <div><span class="rn">${esc(r.name)}</span><span class="rv num" style="color:${stColor(r.level)}">${stIcon(r.level)} ${esc(r.value)}</span>
+      <div class="rd">${esc(r.detail)}</div></div>
+    </div>`).join("")}
+  </div>
+
+  <div class="card"><h2>構造的な強み</h2>
+    <ul class="plain">${d.strengths.map(s=>`<li>${esc(s)}</li>`).join("")}</ul>
+  </div>
+  <div class="card"><h2>課題・伸びしろ</h2>
+    <ul class="plain dim">${d.issues.map(s=>`<li>${esc(s)}</li>`).join("")}</ul>
+  </div>
+  <div class="card"><h2>基本情報</h2>
+    <table class="kv">${d.keyfacts.map(f=>`<tr><td>${esc(f.k)}</td><td>${esc(f.v)}</td></tr>`).join("")}</table>
+  </div>
+  <div class="secnote">基準日 ${esc(d.meta.dataDate)} ・ ${esc(d.meta.basis)}<br>データはAES-256-GCMで暗号化格納・この端末内でのみ復号</div>`;
+}
+
+function renderFin(){
+  const d = DATA;
+  const labels = d.pl.map(p=>`第${p.t}期`);
+  const g = d.pl.map(p=>({label:`第${p.t}期`}));
+  document.getElementById("pg-fin").innerHTML = `
+  <div class="card"><h2>売上高 4期推移<span class="sub">3年CAGR +110.8% (9.4倍)</span></h2>
+    ${vbars(g, [{name:"売上高", color:C.s1, values:d.pl.map(p=>p.sales)}], {fmt:yen, h:180})}
+    <div class="note">第6期(開業期)→第7期(投資先行・赤字)→第8期(黒字転換・債務超過脱却)→第9期(本格収益化)。Jカーブ完走。</div>
+  </div>
+
+  <div class="card"><h2>営業利益・純利益</h2>
+    <div class="legend"><span><i style="background:${C.s1}"></i>営業利益</span><span><i style="background:${C.s2}"></i>当期純利益</span></div>
+    ${vbars(g, [
+      {name:"営業利益", color:C.s1, values:d.pl.map(p=>p.op)},
+      {name:"純利益", color:C.s2, values:d.pl.map(p=>p.net)}
+    ], {fmt:yen, h:200})}
+    <div class="note">※第8期の経常利益(1,095万)は雑収入986万+圧縮損941万の課税繰延を含む特殊値。第9期のPL減価償却52.6万は車両売却損益での実質費用認識のためで、実態償却は2,808万円。</div>
+  </div>
+
+  <div class="card"><h2>利益率の推移</h2>
+    <div class="legend"><span><i style="background:${C.s1}"></i>粗利率</span><span><i style="background:${C.s2}"></i>営業利益率</span></div>
+    ${lines(labels, [
+      {name:"粗利率", color:C.s1, values:d.pl.map(p=>p.gpm)},
+      {name:"営業利益率", color:C.s2, values:d.pl.map(p=>p.opm)}
+    ])}
+    <div class="note">粗利率の低下(73.5%→46.8%)は中古車販売(売上原価あり)の本格化による構成変化で、悪化ではない。営業利益率7.2%は沖縄県中小平均(2-4%)の2〜3倍。</div>
+  </div>
+
+  <div class="card"><h2>バランスシート 4期推移</h2>
+    <div class="legend"><span><i style="background:${C.s2}"></i>総資産</span><span><i style="background:${C.s5}"></i>借入金</span><span><i style="background:${C.s1}"></i>純資産</span></div>
+    ${vbars(g, [
+      {name:"総資産", color:C.s2, values:d.bs.map(b=>b.assets)},
+      {name:"借入金", color:C.s5, values:d.bs.map(b=>b.debt)},
+      {name:"純資産", color:C.s1, values:d.bs.map(b=>b.equity)}
+    ], {fmt:yen, h:210, noLabel:true})}
+    <table class="dt" style="margin-top:8px">
+      <tr><th></th>${d.bs.map(b=>`<th>第${b.t}期</th>`).join("")}</tr>
+      <tr><td>総資産</td>${d.bs.map(b=>`<td class="num">${yen(b.assets)}</td>`).join("")}</tr>
+      <tr><td>現預金</td>${d.bs.map(b=>`<td class="num">${yen(b.cash)}</td>`).join("")}</tr>
+      <tr><td>借入金</td>${d.bs.map(b=>`<td class="num">${yen(b.debt)}</td>`).join("")}</tr>
+      <tr><td>純資産</td>${d.bs.map(b=>`<td class="num">${yen(b.equity)}</td>`).join("")}</tr>
+      <tr><td>自己資本比率</td>${d.bs.map(b=>`<td class="num">${b.eqr}%</td>`).join("")}</tr>
+    </table>
+    <div class="note">第9期の借入急増(3,468万→5,753万)は新規3,200万調達(公庫1,200万+海邦2,000万)=攻めの投資資金。同時に現預金も3,785万へ倍増。</div>
+  </div>
+
+  <div class="card"><h2>部門別売上<span class="sub">第9期 freee実績</span></h2>
+    <div class="legend"><span><i style="background:${C.s1}"></i>第9期</span><span><i style="background:${C.grid};border:1px solid ${C.axis}"></i>第8期</span></div>
+    ${d.departments.map(dep=>{
+      const max = Math.max(...d.departments.map(x=>x.y9));
+      const w9 = Math.max(dep.y9/max*100, .8), w8 = Math.max(dep.y8/max*100, .8);
+      const yoyCol = dep.yoy >= 100 ? "#4fc06c" : C.serious;
+      return `<div style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:4px">
+          <span>${esc(dep.name)} <span style="color:${yoyCol}" class="num">${dep.yoy}%</span></span>
+          <span class="num" style="color:${C.dim}">${yen(dep.y9)} ・ ${dep.share}%</span></div>
+        <svg viewBox="0 0 360 20" width="100%">
+          <rect x="0" y="0" width="${w9*3.6}" height="11" rx="3" fill="${C.s1}" class="tt" data-tt="${esc(dep.name)} 第9期: ${yenFull(dep.y9)}"/>
+          <rect x="0" y="14" width="${w8*3.6}" height="5" rx="2" fill="${C.axis}" class="tt" data-tt="${esc(dep.name)} 第8期: ${yenFull(dep.y8)}"/>
+        </svg></div>`;
+    }).join("")}
+    <div class="note">代車レンタカー79.1%依存が最大の構造テーマ。伸ばす第2の柱=ディテーリング(前年比201%・詳細は戦略タブ)。車両販売428%は「LIME認定中古車」モデルの立ち上がり。</div>
+  </div>
+
+  <div class="card"><h2>第9期 納付税額<span class="sub">確定・電子申告済</span></h2>
+    ${hbars(d.tax9.rows.map(r=>({label:r.name, value:r.amount, right:yenFull(r.amount), color:C.s2})), {rowH:38})}
+    <div style="display:flex;justify-content:space-between;font-size:13px;margin-top:8px;font-weight:700">
+      <span>総納付額</span><span class="num gold">${yenFull(d.tax9.total)}</span></div>
+    <hr class="hairline">
+    <div style="font-size:12px;font-weight:600;color:var(--gold-light)">💡 賃上げ促進税制</div>
+    <div class="note" style="margin-top:5px">${esc(d.tax9.wageCredit.note)}</div>
+    <ul class="plain dim" style="margin-top:6px">${d.tax9.notes.map(n=>`<li>${esc(n)}</li>`).join("")}</ul>
+  </div>`;
+}
+
+function renderBench(){
+  const d = DATA;
+  document.getElementById("pg-bench").innerHTML = `
+  <div class="card"><h2>ベンチマーク比較<span class="sub">第9期 vs 中小企業統計</span></h2>
+    <div class="legend">
+      <span><i style="background:${C.s2};opacity:.45"></i>沖縄県中小</span>
+      <span><i style="background:${C.s3};opacity:.45"></i>全国中小</span>
+      <span><i style="background:${C.s4};opacity:.45"></i>業界(レンタカー)</span></div>
+    <div class="legend" style="margin-top:-4px">
+      <span><i style="background:${C.gold};width:3px;border-radius:2px"></i>第9期(御社)</span>
+      <span><i style="background:${C.dim};width:2px;border-radius:1px"></i>第8期(点線)</span></div>
+    <div class="note" style="margin-top:0">バンド=各統計の標準レンジ。金線がレンジ右側に出るほど優位(「↓良」表記の指標は低いほど良い)。</div>
+  </div>
+  ${d.benchmarks.groups.map(gr=>`
+    <div class="card"><h2>${esc(gr.title)}</h2>
+      ${gr.rows.map(benchRow).join("")}
+    </div>`).join("")}
+  <div class="card"><h2>プロが使う上級指標</h2>
+    <div class="tiles">
+      ${d.benchmarks.advanced.map(a=>`<div class="tile">
+        <div class="l">${esc(a.name)}</div><div class="v num">${esc(a.value)}</div>
+        <div class="s" style="color:${a.good?"#4fc06c":C.serious}">✓ ${esc(a.verdict)}</div></div>`).join("")}
+    </div>
+    <div class="note">倒産リスクほぼなし(Altman)・健全(Piotroski)・粉飾兆候皆無(Beneish)・割安バリュエーション(EV系)を同時達成。</div>
+  </div>`;
+}
+
+function renderAsset(){
+  const d = DATA, v = d.vehicles, ob = d.offBalance;
+  document.getElementById("pg-asset").innerHTML = `
+  <div class="card"><h2>車両ポートフォリオ<span class="sub">車種別残価率モデル評価</span></h2>
+    <div class="tiles">
+      <div class="tile"><div class="l">現役台数</div><div class="v num">${v.summary.total}<span style="font-size:12px">台</span></div><div class="s">自社${v.summary.own.n} / リース${v.summary.lease.n}</div></div>
+      <div class="tile"><div class="l">予想売却総額</div><div class="v num gold">${yen(v.summary.est)}</div><div class="s">残価率 ${v.summary.residual}%</div></div>
+      <div class="tile"><div class="l">取得価額計</div><div class="v num">${yen(v.summary.acq)}</div><div class="s">全77台</div></div>
+      <div class="tile"><div class="l">車両含み益</div><div class="v num up">+${yen(v.summary.unrealized)}</div><div class="s">自社36台: 売却${yen(v.summary.own.est)} − 簿価${yen(v.summary.bookValue)}</div></div>
+    </div>
+    <div class="legend" style="margin-top:12px"><span><i style="background:${C.s2}"></i>取得価額</span><span><i style="background:${C.s1}"></i>予想売却</span></div>
+    ${vbars([{label:"自社保有 36台"},{label:"リース 41台"}], [
+      {name:"取得価額", color:C.s2, values:[v.summary.own.acq, v.summary.lease.acq]},
+      {name:"予想売却", color:C.s1, values:[v.summary.own.est, v.summary.lease.est]}
+    ], {fmt:yen, h:180})}
+    <div class="note">${esc(v.note)}</div>
+  </div>
+
+  <div class="card"><h2>実質純資産<span class="sub">簿外資産を含む実態</span></h2>
+    ${waterfall([
+      {label:"公式純資産", value:ob.official, kind:"base"},
+      {label:"倒産防止\n共済", value:ob.items[0].amount, kind:"add"},
+      {label:"ソニー生命\n(中位)", value:ob.items[1].amount, kind:"add"},
+      {label:"車両含み益", value:ob.items[2].amount, kind:"add"},
+      {label:"実質純資産", value:ob.realEquity, kind:"total"}
+    ])}
+    <div class="tiles" style="margin-top:6px">
+      <div class="tile"><div class="l">実質自己資本比率</div><div class="v num gold">約${ob.realEqRatio}%</div><div class="s">公式 14.9%</div></div>
+      <div class="tile"><div class="l">実質総資産</div><div class="v num">${yen(ob.realAssets)}</div><div class="s">簿外+3,845万込み</div></div>
+    </div>
+    ${ob.items.map(it=>`<div style="margin-top:10px"><div style="font-size:12px;font-weight:600">${esc(it.name)} <span class="num gold">${yen(it.amount)}</span></div><div class="note" style="margin-top:2px">${esc(it.note)}</div></div>`).join("")}
+    <div class="note">${esc(ob.note)}</div>
+  </div>
+
+  <div class="card"><h2>借入金 全${d.loans.rows.length}本<span class="sub">加重平均 ${d.loans.wavg}%</span></h2>
+    ${hbars(d.loans.rows.map(r=>({label:r.lender, value:r.bal, right:yen(r.bal)+" ・ "+r.rate+"%", color:C.s2, tt:yenFull(r.bal)})), {rowH:44})}
+    <div style="display:flex;justify-content:space-between;font-size:13px;margin-top:6px;font-weight:700">
+      <span>残債合計</span><span class="num gold">${yenFull(d.loans.total)}</span></div>
+    <div style="display:flex;justify-content:space-between;font-size:11.5px;margin-top:5px;color:var(--text-dim)">
+      <span>年間元金返済</span><span class="num">${yenFull(d.loans.principalYear)}</span></div>
+    <div style="display:flex;justify-content:space-between;font-size:11.5px;margin-top:3px;color:var(--text-dim)">
+      <span>役員借入 (利息0%)</span><span class="num">${yenFull(d.loans.directorLoan)}</span></div>
+    <ul class="plain dim" style="margin-top:8px">${d.loans.notes.map(n=>`<li>${esc(n)}</li>`).join("")}</ul>
+  </div>
+
+  <div class="card"><h2>ハイレート車両<span class="sub">1日売上ランキング</span></h2>
+    <table class="dt">
+      <tr><th>車両</th><th>日額</th><th>保有</th><th>月間想定*</th></tr>
+      ${v.highRate.map(h=>`<tr><td>${esc(h.name)}</td><td class="num">${h.daily.toLocaleString()}円</td>
+        <td style="color:${h.own?C.gold:C.dim}">${h.own?"自社":"リース"}</td>
+        <td class="num">${yen(h.monthly)}</td></tr>`).join("")}
+    </table>
+    <div class="note">*稼働率70%想定。${esc(v.highRateNote)}</div>
+  </div>
+
+  <div class="card"><h2>売却実績<span class="sub">残価率の実証</span></h2>
+    <table class="dt">
+      <tr><th>売却</th><th>車両</th><th>売却額</th><th>残価率</th></tr>
+      ${v.sold.map(s=>`<tr><td>${esc(s.when)}</td><td>${esc(s.name)}<br><span style="color:${C.dim};font-size:9.5px">${esc(s.age)}</span></td>
+        <td class="num">${yen(s.price)}</td>
+        <td class="num" style="color:${s.rr>=100?"#4fc06c":s.rr>=80?C.gold:C.ink};font-weight:700">${s.rr}%</td></tr>`).join("")}
+    </table>
+    <div class="note">${esc(v.soldNote)}</div>
+  </div>
+
+  <div class="card"><h2>企業価値<span class="sub">バリュエーション</span></h2>
+    ${hbars(d.valuation.map(x=>({
+      label:x.name + (x.star?" ":""),
+      value:(x.low+x.high)/2,
+      right:x.low===x.high ? yen(x.low) : yen(x.low)+"〜"+yen(x.high),
+      color:x.star ? C.gold : C.s2
+    })), {rowH:42})}
+    <div class="note">帳簿上は0.11億でも、実勢M&A中央値で約1.0億・DCFでは約4.0億。第10期予算(売上1.3億)達成後は1.5〜2.0億のレンジへ。</div>
+  </div>`;
+}
+
+/* ── 戦略タブ ── */
+function renderPlan(){
+  const d = DATA, b = d.budget10, dt = d.detailing;
+  document.getElementById("pg-plan").innerHTML = `
+  <div class="card"><h2>第10期 予算<span class="sub">2026/4〜2027/3</span></h2>
+    <div class="tiles">
+      <div class="tile"><div class="l">基準ケース 売上</div><div class="v num">${yen(b.base.sales)}</div><div class="s">純利益 ${yen(b.base.net)}</div></div>
+      <div class="tile" style="border-color:var(--gold-border)"><div class="l">実績反映版 売上</div><div class="v num gold">${yen(b.upside.sales)}</div><div class="s">本業${yen(b.upside.salesCore)}+中古車${yen(b.upside.salesUsed)}</div></div>
+      <div class="tile"><div class="l">実績反映 純利益</div><div class="v num gold">${yen(b.upside.net)}</div><div class="s">経常 ${yen(b.upside.ord)}</div></div>
+      <div class="tile"><div class="l">自己資本比率 着地</div><div class="v num">約${b.upside.eqr}%</div><div class="s">実質 約${b.upside.eqrReal}%</div></div>
+    </div>
+    <div class="note">前提: 粗利率${b.upside.gpm}% / 営業利益${yen(b.upside.op)} / 減価償却 実態${yen(b.dep)} / 元金返済 年${yen(b.principal)} / 中間納付 約${yen(b.interimTax)}。<br>📍 ${esc(b.aprilActual.note)}</div>
+  </div>
+
+  <div class="card"><h2>第10期 シミュレーター<span class="sub">動かして着地を試算</span></h2>
+    <div class="sl"><div class="slh"><span>本業売上 (レンタカー+ディテ他)</span><b class="num" id="o-core"></b></div>
+      <input type="range" id="s-core" min="70" max="140" step="5" value="100"></div>
+    <div class="sl"><div class="slh"><span>中古車販売 売上</span><b class="num" id="o-used"></b></div>
+      <input type="range" id="s-used" min="0" max="50" step="5" value="30"></div>
+    <div class="sl"><div class="slh"><span>粗利率</span><b class="num" id="o-gpm"></b></div>
+      <input type="range" id="s-gpm" min="40" max="62" step="0.1" value="53.8"></div>
+    <div class="sl"><div class="slh"><span>販管費</span><b class="num" id="o-sga"></b></div>
+      <input type="range" id="s-sga" min="35" max="60" step="1" value="45"></div>
+    <div class="sl"><div class="slh"><span>営業外収支 (車両売却益等)</span><b class="num" id="o-noi"></b></div>
+      <input type="range" id="s-noi" min="0" max="10" step="0.5" value="4.6"></div>
+    <div class="out">
+      <div class="o"><div class="l">売上高</div><div class="v num" id="r-sales"></div></div>
+      <div class="o"><div class="l">営業利益</div><div class="v num" id="r-op"></div></div>
+      <div class="o"><div class="l">経常利益</div><div class="v num" id="r-ord"></div></div>
+      <div class="o"><div class="l">純利益 (実効税率35%)</div><div class="v num gold" id="r-net"></div></div>
+      <div class="o"><div class="l">自己資本比率 概算</div><div class="v num" id="r-eqr"></div></div>
+      <div class="o"><div class="l">vs 第9期純利益</div><div class="v num" id="r-vs"></div></div>
+    </div>
+    <div class="judge" id="r-judge"></div>
+    <div class="note">自己資本比率は概算((純資産1,092万+純利益)÷推定総資産)。税は経常×35%(第10期実績反映版の実効税率と同水準)で簡易計算。</div>
+  </div>
+
+  <div class="card"><h2>ディテーリング事業<span class="sub">成長の本命 ・ 前年比${dt.yoy}%</span></h2>
+    <div class="tiles">
+      <div class="tile"><div class="l">第9期 実績</div><div class="v num">${yen(dt.y9)}</div><div class="s up">前年 ${yen(dt.y8)} → 2倍</div></div>
+      <div class="tile"><div class="l">直近6ヶ月ペース</div><div class="v num gold">年${yen(dt.runRateYear)}</div><div class="s">月${yen(dt.runRateMonthly)} ・ 加速中</div></div>
+    </div>
+    <div style="font-size:12px;font-weight:600;margin:14px 0 4px;color:var(--gold-light)">売上の3層構造 (実ジョブ${dt.jobs}件 ${esc(dt.period)})</div>
+    ${hbars(dt.layers.map(l=>({label:`${l.name} ${l.count}件`, value:l.sales, right:yen(l.sales), color:C.s1, tt:yenFull(l.sales)})), {rowH:40})}
+    ${dt.layers.map(l=>`<div class="note" style="margin-top:6px"><b style="color:var(--text)">${esc(l.name)}</b> 客単価約${yen(l.unit)}${l.unitHigh?`〜${yen(l.unitHigh)}`:""} — ${esc(l.note)}</div>`).join("")}
+    <hr class="hairline">
+    <div style="font-size:12px;font-weight:600;margin-bottom:4px;color:var(--gold-light)">成長ステージ目標</div>
+    ${hbars(dt.stages.map((s,i)=>({label:s.term, value:s.target, right:yen(s.target), color:i===0?C.s2:C.s1})), {rowH:38})}
+    <ul class="plain" style="margin-top:8px">${dt.insights.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
+  </div>
+
+  <div class="card"><h2>技術者投資 シミュレーター<span class="sub">高単価コーティングの伸ばし方</span></h2>
+    <div class="sl"><div class="slh"><span>高単価コーティング 台数/月</span><b class="num" id="o-dcnt"></b></div>
+      <input type="range" id="s-dcnt" min="1" max="10" step="1" value="1"></div>
+    <div class="sl"><div class="slh"><span>平均単価</span><b class="num" id="o-dunit"></b></div>
+      <input type="range" id="s-dunit" min="5" max="25" step="1" value="12"></div>
+    <div class="sl"><div class="slh"><span>業販スタンダード値上げ</span><b class="num" id="o-dup"></b></div>
+      <input type="range" id="s-dup" min="0" max="20" step="5" value="0"></div>
+    <label class="tgl"><input type="checkbox" id="s-dhire">専属技術者を外部採用する (年${yen(dt.hireCost)})</label>
+    <div class="out">
+      <div class="o"><div class="l">部門年商 見込み</div><div class="v num gold" id="r-dsales"></div></div>
+      <div class="o"><div class="l">増収分の粗利 (65%)</div><div class="v num" id="r-dgp"></div></div>
+      <div class="o"><div class="l">採用コスト差引 損益</div><div class="v num" id="r-dnet"></div></div>
+      <div class="o"><div class="l">第10期目標 1,000万 まで</div><div class="v num" id="r-dgap"></div></div>
+    </div>
+    <div class="judge" id="r-djudge"></div>
+    <div class="note">ベース=直近6ヶ月run-rate(年${yen(dt.runRateYear)}・高単価 月1台を含む)。増収粗利は65%(実績レンジ60〜75%)で計算。金城専任化なら採用コストの代わりにレンタル側の補充判断が必要。</div>
+  </div>
+
+  <div class="card"><h2>アクションリスト<span class="sub">チェックはこの端末に保存</span></h2>
+    <div id="acts">${d.actions.map(a=>`
+      <label class="act" id="act-${a.id}"><input type="checkbox" data-id="${a.id}">
+        <span class="at"><span class="tag2">${esc(a.tag)}</span>${esc(a.text)}</span></label>`).join("")}
+    </div>
+  </div>`;
+
+  /* simulator wiring */
+  const $ = id => document.getElementById(id);
+  const M = 1e6;
+  function sim(){
+    const core = +$("s-core").value * M, used = +$("s-used").value * M;
+    const gpm = +$("s-gpm").value / 100, sga = +$("s-sga").value * M, noi = +$("s-noi").value * M;
+    const sales = core + used, gp = sales * gpm, op = gp - sga, ord = op + noi;
+    const net = ord > 0 ? ord * 0.65 : ord;
+    const eqr = (10920858 + net) / (73482789 + net + 7500000) * 100;
+    $("o-core").textContent = yen(core); $("o-used").textContent = yen(used);
+    $("o-gpm").textContent = (gpm*100).toFixed(1)+"%"; $("o-sga").textContent = yen(sga); $("o-noi").textContent = "+"+yen(noi);
+    $("r-sales").textContent = yen(sales); $("r-op").textContent = yen(op);
+    $("r-ord").textContent = yen(ord); $("r-net").textContent = yen(net);
+    $("r-eqr").textContent = "約" + eqr.toFixed(1) + "%";
+    const vs = net / 7547267;
+    $("r-vs").textContent = "×" + vs.toFixed(1) + "倍";
+    $("r-vs").className = "v num " + (vs >= 1 ? "up" : "down");
+    const j = $("r-judge");
+    if(net >= 19250000){ j.style.borderColor = j.style.color = "#4fc06c"; j.textContent = "🏆 実績反映版予算(純利益1,925万)を達成。純利益1,500万超で「沖縄県中小企業のトップ層」が定量的に確定するライン。"; }
+    else if(net >= 10800000){ j.style.borderColor = j.style.color = C.gold; j.textContent = "◎ 基準ケース(純利益1,080万)超え。自己資本比率20%台へ前進。実績反映版1,925万まで残り" + yen(19250000-net) + "。"; }
+    else if(net > 0){ j.style.borderColor = j.style.color = C.serious; j.textContent = "△ 黒字だが基準ケース(1,080万)未達。販管費・粗利率の前提を確認。"; }
+    else { j.style.borderColor = j.style.color = C.crit; j.textContent = "⛔ 赤字圏。前提を見直してください。"; }
+  }
+  ["s-core","s-used","s-gpm","s-sga","s-noi"].forEach(id=>$(id).addEventListener("input", sim));
+  sim();
+
+  function dsim(){
+    const cnt = +$("s-dcnt").value, unit = +$("s-dunit").value * 10000, up = +$("s-dup").value / 100;
+    const hire = $("s-dhire").checked;
+    const addHigh = (cnt - 1) * unit * 12;           // 現状月1台がベースに含まれる
+    const addUp = 3416800 * up;
+    const salesY = DATA.detailing.runRateYear + addHigh + addUp;
+    const addGp = (addHigh + addUp) * DATA.detailing.grossMargin;
+    const netD = addGp - (hire ? DATA.detailing.hireCost : 0);
+    const gap = 10000000 - salesY;
+    $("o-dcnt").textContent = cnt + "台/月"; $("o-dunit").textContent = yen(unit);
+    $("o-dup").textContent = "+" + Math.round(up*100) + "%";
+    $("r-dsales").textContent = yen(salesY);
+    $("r-dgp").textContent = "+" + yen(addGp);
+    $("r-dnet").textContent = (netD >= 0 ? "+" : "") + yen(netD);
+    $("r-dnet").className = "v num " + (netD >= 0 ? "up" : "down");
+    $("r-dgap").textContent = gap > 0 ? "あと" + yen(gap) : "達成 🎉";
+    const j = $("r-djudge");
+    if(hire && netD < 0){ j.style.borderColor = j.style.color = C.serious; j.textContent = "△ この台数・単価では採用コスト(年560万)を増収粗利で回収できない。月" + Math.ceil((DATA.detailing.hireCost/DATA.detailing.grossMargin/12)/unit + 1) + "台前後が損益分岐の目安。"; }
+    else if(hire){ j.style.borderColor = j.style.color = "#4fc06c"; j.textContent = "◎ 採用コストを回収して年+" + yen(netD) + "の粗利上乗せ。引継ぎ書の試算(控えめ稼働でも粗利700〜880万で回収可)と整合。"; }
+    else if(salesY >= 10000000){ j.style.borderColor = j.style.color = "#4fc06c"; j.textContent = "◎ 第10期目標1,000万をクリアする組み合わせ。ただし専任ゼロのままではレンタル業務とのカニバリが深刻化=採用/専任化の判断が前提。"; }
+    else { j.style.borderColor = j.style.color = C.gold; j.textContent = "現状ペース+α。高単価コーティングを月6台まで伸ばすと+年600万(引継ぎ書試算)。"; }
+  }
+  ["s-dcnt","s-dunit","s-dup"].forEach(id=>$(id).addEventListener("input", dsim));
+  $("s-dhire").addEventListener("change", dsim);
+  dsim();
+
+  /* actions persistence */
+  const saved = JSON.parse(localStorage.getItem("kh_acts") || "{}");
+  document.querySelectorAll("#acts input").forEach(cb=>{
+    const id = cb.dataset.id;
+    cb.checked = !!saved[id];
+    cb.closest(".act").classList.toggle("done", cb.checked);
+    cb.addEventListener("change", ()=>{
+      saved[id] = cb.checked;
+      localStorage.setItem("kh_acts", JSON.stringify(saved));
+      cb.closest(".act").classList.toggle("done", cb.checked);
+    });
+  });
+}
+
+/* ── nav ── */
+document.querySelectorAll("#tabs button").forEach(b=>{
+  b.addEventListener("click", ()=>{
+    document.querySelectorAll("#tabs button").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on");
+    document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+    document.getElementById("pg-" + b.dataset.p).classList.add("active");
+    window.scrollTo({top:0});
+  });
+});
+
+function boot(){
+  document.getElementById("lock").style.display = "none";
+  ["hdr","main","tabs"].forEach(id=>document.getElementById(id).style.display = "");
+  document.getElementById("hdr-date").textContent = "基準日 " + DATA.meta.dataDate + " ・ 第9期申告ベース";
+  renderHome(); renderFin(); renderBench(); renderAsset(); renderPlan();
+  document.getElementById("pg-home").classList.add("active");
+}
+tryStoredKey();
+</script>
+</body>
+</html>
