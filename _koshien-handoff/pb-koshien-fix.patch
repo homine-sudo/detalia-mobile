@@ -1,0 +1,1307 @@
+From 1478b5f6eda932de61fb8ad02bde6df549050da3 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Thu, 6 Aug 2026 11:49:57 +0000
+Subject: [PATCH 1/5] =?UTF-8?q?=E8=A9=A6=E5=90=88=E7=B5=90=E6=9E=9C?=
+ =?UTF-8?q?=E3=81=8C=E6=B6=88=E3=81=88=E3=82=8B=E4=B8=8D=E5=85=B7=E5=90=88?=
+ =?UTF-8?q?=E3=82=92=E4=BF=AE=E6=AD=A3=EF=BC=8F=E5=AF=BE=E6=88=A6=E8=A1=A8?=
+ =?UTF-8?q?=E3=82=92=E6=97=A5=E4=BB=98=E9=A0=86=E3=81=AB=EF=BC=8F=E4=BA=88?=
+ =?UTF-8?q?=E6=83=B3=E8=A1=A8=E3=81=AE=E8=96=84=E3=81=95=E3=82=92=E7=9B=B4?=
+ =?UTF-8?q?=E3=81=99?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+■ 試合結果が消えていた（いちばん大きい問題）
+スポーツナビは試合中・試合直後だけ <li> に要素を足す。
+最初の </li> で切っていたので校名が読めず、その試合を黙って捨てていた。
+毎回ゼロから書き直していたため、一度取れた結果まで games.json から消えた。
+実際 8/6 は 第1試合(神村学園) → 第2試合(聖隷) と交互に消え、
+佐野日大 vs 聖隷クリストファーが丸ごと落ちて 48試合 → 47試合になっていた。
+
+- 前回ぶんと id で合体し、空では上書きしない（結果が減ることはもうない）
+- 閉じタグで切るのをやめ、中身が残るときだけ切る（chunks）
+- 校名が読めなくても捨てず、IDだけで残す
+- counts.expected / ROUND_N で試合数を検算し、足りなければ警告
+- 消えていた 8/6 第2試合を data/games.json に戻した
+
+■ 対戦表
+試合番号だけで並べていたので日付がばらばらだった。
+日付 → その日の第N試合の順に並べ、各行に日付を表示。
+
+■ 予想表の「うすい」表示
+差が小さい校を校名ごと薄くしていたため、勝ち残りの横浜・神村学園が
+敗退した校と同じ見た目になっていた。薄くするのは「差」の欄だけに。
+
+■ テスト
+_test_fetch.js を追加（偽HTMLで上の事故を再現。ネット不要）。
+既存の _test_tally.js / _test_autoimport.js もすべて合格。
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_0163xHuKSczKbDLqvr2UrvXY
+---
+ HANDOFF.md             |  48 +++++++++++-
+ _test_fetch.js         | 165 +++++++++++++++++++++++++++++++++++++++++
+ data/games.json        |  22 +++++-
+ index.html             |  45 +++++++++--
+ scripts/fetch_games.js | 111 +++++++++++++++++++++------
+ 5 files changed, 356 insertions(+), 35 deletions(-)
+ create mode 100644 _test_fetch.js
+
+diff --git a/HANDOFF.md b/HANDOFF.md
+index 82ab4db..a4c08e4 100644
+--- a/HANDOFF.md
++++ b/HANDOFF.md
+@@ -47,10 +47,56 @@
+ > 教訓：**「エラーが出ない＝動いている」ではない。** 数が増えるはずのものが増えていないかを見る。
+ > 8/6 時点の正常値は `paired 25 / decided 1 / broken 0`。
+ 
++### 【解決済 2026-08-06 その2】試合が終わると、その試合がページから消えて結果が失われた
++
++**症状**：スコアは取れるようになったのに、`games.json` の試合数が **48 → 47** に減っていた。
++`1回戦` が 16 試合しかなく、**佐野日大（栃木）vs 聖隷クリストファー（静岡）が丸ごと消えていた**。
++対戦表には「未定 vs 未定」の空行が1つでき、その試合の勝敗は永久に入らない。
++
++**真因**：スポーツナビは**試合中・試合直後だけ**その試合の `<li>` に要素を足す。
++`fetch_games.js` は `itRaw.split('</li>')[0]` で切っていたので、入れ子の `</li>` で
++校名より前に切れてしまい `if(!home||!away) continue` で**黙って捨てていた**。
++しかも毎回ゼロから書き直していたので、**一度読めた結果まで消えた**。
++
++コミットを追うと交互に起きていた：
++
++| 時刻(JST) | 8/6 第1試合 神村学園 | 8/6 第2試合 聖隷 |
++|---|---|---|
++| 13:30 | あり | あり |
++| 17:32 | **消えた**（試合中） | あり |
++| 20:21 | 戻った（5-1） | **消えた**（試合中） |
++
++**対処**（3つとも入れた）
++1. **前回ぶんと合体**するようにした。`id` をキーに、**空で上書きしない**。
++   取れなかった試合は前回の内容がそのまま残る＝**結果は二度と消えない**。
++2. 閉じタグで切るのをやめた。`chunks()` が「切っても中身が残るときだけ切る」。
++3. `counts.expected`（48）と `ROUND_N` を持たせ、**足りなければログに警告**。
++   アプリ上部のバーにも「48試合のうち N試合ぶんが取れていません」と出る。
++
++消えていた 8/6 第2試合は `data/games.json` に戻した（勝敗は次のボットが入れる）。
++
++**テスト**：`node _test_fetch.js`（偽のHTMLを fetch に返す。ネット不要）。
++上の事故をそのまま再現しているので、直したつもりで壊したら落ちる。
++
++> 教訓ふたたび：**減らないはずのものが減っていないか**を見る。件数は毎回 48。
++
++### 【解決済 2026-08-06 その3】画面まわり2つ（大嶺さんからの指摘）
++
++- **「横浜と神村学園の表示がうすい」**
++  予想の表で `差 ≦ 6` の校を `.flat` として**校名ごと薄く**していた。
++  ところが `.out`（敗退）も同じ薄さなので、**勝ち残っている校が敗退に見えていた**。
++  横浜は差5、神村学園は差6。どちらも人気校で全員が高く買っている＝差が小さいだけ。
++  → 校名は薄くせず、**「差」の欄だけ**薄くするようにした（`.pm tr.flat td.pm-g`）。
++- **対戦表の並びが日付でばらばら**
++  `buildFromGames` が試合番号だけで並べていたので
++  8/5第1 → 8/6第1 → 8/7第1 …→ 8/7第2 … の順になっていた。
++  → **日付 → その日の第N試合**で並べ、各行の左に **8/7 / 第3** と日付を出すようにした。
++
+ ### 次にやること：日々の結果反映は自動（8/6〜）
+ 
+ 修正後は30分おきのボットが勝敗まで取り込む。人の作業は不要。
+-ただし **1日1回は `counts.decided` が試合消化数と合っているか**を見ること。
++ただし **1日1回は `counts.decided` が試合消化数と合っているか**、
++**`counts.games` が 48 のままか**を見ること（アプリ上部のバーが黄色ければ何か足りない）。
+ 
+ ### 確認待ち：飛び賞の順位
+ 
+diff --git a/_test_fetch.js b/_test_fetch.js
+new file mode 100644
+index 0000000..5ff2340
+--- /dev/null
++++ b/_test_fetch.js
+@@ -0,0 +1,165 @@
++/* ============================================================
++   scripts/fetch_games.js の取りこぼし対策テスト（node _test_fetch.js）
++
++   実際に起きた事故を再現する：
++   ・8/5、8/6 とも「試合が終わった直後にその試合がページから消えた」。
++     取れたぶんだけで書き直していたので、結果が games.json から消えた。
++   ・試合中／試合直後は入れ子のタグが増える。最初の </li> / </section> で切る
++     作り方だと校名が読めなくなり、その試合がまるごと落ちた。
++   ネットにはつながず、偽のHTMLを fetch に返して確かめる。
++   ============================================================ */
++const fs = require('fs');
++const os = require('os');
++const path = require('path');
++const { execFileSync } = require('child_process');
++
++let ok = 0, ng = 0;
++const eq = (label, got, want) => {
++  const g = JSON.stringify(got), w = JSON.stringify(want);
++  if (g === w) { ok++; console.log('  OK   ' + label); }
++  else { ng++; console.log('  NG   ' + label + `\n        got  ${g}\n        want ${w}`); }
++};
++
++/* ---- 偽のスポーツナビHTML ---------------------------------- */
++function item(g) {
++  // 試合中／試合終了になると入れ子の要素が増える、という状況を live で再現する
++  const nest = g.live
++    ? '<div class="bb-liveDetail"><ul><li>1回表</li><li>1回裏</li></ul></div>'
++    : '';
++  const score = (g.hs === undefined) ? '' :
++    `<span class="bb-score__score bb-score__score--left">${g.hs}</span>` +
++    `<span class="bb-score__score bb-score__score--center">-</span>` +
++    `<span class="bb-score__score bb-score__score--right">${g.as}</span>`;
++  return `<li class="bb-score__item">
++    <a href="/hsb_summer/game/${g.id}/top"><span class="bb-score__round">${g.no}</span></a>
++    <div class="bb-score__home"><p>${g.home}</p></div>
++    ${score}${nest}
++    <div class="bb-score__away"><p>${g.away}</p></div>
++    <a class="bb-score__link" href="#">${g.status}</a>
++  </li>`;
++}
++function page(round, games) {
++  return `<html><body><main>
++    <section class="bb-score"><h1 class="bb-score__title">${round}</h1>
++      <ul class="bb-score__list">${games.map(item).join('')}</ul>
++    </section>
++  </main><footer>おわり</footer></body></html>`;
++}
++
++/* ---- fetch を差し替えて fetch_games.js を丸ごと動かす -------- */
++function run(pagesByDate, prevFile) {
++  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'pbk-'));
++  const out = path.join(tmp, 'games.json');
++  if (prevFile) fs.writeFileSync(out, JSON.stringify(prevFile, null, 1));
++
++  const stub = path.join(tmp, 'stub.js');
++  fs.writeFileSync(stub, `
++    const PAGES = ${JSON.stringify(pagesByDate)};
++    global.fetch = async (url) => {
++      const d = String(url).split('date=')[1];
++      return { ok: true, status: 200, text: async () => PAGES[d] || '<html></html>' };
++    };
++    require(${JSON.stringify(path.join(__dirname, 'scripts', 'fetch_games.js'))});
++  `);
++  execFileSync(process.execPath, [stub], {
++    env: { ...process.env, KOSHIEN_OUT: out, KOSHIEN_DAYS: '8', KOSHIEN_START: '2026-08-05', KOSHIEN_GAMES: '2' },
++    stdio: ['ignore', 'pipe', 'pipe']
++  });
++  return JSON.parse(fs.readFileSync(out, 'utf8'));
++}
++/* 警告は stderr に出る。execFileSync では拾いにくいので、別に確かめる用 */
++function runErr(pagesByDate, prevFile) {
++  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'pbk-'));
++  const out = path.join(tmp, 'games.json');
++  if (prevFile) fs.writeFileSync(out, JSON.stringify(prevFile, null, 1));
++  const stub = path.join(tmp, 'stub.js');
++  fs.writeFileSync(stub, `
++    const PAGES = ${JSON.stringify(pagesByDate)};
++    global.fetch = async (url) => {
++      const d = String(url).split('date=')[1];
++      return { ok: true, status: 200, text: async () => PAGES[d] || '<html></html>' };
++    };
++    require(${JSON.stringify(path.join(__dirname, 'scripts', 'fetch_games.js'))});
++  `);
++  const res = require('child_process').spawnSync(process.execPath, [stub], {
++    env: { ...process.env, KOSHIEN_OUT: out, KOSHIEN_DAYS: '8', KOSHIEN_START: '2026-08-05', KOSHIEN_GAMES: '2' },
++    encoding: 'utf8'
++  });
++  return res.stderr || '';
++}
++const brief = j => j.games.map(g => [g.id, g.home, g.away, g.winner, g.status].join('/')).sort();
++
++console.log('\n[1] ふつうに2試合とも読める');
++{
++  const html = page('1回戦', [
++    { id: '1', no: '第1試合', home: 'A校', away: 'B校', status: '見どころ' },
++    { id: '2', no: '第2試合', home: 'C校', away: 'D校', status: '見どころ' }
++  ]);
++  const j = run({ '2026-08-05': html });
++  eq('2試合とも取れる', brief(j), ['1/A校/B校//見どころ', '2/C校/D校//見どころ']);
++  eq('件数も2', j.counts.games, 2);
++}
++
++console.log('\n[2] 試合中／試合直後で入れ子が増えても、その試合が落ちない');
++{
++  const html = page('1回戦', [
++    { id: '1', no: '第1試合', home: 'A校', away: 'B校', hs: 3, as: 1, status: '試合終了', live: true },
++    { id: '2', no: '第2試合', home: 'C校', away: 'D校', status: '見どころ' }
++  ]);
++  const j = run({ '2026-08-05': html });
++  eq('2試合とも残る', brief(j), ['1/A校/B校/A校/試合終了', '2/C校/D校//見どころ']);
++  eq('スコアが取れている', [j.games[0].homeScore, j.games[0].awayScore], [3, 1]);
++  eq('勝敗も1件', j.counts.decided, 1);
++}
++
++console.log('\n[3] 試合直後にページから消えても、前回ぶんが残る（今回の事故）');
++{
++  const before = run({
++    '2026-08-05': page('1回戦', [
++      { id: '1', no: '第1試合', home: 'A校', away: 'B校', hs: 3, as: 1, status: '試合終了' },
++      { id: '2', no: '第2試合', home: 'C校', away: 'D校', status: '見どころ' }
++    ])
++  });
++  // 2試合目が終わった直後、ページから丸ごと消えた
++  const gone = page('1回戦', [
++    { id: '1', no: '第1試合', home: 'A校', away: 'B校', hs: 3, as: 1, status: '試合終了' }
++  ]);
++  const after = run({ '2026-08-05': gone }, before);
++  eq('消えた試合も残っている', brief(after), ['1/A校/B校/A校/試合終了', '2/C校/D校//見どころ']);
++  eq('件数は減らない', after.counts.games, 2);
++  const err = runErr({ '2026-08-05': gone }, before);
++  eq('消えていたことを警告する', /消えていた試合が 1 件/.test(err), true);
++}
++
++console.log('\n[4] 校名が読めない回があっても、前回の校名を消さない');
++{
++  const before = run({
++    '2026-08-05': page('1回戦', [
++      { id: '1', no: '第1試合', home: 'A校', away: 'B校', status: '見どころ' },
++      { id: '2', no: '第2試合', home: 'C校', away: 'D校', status: '見どころ' }
++    ])
++  });
++  // 2試合目の校名まわりのタグだけが崩れた（IDとステータスは読める）
++  const broken = page('1回戦', [
++    { id: '1', no: '第1試合', home: 'A校', away: 'B校', hs: 5, as: 2, status: '試合終了' },
++    { id: '2', no: '第2試合', home: 'C校', away: 'D校', status: '見どころ' }
++  ]).replace(/<div class="bb-score__home"><p>C校<\/p><\/div>/, '<div class="bb-score__home"></div>')
++    .replace(/<div class="bb-score__away"><p>D校<\/p><\/div>/, '<div class="bb-score__away"></div>');
++  const after = run({ '2026-08-05': broken }, before);
++  eq('校名は前回ぶんが残る', brief(after), ['1/A校/B校/A校/試合終了', '2/C校/D校//見どころ']);
++}
++
++console.log('\n[5] 未定は空として扱う（対戦相手が決まったら上書きされる）');
++{
++  const before = run({
++    '2026-08-05': page('2回戦', [{ id: '9', no: '第1試合', home: 'A校', away: '未定', status: '試合前' }])
++  });
++  eq('未定は null', [before.games[0].home, before.games[0].away], ['A校', null]);
++  const after = run({
++    '2026-08-05': page('2回戦', [{ id: '9', no: '第1試合', home: 'A校', away: 'Z校', status: '見どころ' }])
++  }, before);
++  eq('決まったら入る', [after.games[0].home, after.games[0].away], ['A校', 'Z校']);
++}
++
++console.log(`\n===== ${ok} 件合格 / ${ng} 件不合格 =====`);
++process.exit(ng ? 1 : 0);
+diff --git a/data/games.json b/data/games.json
+index 7a5fd0e..9b22a4d 100644
+--- a/data/games.json
++++ b/data/games.json
+@@ -2,15 +2,17 @@
+  "source": "https://baseball.yahoo.co.jp/hsb_summer/schedule/competition/",
+  "fetchedAt": "2026-08-06T11:21:47.323Z",
+  "counts": {
+-  "games": 47,
+-  "paired": 24,
++  "games": 48,
++  "expected": 48,
++  "paired": 25,
+   "decided": 2,
+-  "broken": 0
++  "broken": 0,
++  "vanished": 0
+  },
+  "byRound": [
+   {
+    "round": "1回戦",
+-   "n": 16
++   "n": 17
+   },
+   {
+    "round": "2回戦",
+@@ -58,6 +60,18 @@
+    "winner": "神村学園 （鹿児島）",
+    "status": "試合終了"
+   },
++  {
++   "id": "2021048482",
++   "date": "2026-08-06",
++   "round": "1回戦",
++   "no": "第2試合",
++   "home": "聖隷クリストファー （静岡）",
++   "away": "佐野日大 （栃木）",
++   "homeScore": null,
++   "awayScore": null,
++   "winner": null,
++   "status": "見どころ"
++  },
+   {
+    "id": "2021048483",
+    "date": "2026-08-07",
+diff --git a/index.html b/index.html
+index 6688aa0..142b976 100644
+--- a/index.html
++++ b/index.html
+@@ -266,7 +266,9 @@ label.lb{display:block;font-size:11.5px;color:var(--ink2);font-weight:700;margin
+ .br-note{font-size:11px;color:var(--ink3);padding:7px 12px 0;line-height:1.6}
+ .br-m{display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid var(--line)}
+ .br-m:last-child{border-bottom:0}
+-.br-no{width:20px;text-align:center;font-size:10.5px;color:var(--ink3);flex:none;font-variant-numeric:tabular-nums}
++.br-no{width:34px;text-align:center;font-size:10.5px;color:var(--ink3);flex:none;font-variant-numeric:tabular-nums;line-height:1.35}
++.br-no b{display:block;font-size:11px;font-weight:700;color:var(--ink2)}
++.br-no i{display:block;font-style:normal;font-size:10px;color:var(--ink3)}
+ .br-pair{flex:1;display:flex;flex-direction:column;gap:3px;min-width:0}
+ .br-slot{
+   display:flex;align-items:center;width:100%;text-align:left;font-size:12.5px;font-weight:600;color:var(--ink);
+@@ -335,7 +337,10 @@ label.lb{display:block;font-size:11.5px;color:var(--ink2);font-weight:700;margin
+   width:40px;min-width:40px;text-align:center;font-weight:800;font-size:11.5px;
+   font-variant-numeric:tabular-nums;background:#FAFBFC;
+ }
+-.pm tr.flat th.pm-t{color:var(--ink3)}
++/* 「差が小さい＝順位が動きにくい」は “差” の欄だけで示す。
++   校名まで薄くすると、勝ち残っている校が『敗退した校』と同じ見た目になってしまう
++   （横浜・神村学園が薄い、という指摘。どちらも差が小さいだけで敗退ではない） */
++.pm tr.flat td.pm-g{opacity:.5}
+ .hotbox{
+   background:#FFF8EE;border:1px solid #F0DEC2;border-radius:8px;padding:9px 11px;margin-bottom:10px;
+   font-size:12px;line-height:1.7;color:#7A5320;
+@@ -1361,6 +1366,13 @@ function matchNoIn(mi){
+   let c=0; for(let i=0;i<mi;i++) if(ST.matches[i].r===ST.matches[mi].r) c++;
+   return c+1;
+ }
++/* その行が「いつの第何試合か」。取り込み前は通し番号だけ出す */
++function brWhen(mi){
++  const d = BR_DAY[mi];
++  if(!d || !d.date) return matchNoIn(mi);
++  const p = d.date.split('-');
++  return `<b>${+p[1]}/${+p[2]}</b><i>${d.no?'第'+d.no:''}</i>`;
++}
+ /* 勝者を決める（もう一度押すと取り消し） */
+ function pickWinner(mi, side){
+   if(!canEdit('勝敗を入力', true)) return;   // デモは触って試せるように
+@@ -1421,7 +1433,7 @@ function renderBracket(){
+       ${rd.note?`<div class="br-note">${rd.note}</div>`:''}
+       ${idxs.map(mi=>`
+         <div class="br-m">
+-          <div class="br-no">${matchNoIn(mi)}</div>
++          <div class="br-no">${brWhen(mi)}</div>
+           <div class="br-pair">${cell(mi,'a')}${cell(mi,'b')}</div>
+         </div>`).join('')}
+     </details>`;
+@@ -1456,6 +1468,8 @@ async function fetchJson(path){
+   return await r2.json();
+ }
+ let AUTO = { state:'idle', at:0, msg:'', unmatched:[], data:null };
++/* 対戦表の各行が「何月何日の第何試合か」。取り込みのたびに作り直す */
++let BR_DAY = {};
+ 
+ function autoEnabled(){ return localStorage.getItem('pb_koshien_auto') !== 'off'; }
+ function setAuto(on){ localStorage.setItem('pb_koshien_auto', on?'on':'off'); if(on) fetchGames(true); else render(); }
+@@ -1471,17 +1485,23 @@ function mapGames(games){
+   const list = games.map(conv);
+   return { list, unmatched:[...unmatched] };
+ }
+-/* 取り込んだ内容で対戦表・勝ち数・敗退を作り直す（何度やっても同じ結果になる） */
++/* 取り込んだ内容で対戦表・勝ち数・敗退を作り直す（何度やっても同じ結果になる）
++   並びは「日付 → その日の第N試合」。試合番号だけで並べると
++   8/5第1 → 8/6第1 → 8/7第1 …→ 8/7第2 … と日付がばらばらになる */
+ function buildFromGames(list){
+   const ms = initMatches();
++  BR_DAY = {};
+   ROUNDS.forEach((rd,ri)=>{
+     const base = ms.findIndex(m=>m.r===ri);
+-    list.filter(g=>g.round===rd.l).sort((x,y)=>x.no-y.no).forEach((g,k)=>{
++    list.filter(g=>g.round===rd.l)
++        .sort((x,y)=> x.date===y.date ? x.no-y.no : (x.date<y.date?-1:1))
++        .forEach((g,k)=>{
+       if(k>=rd.n) return;
+       const m = ms[base+k];
+       m.a = (g.a===undefined?null:g.a); m.b = (g.b===undefined?null:g.b);
+       m.w = (g.w===undefined?null:g.w);
+       if(m.w!=null && m.w!==m.a && m.w!==m.b) m.w = null;   // 念のため
++      BR_DAY[base+k] = {date:g.date, no:g.no};              // 対戦表に日付を出すため
+     });
+   });
+   const wins=new Array(N).fill(0), out=new Array(N).fill(false);
+@@ -1502,8 +1522,19 @@ async function fetchGames(silent){
+       AUTO.msg = `校名が照合できません：${unmatched.slice(0,3).join('・')}${unmatched.length>3?' ほか':''}`;
+       render(); return;
+     }
+-    AUTO.state='ok'; AUTO.at=Date.now();
+-    AUTO.msg = `${d.counts.decided}試合 決着 ／ 取得 ${fmtTs(new Date(d.fetchedAt).getTime())}`;
++    AUTO.at=Date.now();
++    const got = `${d.counts.decided}試合 決着 ／ 取得 ${fmtTs(new Date(d.fetchedAt).getTime())}`;
++    // 数が足りない＝どこかの試合を丸ごと取りこぼしている。
++    // 「エラーが出ない＝動いている」ではないので、足りないことは必ず出す
++    const want = d.counts.expected || TOTAL_GAMES;
++    const lack = want - d.counts.games;
++    if(lack>0 || d.counts.broken){
++      AUTO.state='warn';
++      AUTO.msg = lack>0 ? `${got}（${want}試合のうち ${lack}試合ぶんが取れていません）`
++                        : `${got}（勝敗が読めない試合が ${d.counts.broken}件）`;
++    }else{
++      AUTO.state='ok'; AUTO.msg = got;
++    }
+     if(autoEnabled() && !VIEWING_SHARE){
+       const b = buildFromGames(list);
+       const changed = JSON.stringify(b.wins)!==JSON.stringify(ST.wins) || JSON.stringify(b.matches)!==JSON.stringify(ST.matches);
+diff --git a/scripts/fetch_games.js b/scripts/fetch_games.js
+index b946a06..e3e9249 100644
+--- a/scripts/fetch_games.js
++++ b/scripts/fetch_games.js
+@@ -2,6 +2,10 @@
+    スポーツナビ（バーチャル高校野球）から 日程・対戦・結果 を取得して
+    data/games.json に書き出す。GitHub Actions から定期実行する。
+    外部ライブラリなし（node標準のみ）。
++
++   大事な考えかた：**取れたものを足すだけ。前回取れていたものは消さない。**
++   （試合中・試合直後はページの形が変わって読めなくなることがある。
++     読めなかった試合をそのまま落とすと、結果が一時的に消えてしまう）
+    ============================================================ */
+ const fs = require('fs');
+ const path = require('path');
+@@ -9,9 +13,12 @@ const path = require('path');
+ const BASE = 'https://baseball.yahoo.co.jp/hsb_summer/schedule/competition';
+ const START = process.env.KOSHIEN_START || '2026-08-05';
+ const DAYS  = Number(process.env.KOSHIEN_DAYS || 24);   // 順延を見込んで長めに見る
+-const OUT   = path.join(__dirname, '..', 'data', 'games.json');
++const EXPECT = Number(process.env.KOSHIEN_GAMES || 48); // 49校＝全48試合
++const OUT   = process.env.KOSHIEN_OUT || path.join(__dirname, '..', 'data', 'games.json');
+ 
+ const ROUND_ORDER = ['1回戦','2回戦','3回戦','準々決勝','準決勝','決勝'];
++/* 各回戦の試合数。ここと合わない＝どこかを取りこぼしている */
++const ROUND_N = {'1回戦':17,'2回戦':16,'3回戦':8,'準々決勝':4,'準決勝':2,'決勝':1};
+ 
+ const sleep = ms => new Promise(r => setTimeout(r, ms));
+ const addDays = (iso, n) => {
+@@ -35,25 +42,37 @@ const strip = s => s.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ')
+   .replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"')
+   .replace(/\s+/g, ' ').trim();
+ 
++/* marker ごとに切り出す。1片は「次の marker まで」。
++   閉じタグ end で切ったほうが短くて安全だが、**中身（need）が残るときだけ**そうする。
++   試合が始まると入れ子のタグが増えて、最初の閉じタグで切ると
++   2試合目以降がまるごと消える（2026-08-06 に実際に起きた）。 */
++function chunks(hay, marker, end, need) {
++  return hay.split(marker).slice(1).map(raw => {
++    const cut = raw.split(end)[0];
++    if (cut === raw) return raw;
++    return need.every(n => cut.includes(n)) ? cut : raw;
++  });
++}
++
+ /* 1日ぶんのHTMLから試合を取り出す */
+ function parseDay(html, date) {
+   const games = [];
+-  // <section class="bb-score"> ... </section> を丸ごと拾う（ラウンド単位）
++  // <section class="bb-score"> ごと（＝回戦ごと）。次の bb-score セクションまでを1片にする。
++  // ここで </section> で切らないこと（入れ子があると後ろの試合が消える）
+   const sections = html.split(/<section class="bb-score"/).slice(1);
+-  for (const secRaw of sections) {
+-    const sec = secRaw.split('</section>')[0];
++  for (const sec of sections) {
+     const rm = sec.match(/class="bb-score__title"[^>]*>([\s\S]*?)<\/h1>/);
+     const round = rm ? strip(rm[1]) : '';
+     if (!ROUND_ORDER.includes(round)) continue;
+ 
+-    const items = sec.split(/<li class="bb-score__item"/).slice(1);
+-    for (const itRaw of items) {
+-      const it = itRaw.split('</li>')[0];
++    const items = chunks(sec, '<li class="bb-score__item"', '</li>',
++                         ['bb-score__home', 'bb-score__away']);
++    for (const it of items) {
+       const idm = it.match(/\/hsb_summer\/game\/(\d+)\//);
++      if (!idm) continue;                       // 試合IDがないものは試合ではない
+       const nom = it.match(/class="bb-score__round"[^>]*>([\s\S]*?)<\/span>/);
+       const home = it.match(/class="bb-score__home"[\s\S]*?<p>([\s\S]*?)<\/p>/);
+       const away = it.match(/class="bb-score__away"[\s\S]*?<p>([\s\S]*?)<\/p>/);
+-      if (!idm || !home || !away) continue;
+ 
+       // スコア：<span class="bb-score__score bb-score__score--left">3</span>
+       //         <span class="… --center">-</span><span class="… --right">1</span>
+@@ -62,33 +81,54 @@ function parseDay(html, date) {
+       const scores = [...it.matchAll(/bb-score__score--(?:left|right)[^>]*>([\s\S]*?)<\/span>/g)].map(m => strip(m[1]));
+       const st = it.match(/class="bb-score__link"[^>]*>([\s\S]*?)<\/[a-z]+>/);
+ 
+-      const hName = strip(home[1]);
+-      const aName = strip(away[1]);
++      const nm = m => { if (!m) return null; const s = strip(m[1]); return (!s || s === '未定') ? null : s; };
++      const hName = nm(home);
++      const aName = nm(away);
+       const hs = scores[0] !== undefined && /^\d+$/.test(scores[0]) ? Number(scores[0]) : null;
+       const as = scores[1] !== undefined && /^\d+$/.test(scores[1]) ? Number(scores[1]) : null;
+ 
+       let winner = null;
+-      if (hs !== null && as !== null && hs !== as) winner = hs > as ? hName : aName;
++      if (hName && aName && hs !== null && as !== null && hs !== as) winner = hs > as ? hName : aName;
+ 
++      // 校名が読めなくても捨てない。IDだけでも残しておけば、前回ぶんと合体できる
+       games.push({
+         id: idm[1],
+         date,
+         round,
+         no: nom ? strip(nom[1]) : '',
+-        home: hName === '未定' ? null : hName,
+-        away: aName === '未定' ? null : aName,
++        home: hName,
++        away: aName,
+         homeScore: hs,
+         awayScore: as,
+-        winner: winner === '未定' ? null : winner,
+-        status: st ? strip(st[1]) : ''
++        winner,
++        status: st ? strip(st[1]) : '',
++        _partial: !(home && away)
+       });
+     }
+   }
+   return games;
+ }
+ 
++/* 前回ぶんと合体する。**空で上書きしない**（＝分かったことだけが増えていく） */
++function mergeGame(prev, next) {
++  if (!prev) return next;
++  const keep = (a, b) => (b === null || b === undefined || b === '') ? a : b;
++  return {
++    id:        next.id,
++    date:      keep(prev.date, next.date),
++    round:     keep(prev.round, next.round),
++    no:        keep(prev.no, next.no),
++    home:      keep(prev.home, next.home),
++    away:      keep(prev.away, next.away),
++    homeScore: keep(prev.homeScore, next.homeScore),
++    awayScore: keep(prev.awayScore, next.awayScore),
++    winner:    keep(prev.winner, next.winner),
++    status:    keep(prev.status, next.status)
++  };
++}
++
+ (async () => {
+-  const all = [];
++  const fresh = [];
+   const seen = new Set();
+   let emptyStreak = 0;
+ 
+@@ -103,12 +143,25 @@ function parseDay(html, date) {
+     }
+     const g = parseDay(html, date).filter(x => !seen.has(x.id));
+     g.forEach(x => seen.add(x.id));
+-    all.push(...g);
+-    console.log(`  ${date}: ${g.length}試合`);
++    fresh.push(...g);
++    const part = g.filter(x => x._partial).length;
++    console.log(`  ${date}: ${g.length}試合${part ? `（うち ${part}件は校名が読めず）` : ''}`);
+     if (g.length === 0) { if (++emptyStreak >= 5) break; } else emptyStreak = 0;
+     await sleep(1200);                       // 相手に負荷をかけない
+   }
+ 
++  let prev = null;
++  try { prev = JSON.parse(fs.readFileSync(OUT, 'utf8')); } catch (e) {}
++  const prevGames = (prev && Array.isArray(prev.games)) ? prev.games : [];
++
++  // 前回ぶんを土台にして、今回読めたぶんを上書きしていく
++  const byId = new Map(prevGames.map(g => [g.id, g]));
++  fresh.forEach(f => { const { _partial, ...clean } = f; byId.set(f.id, mergeGame(byId.get(f.id), clean)); });
++  const all = [...byId.values()];
++
++  // 今回まったく読めなかった試合（前回はあった）＝ページの形が変わったサイン
++  const vanished = prevGames.filter(g => !seen.has(g.id));
++
+   all.sort((a, b) => {
+     const r = ROUND_ORDER.indexOf(a.round) - ROUND_ORDER.indexOf(b.round);
+     if (r) return r;
+@@ -121,21 +174,33 @@ function parseDay(html, date) {
+   // 「試合終了なのに勝敗が取れていない」= 取得側の不具合。黙って通さない
+   const broken = all.filter(g => /試合終了/.test(g.status) && !g.winner &&
+                                  !(g.homeScore !== null && g.homeScore === g.awayScore));
++  const byRound = ROUND_ORDER.map(r => ({ round: r, n: all.filter(g => g.round === r).length }));
++  // 予定の試合数に足りない＝どこかを丸ごと取りこぼしている
++  const shortRounds = byRound.filter(r => r.n !== ROUND_N[r.round]);
++
+   if (broken.length) {
+     console.error(`\n⚠ 取得できていない試合が ${broken.length} 件あります（HTMLの形が変わった可能性）`);
+     broken.forEach(g => console.error(`   ${g.date} ${g.round}${g.no} ${g.home} vs ${g.away} [${g.status}]`));
+   }
++  if (vanished.length) {
++    console.error(`\n⚠ 今回のページから消えていた試合が ${vanished.length} 件あります（前回ぶんを残しました）`);
++    vanished.forEach(g => console.error(`   ${g.date} ${g.round}${g.no} ${g.home} vs ${g.away}`));
++  }
++  if (all.length !== EXPECT || shortRounds.length) {
++    console.error(`\n⚠ 試合数が ${all.length} 件です（予定は ${EXPECT} 件）`);
++    shortRounds.forEach(r => console.error(`   ${r.round}: ${r.n}（予定 ${ROUND_N[r.round]}）`));
++  }
++
+   const out = {
+     source: 'https://baseball.yahoo.co.jp/hsb_summer/schedule/competition/',
+     fetchedAt: new Date().toISOString(),
+-    counts: { games: all.length, paired, decided, broken: broken.length },
+-    byRound: ROUND_ORDER.map(r => ({ round: r, n: all.filter(g => g.round === r).length })),
++    counts: { games: all.length, expected: EXPECT, paired, decided,
++              broken: broken.length, vanished: vanished.length },
++    byRound,
+     games: all
+   };
+ 
+   // 前回と中身が同じなら書き換えない（無意味なコミットを作らない）
+-  let prev = null;
+-  try { prev = JSON.parse(fs.readFileSync(OUT, 'utf8')); } catch (e) {}
+   if (prev && JSON.stringify(prev.games) === JSON.stringify(out.games)) {
+     console.log('変化なし（書き込みなし）');
+     process.exit(0);
+@@ -144,5 +209,5 @@ function parseDay(html, date) {
+   fs.mkdirSync(path.dirname(OUT), { recursive: true });
+   fs.writeFileSync(OUT, JSON.stringify(out, null, 1) + '\n', 'utf8');
+   console.log(`\n書き出し: ${all.length}試合 / 対戦確定 ${paired} / 勝敗確定 ${decided}`);
+-  out.byRound.forEach(r => console.log(`  ${r.round}: ${r.n}`));
++  byRound.forEach(r => console.log(`  ${r.round}: ${r.n}`));
+ })();
+-- 
+2.43.0
+
+
+From bac1fe7271154d568b9fd4da9010702f27a70f5d Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Thu, 6 Aug 2026 11:56:59 +0000
+Subject: [PATCH 2/5] =?UTF-8?q?8/6=20=E7=AC=AC2=E8=A9=A6=E5=90=88=E3=81=AE?=
+ =?UTF-8?q?=E7=B5=90=E6=9E=9C=E3=82=92=E5=8F=8D=E6=98=A0=EF=BC=88=E8=81=96?=
+ =?UTF-8?q?=E9=9A=B7=E3=82=AF=E3=83=AA=E3=82=B9=E3=83=88=E3=83=95=E3=82=A1?=
+ =?UTF-8?q?=E3=83=BC=200-1=20=E4=BD=90=E9=87=8E=E6=97=A5=E5=A4=A7=EF=BC=89?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+取りこぼしで丸ごと消えていた試合。スポーツナビの日程ページで
+「試合終了」を確認して手で入れた。あわせて、これで決まった
+2回戦 第3試合（8/12）の組み合わせ 神村学園 vs 佐野日大 も入れた。
+
+これで 3試合決着。順位が大きく動く（大良 1位 → 6位、むら 1位）。
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_0163xHuKSczKbDLqvr2UrvXY
+---
+ data/games.json | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/data/games.json b/data/games.json
+index 9b22a4d..9e2c112 100644
+--- a/data/games.json
++++ b/data/games.json
+@@ -4,8 +4,8 @@
+  "counts": {
+   "games": 48,
+   "expected": 48,
+-  "paired": 25,
+-  "decided": 2,
++  "paired": 26,
++  "decided": 3,
+   "broken": 0,
+   "vanished": 0
+  },
+@@ -67,10 +67,10 @@
+    "no": "第2試合",
+    "home": "聖隷クリストファー （静岡）",
+    "away": "佐野日大 （栃木）",
+-   "homeScore": null,
+-   "awayScore": null,
+-   "winner": null,
+-   "status": "見どころ"
++   "homeScore": 0,
++   "awayScore": 1,
++   "winner": "佐野日大 （栃木）",
++   "status": "試合終了"
+   },
+   {
+    "id": "2021048483",
+@@ -342,7 +342,7 @@
+    "round": "2回戦",
+    "no": "第3試合",
+    "home": "神村学園 （鹿児島）",
+-   "away": null,
++   "away": "佐野日大 （栃木）",
+    "homeScore": null,
+    "awayScore": null,
+    "winner": null,
+-- 
+2.43.0
+
+
+From a8832b64752b6cbe2ada7c840b8de85c17583b2d Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Thu, 6 Aug 2026 12:02:17 +0000
+Subject: [PATCH 3/5] =?UTF-8?q?=E3=83=88=E3=83=BC=E3=83=8A=E3=83=A1?=
+ =?UTF-8?q?=E3=83=B3=E3=83=88=E8=A1=A8=E3=83=9A=E3=83=BC=E3=82=B8=E3=81=AE?=
+ =?UTF-8?q?HTML=E3=82=92=E6=8E=A1=E5=8F=96=E3=81=99=E3=82=8B=E3=83=AF?=
+ =?UTF-8?q?=E3=83=BC=E3=82=AF=E3=83=95=E3=83=AD=E3=83=BC=EF=BC=88=E6=89=8B?=
+ =?UTF-8?q?=E5=8B=95=E5=AE=9F=E8=A1=8C=EF=BC=89?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+枝分かれ図を作るには tournament/detail の実物のHTMLが要る。
+日程ページと作りが違い、外からは中身が読めない（JSで描いている）。
+Yahooに届くのはこのボットだけなので、ここで取って
+claude/bracket-dump ブランチに置く。パーサができたら消す。
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_0163xHuKSczKbDLqvr2UrvXY
+---
+ .github/workflows/dump-bracket.yml | 46 ++++++++++++++++++++++++++++++
+ 1 file changed, 46 insertions(+)
+ create mode 100644 .github/workflows/dump-bracket.yml
+
+diff --git a/.github/workflows/dump-bracket.yml b/.github/workflows/dump-bracket.yml
+new file mode 100644
+index 0000000..c41a884
+--- /dev/null
++++ b/.github/workflows/dump-bracket.yml
+@@ -0,0 +1,46 @@
++# トーナメント表ページのHTMLを取ってきて、そのままファイルに置く（手動実行のみ）。
++#
++# なぜ要るか：スポーツナビのトーナメント表は日程ページと作りが違い、
++# 中身がそのままでは読めない。パーサを書くには実物のHTMLを一度見るしかない。
++# 実行環境からYahooに届くのはこのボットだけなので、ここで取って枝に置く。
++#
++# 使い方：Actions →「トーナメント表HTMLの採取」→ Run workflow
++#         → claude/bracket-dump ブランチに data/_bracket_raw.html ができる
++# パーサができたらこのワークフローとHTMLは消す。
++name: トーナメント表HTMLの採取
++
++on:
++  workflow_dispatch:
++    inputs:
++      url:
++        description: '取ってくるURL'
++        required: false
++        default: 'https://baseball.yahoo.co.jp/hsb_summer/tournament/detail'
++
++permissions:
++  contents: write
++
++jobs:
++  dump:
++    runs-on: ubuntu-latest
++    steps:
++      - uses: actions/checkout@v4
++      - name: fetch
++        env:
++          URL: ${{ inputs.url }}
++        run: |
++          mkdir -p data
++          curl -sS --fail --compressed \
++            -A 'Mozilla/5.0 (compatible; pb-koshien/1.0; personal tally bot)' \
++            -H 'Accept-Language: ja' \
++            "$URL" -o data/_bracket_raw.html
++          echo "$(wc -c < data/_bracket_raw.html) バイト取得"
++          echo "試合リンクの数: $(grep -o '/hsb_summer/game/[0-9]*/' data/_bracket_raw.html | sort -u | wc -l)"
++      - name: commit
++        run: |
++          git config user.name  "koshien-bot"
++          git config user.email "koshien-bot@users.noreply.github.com"
++          git checkout -B claude/bracket-dump
++          git add -f data/_bracket_raw.html
++          git commit -m "dump: トーナメント表ページのHTML"
++          git push -f origin claude/bracket-dump
+-- 
+2.43.0
+
+
+From 8d437074bc99c5674d887b475148d62c9a3b58e9 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Thu, 6 Aug 2026 12:43:37 +0000
+Subject: [PATCH 4/5] =?UTF-8?q?=E3=83=88=E3=83=BC=E3=83=8A=E3=83=A1?=
+ =?UTF-8?q?=E3=83=B3=E3=83=88=E8=A1=A8=E3=82=92=E6=9E=9D=E5=88=86=E3=81=8B?=
+ =?UTF-8?q?=E3=82=8C=E5=9B=B3=E3=81=AB=E3=81=97=E3=81=9F=EF=BC=88Yahoo?=
+ =?UTF-8?q?=E3=81=A8=E5=90=8C=E3=81=98=E5=BD=A2=EF=BC=89?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+これまでは回戦ごとの平らな一覧で、「勝ったら次はどこか」が分からなかった。
+抽選で決まっている1〜3回戦の枝を data/bracket.json に起こし、
+対戦表タブに枝分かれ図を追加した（既定）。「☰ 一覧」で今までの表示に戻せる。
+
+データの出どころは阪神甲子園球場の公式表。
+スポーツナビの tournament/detail はJSで描いていてHTMLからは読めない。
+
+図は左端に49校を抽選どおりの並びで置き、右へ1回戦→2回戦→3回戦。
+シード校は1回戦の列を飛ばして2回戦へつなぐ。勝った校は緑、
+負けた校は取り消し線、枝の上に勝者とスコア。自分の点も校名の横に出る。
+準々決勝から先は勝った学校がくじを引くので、図は3回戦まで。
+
+_test_bracket.js を追加。bracket.json と games.json を突き合わせ、
+49校が1回ずつ／41試合が実在／校名一致／木をたどるとorderと同じ順、を確認する。
+既存テストと合わせて 107件すべて合格。
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_0163xHuKSczKbDLqvr2UrvXY
+---
+ HANDOFF.md        |  25 +++++++
+ _test_bracket.js  | 104 ++++++++++++++++++++++++++++
+ data/bracket.json |   1 +
+ index.html        | 168 +++++++++++++++++++++++++++++++++++++++++++---
+ 4 files changed, 288 insertions(+), 10 deletions(-)
+ create mode 100644 _test_bracket.js
+ create mode 100644 data/bracket.json
+
+diff --git a/HANDOFF.md b/HANDOFF.md
+index a4c08e4..6c5b0f2 100644
+--- a/HANDOFF.md
++++ b/HANDOFF.md
+@@ -92,6 +92,31 @@
+   8/5第1 → 8/6第1 → 8/7第1 …→ 8/7第2 … の順になっていた。
+   → **日付 → その日の第N試合**で並べ、各行の左に **8/7 / 第3** と日付を出すようにした。
+ 
++### 【追加 2026-08-06】トーナメント表を「枝分かれ図」にした
++
++大嶺さんの指摘「トーナメント表これやで」（＝Yahooのあの図）に対応。
++
++**データ**：`data/bracket.json`。**阪神甲子園球場の公式表**を書き写したもの。
++<https://koshien.hanshin.co.jp/highschool/summer2026/tournament.html>
++
++- `order` … 49校を**抽選どおりの並び**（上が1塁側）で上から
++- `games` … 41試合（1回戦17／2回戦16／3回戦8）。各枠は
++  `{"t":"高岡商"}`＝その校が直接入る（シード）／`{"w":"2026-08-05#1"}`＝その試合の勝者
++
++> スポーツナビの `tournament/detail` は**中身が読めない**（JSで描いていて、
++> HTMLを取ってもニュース欄しか出てこない）。日程ページだけだと
++> 「勝ったあとどこへ行くか」が試合後にしか分からないので、公式表から起こした。
++> 準々決勝から先は**勝った学校が試合後にくじを引く**ので、枝は引けない（図も3回戦まで）。
++
++**画面**：対戦表タブの上に「🗂 枝分かれ図 / ☰ 一覧」。既定は図。
++左端に49校、右へ1回戦→2回戦→3回戦。勝った校は緑・負けた校は取り消し線、
++枝の上に**勝者とスコア**が出る。自分の点も校名の横に出る。
++**勝敗を手で直すときは「☰ 一覧」に切り替える**（編集は今までどおり一覧側）。
++
++**テスト**：`node _test_bracket.js`。bracket.json と games.json を突き合わせ、
++49校が1回ずつ・41試合が実在・校名一致・木をたどると order と同じ順、を確認する。
++**書き写しミスは「勝ったのに次の枠に出てこない」形で出て気づきにくい**ので、必ず通すこと。
++
+ ### 次にやること：日々の結果反映は自動（8/6〜）
+ 
+ 修正後は30分おきのボットが勝敗まで取り込む。人の作業は不要。
+diff --git a/_test_bracket.js b/_test_bracket.js
+new file mode 100644
+index 0000000..681b8b3
+--- /dev/null
++++ b/_test_bracket.js
+@@ -0,0 +1,104 @@
++/* ============================================================
++   data/bracket.json（抽選で決まった1〜3回戦の枝分かれ）の検算
++   node _test_bracket.js
++
++   bracket.json は甲子園球場の公式表を書き写したもの。書き写しミスは
++   「勝ったのに次の枠に出てこない」という形で出て、気づきにくい。
++   そこで games.json（スポーツナビ）と突き合わせて、
++   ・49校がちょうど1回ずつ出てくるか
++   ・41試合が全部 games.json に実在し、日付・回戦・試合番号が合っているか
++   ・1回戦とシード校の校名が games.json と合っているか
++   を毎回確かめる。
++   ============================================================ */
++const fs = require('fs');
++const path = require('path');
++
++const bracket = JSON.parse(fs.readFileSync(path.join(__dirname, 'data/bracket.json'), 'utf8'));
++const games   = JSON.parse(fs.readFileSync(path.join(__dirname, 'data/games.json'), 'utf8'));
++const html    = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
++
++let ok = 0, ng = 0;
++const eq = (label, got, want) => {
++  const g = JSON.stringify(got), w = JSON.stringify(want);
++  if (g === w) { ok++; console.log('  OK   ' + label); }
++  else { ng++; console.log('  NG   ' + label + `\n        got  ${g}\n        want ${w}`); }
++};
++const yes = (label, cond, detail) => eq(label + (cond ? '' : `（${detail}）`), !!cond, true);
++
++/* index.html から 49校と表記ゆれ吸収を借りてくる（二重に持たないため） */
++const TEAMS = [...html.matchAll(/\['([^']+)','([^']+)'\]/g)].slice(0, 49).map(m => m[1]);
++const ALIAS = { '智辯和歌山': '智弁和歌山' };
++const norm = s => {
++  const x = String(s || '').replace(/[\s　]/g, '').replace(/[（(].*?[）)]/g, '');
++  return ALIAS[x] || x;
++};
++const noOf = g => Number((g.no.match(/\d+/) || [0])[0]);
++const key  = (date, no) => `${date}#${no}`;
++const ROUND = { 1: '1回戦', 2: '2回戦', 3: '3回戦' };
++
++console.log('\n[1] 49校がちょうど1回ずつ');
++eq('校数は49', bracket.order.length, 49);
++eq('重複なし', new Set(bracket.order.map(norm)).size, 49);
++eq('index.html の49校と同じ顔ぶれ',
++   bracket.order.map(norm).sort(), TEAMS.map(norm).sort());
++
++console.log('\n[2] 試合数');
++eq('1回戦 17', bracket.games.filter(g => g.r === 1).length, 17);
++eq('2回戦 16', bracket.games.filter(g => g.r === 2).length, 16);
++eq('3回戦 8',  bracket.games.filter(g => g.r === 3).length, 8);
++
++console.log('\n[3] games.json と1対1');
++const byKey = new Map(games.games.map(g => [key(g.date, noOf(g)), g]));
++let missing = [], wrongRound = [];
++bracket.games.forEach(b => {
++  const g = byKey.get(key(b.date, b.no));
++  if (!g) { missing.push(key(b.date, b.no)); return; }
++  if (g.round !== ROUND[b.r]) wrongRound.push(`${key(b.date, b.no)} ${g.round}≠${ROUND[b.r]}`);
++});
++eq('games.json に無い試合はない', missing, []);
++eq('回戦のずれはない', wrongRound, []);
++
++const covered = new Set(bracket.games.map(b => key(b.date, b.no)));
++const uncovered = games.games
++  .filter(g => ['1回戦', '2回戦', '3回戦'].includes(g.round))
++  .map(g => key(g.date, noOf(g)))
++  .filter(k => !covered.has(k));
++eq('1〜3回戦で枝の無い試合はない', uncovered, []);
++
++console.log('\n[4] 校名が games.json と合っている');
++const nameMismatch = [];
++bracket.games.forEach(b => {
++  const g = byKey.get(key(b.date, b.no)); if (!g) return;
++  const want = [b.a, b.b].filter(s => s.t).map(s => norm(s.t));
++  if (!want.length) return;
++  const got = [g.home, g.away].filter(Boolean).map(norm);
++  want.forEach(w => { if (!got.includes(w)) nameMismatch.push(`${key(b.date, b.no)} に ${w} がいない [${got}]`); });
++});
++eq('1回戦・シードの校名が一致', nameMismatch, []);
++
++console.log('\n[5] 勝者参照が迷子になっていない');
++const keys = new Set(bracket.games.map(b => key(b.date, b.no)));
++const dangling = [];
++bracket.games.forEach(b => [b.a, b.b].forEach(s => { if (s.w && !keys.has(s.w)) dangling.push(s.w); }));
++eq('参照先はすべて実在', dangling, []);
++// 3回戦の8試合から木をたどると、ちょうど49枚の葉が bracket.order の順に並ぶ
++const gByKey = new Map(bracket.games.map(b => [key(b.date, b.no), b]));
++const leaves = [];
++const walk = side => {
++  if (side.t != null) { leaves.push(side.t); return; }
++  const g = gByKey.get(side.w);
++  if (!g) return;
++  walk(g.a); walk(g.b);
++};
++bracket.games.filter(b => b.r === 3).forEach(b => { walk(b.a); walk(b.b); });
++eq('木をたどると49校', leaves.length, 49);
++eq('並び順が order と同じ', leaves, bracket.order);
++
++console.log('\n[6] シードはちょうど15校（1回戦に出ない）');
++const inR1 = new Set();
++bracket.games.filter(b => b.r === 1).forEach(b => [b.a, b.b].forEach(s => inR1.add(norm(s.t))));
++eq('1回戦に出るのは34校', inR1.size, 34);
++eq('シードは15校', bracket.order.filter(t => !inR1.has(norm(t))).length, 15);
++
++console.log(`\n===== ${ok} 件合格 / ${ng} 件不合格 =====`);
++process.exit(ng ? 1 : 0);
+diff --git a/data/bracket.json b/data/bracket.json
+new file mode 100644
+index 0000000..e02d314
+--- /dev/null
++++ b/data/bracket.json
+@@ -0,0 +1 @@
++{"source":"https://koshien.hanshin.co.jp/highschool/summer2026/tournament.html","note":"8/1の抽選で決まった1〜3回戦の組み合わせ（上が1塁側）。準々決勝から先は、勝った学校が試合後にくじを引いて決める。","order":["高岡商","高川学園","天理","福山","横手","敦賀気比","智辯和歌山","社","履正社","享栄","松商学園","三重","拓大紅陵","佐賀商","花咲徳栄","札幌日大","仙台育英","東筑","神村学園","聖隷クリストファー","佐野日大","東海大甲府","鶴岡東","八幡商","健大高崎","立命館宇治","有明","立正大淞南","長崎日大","遊学館","青森山田","白樺学園","東日大昌平","日本文理","大分商","英明","関東第一","新田","花巻東","岡山学芸館","鳥取城北","鳴門渦潮","八王子実践","中京","霞ケ浦","明徳義塾","日南学園","横浜","沖縄尚学"],"games":[{"r":1,"date":"2026-08-05","no":1,"a":{"t":"札幌日大"},"b":{"t":"仙台育英"}},{"r":1,"date":"2026-08-06","no":1,"a":{"t":"東筑"},"b":{"t":"神村学園"}},{"r":1,"date":"2026-08-06","no":2,"a":{"t":"聖隷クリストファー"},"b":{"t":"佐野日大"}},{"r":1,"date":"2026-08-07","no":1,"a":{"t":"東海大甲府"},"b":{"t":"鶴岡東"}},{"r":1,"date":"2026-08-07","no":2,"a":{"t":"八幡商"},"b":{"t":"健大高崎"}},{"r":1,"date":"2026-08-07","no":3,"a":{"t":"立命館宇治"},"b":{"t":"有明"}},{"r":1,"date":"2026-08-07","no":4,"a":{"t":"立正大淞南"},"b":{"t":"長崎日大"}},{"r":1,"date":"2026-08-08","no":1,"a":{"t":"遊学館"},"b":{"t":"青森山田"}},{"r":1,"date":"2026-08-08","no":2,"a":{"t":"白樺学園"},"b":{"t":"東日大昌平"}},{"r":1,"date":"2026-08-08","no":3,"a":{"t":"日本文理"},"b":{"t":"大分商"}},{"r":1,"date":"2026-08-08","no":4,"a":{"t":"英明"},"b":{"t":"関東第一"}},{"r":1,"date":"2026-08-09","no":1,"a":{"t":"新田"},"b":{"t":"花巻東"}},{"r":1,"date":"2026-08-09","no":2,"a":{"t":"岡山学芸館"},"b":{"t":"鳥取城北"}},{"r":1,"date":"2026-08-09","no":3,"a":{"t":"鳴門渦潮"},"b":{"t":"八王子実践"}},{"r":1,"date":"2026-08-09","no":4,"a":{"t":"中京"},"b":{"t":"霞ケ浦"}},{"r":1,"date":"2026-08-10","no":1,"a":{"t":"明徳義塾"},"b":{"t":"日南学園"}},{"r":1,"date":"2026-08-10","no":2,"a":{"t":"横浜"},"b":{"t":"沖縄尚学"}},{"r":2,"date":"2026-08-10","no":3,"a":{"t":"高岡商"},"b":{"t":"高川学園"}},{"r":2,"date":"2026-08-10","no":4,"a":{"t":"天理"},"b":{"t":"福山"}},{"r":2,"date":"2026-08-11","no":1,"a":{"t":"横手"},"b":{"t":"敦賀気比"}},{"r":2,"date":"2026-08-11","no":2,"a":{"t":"智辯和歌山"},"b":{"t":"社"}},{"r":2,"date":"2026-08-11","no":3,"a":{"t":"履正社"},"b":{"t":"享栄"}},{"r":2,"date":"2026-08-11","no":4,"a":{"t":"松商学園"},"b":{"t":"三重"}},{"r":2,"date":"2026-08-12","no":1,"a":{"t":"拓大紅陵"},"b":{"t":"佐賀商"}},{"r":2,"date":"2026-08-12","no":2,"a":{"t":"花咲徳栄"},"b":{"w":"2026-08-05#1"}},{"r":2,"date":"2026-08-12","no":3,"a":{"w":"2026-08-06#1"},"b":{"w":"2026-08-06#2"}},{"r":2,"date":"2026-08-12","no":4,"a":{"w":"2026-08-07#1"},"b":{"w":"2026-08-07#2"}},{"r":2,"date":"2026-08-13","no":1,"a":{"w":"2026-08-07#3"},"b":{"w":"2026-08-07#4"}},{"r":2,"date":"2026-08-13","no":2,"a":{"w":"2026-08-08#1"},"b":{"w":"2026-08-08#2"}},{"r":2,"date":"2026-08-13","no":3,"a":{"w":"2026-08-08#3"},"b":{"w":"2026-08-08#4"}},{"r":2,"date":"2026-08-14","no":1,"a":{"w":"2026-08-09#1"},"b":{"w":"2026-08-09#2"}},{"r":2,"date":"2026-08-14","no":2,"a":{"w":"2026-08-09#3"},"b":{"w":"2026-08-09#4"}},{"r":2,"date":"2026-08-14","no":3,"a":{"w":"2026-08-10#1"},"b":{"w":"2026-08-10#2"}},{"r":3,"date":"2026-08-15","no":1,"a":{"w":"2026-08-10#3"},"b":{"w":"2026-08-10#4"}},{"r":3,"date":"2026-08-15","no":2,"a":{"w":"2026-08-11#1"},"b":{"w":"2026-08-11#2"}},{"r":3,"date":"2026-08-15","no":3,"a":{"w":"2026-08-11#3"},"b":{"w":"2026-08-11#4"}},{"r":3,"date":"2026-08-15","no":4,"a":{"w":"2026-08-12#1"},"b":{"w":"2026-08-12#2"}},{"r":3,"date":"2026-08-16","no":1,"a":{"w":"2026-08-12#3"},"b":{"w":"2026-08-12#4"}},{"r":3,"date":"2026-08-16","no":2,"a":{"w":"2026-08-13#1"},"b":{"w":"2026-08-13#2"}},{"r":3,"date":"2026-08-16","no":3,"a":{"w":"2026-08-13#3"},"b":{"w":"2026-08-14#1"}},{"r":3,"date":"2026-08-16","no":4,"a":{"w":"2026-08-14#2"},"b":{"w":"2026-08-14#3"}}]}
+diff --git a/index.html b/index.html
+index 142b976..08668fb 100644
+--- a/index.html
++++ b/index.html
+@@ -291,6 +291,32 @@ label.lb{display:block;font-size:11.5px;color:var(--ink2);font-weight:700;margin
+ .br-slot.lose{color:var(--ink3);background:#F7F8FA;text-decoration:line-through;text-decoration-color:var(--line2)}
+ .br-slot.lose em{color:var(--line2)}
+ 
++/* ---- トーナメント表（枝分かれ図）----
++   左端に49校を抽選どおりの並びで置き、右へ1回戦→2回戦→3回戦と枝を伸ばす。
++   縦線の位置は「子の中心どうしを結ぶ」ので、シード校（1回戦なし）でもズレない。 */
++.bt-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:8px;padding:6px 2px 6px 0}
++.bt{--btc:88px;display:grid;grid-template-columns:116px var(--btc) var(--btc) var(--btc);grid-auto-rows:26px;min-width:380px}
++.bt-t{grid-column:1;display:flex;align-items:center;font-size:11px;color:var(--ink);
++  padding:0 4px;border-bottom:1px solid #EFF2F6;white-space:nowrap;overflow:hidden}
++.bt-t .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
++.bt-t em{font-style:normal;font-size:9px;color:var(--ink3);margin-left:3px}
++.bt-t i{font-style:normal;font-size:9.5px;font-weight:800;padding:1px 4px;border-radius:4px;
++  margin-left:3px;border:1px solid rgba(0,0,0,.1);flex:none}
++.bt-t.win{font-weight:800;color:#1E5B39;background:#F3F9F5}
++.bt-t.lose{color:var(--ink3);text-decoration:line-through;text-decoration-color:var(--line2)}
++.bt-t.lose i{opacity:.45}
++.bt-m{position:relative}
++.bt-v,.bt-h,.bt-s{position:absolute;background:var(--line2)}
++.bt-v{left:7px;width:2px}
++.bt-h{left:7px;right:3px;height:2px;margin-top:-1px}
++.bt-s{left:0;width:9px;height:2px;margin-top:-1px}
++.bt-m.done .bt-v,.bt-m.done .bt-h,.bt-m.done .bt-s{background:#9CCDB0}
++.bt-lb{position:absolute;left:10px;right:1px;font-size:9.5px;line-height:1.2;color:var(--ink3);
++  transform:translateY(-100%);padding-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
++.bt-lb b{color:#1E5B39;font-weight:800;font-size:10.5px}
++.bt-lb u{text-decoration:none;color:var(--ink3);margin-left:3px}
++.bt-leg{font-size:10.5px;color:var(--ink3);padding:6px 2px 0;line-height:1.6}
++
+ .prize{font-size:10.5px;background:#FBF1D8;color:#8A6A18;border:1px solid #E8D6A4;border-radius:8px;padding:0 5px;font-weight:700;flex:none;margin-left:5px}
+ 
+ /* ========== 予想マトリクス（エクセル版式） ========== */
+@@ -562,6 +588,8 @@ label.lb{display:block;font-size:11.5px;color:var(--ink2);font-weight:700;margin
+ <div class="wrap hide" id="pg-bracket">
+   <div class="card">
+     <div class="card-t">トーナメント表 <span class="sub" id="br-sub"></span></div>
++    <div class="chips" id="br-modes"></div>
++    <div id="br-tree"></div>
+     <div id="br-body"></div>
+   </div>
+ </div>
+@@ -1368,10 +1396,16 @@ function matchNoIn(mi){
+ }
+ /* その行が「いつの第何試合か」。取り込み前は通し番号だけ出す */
+ function brWhen(mi){
+-  const d = BR_DAY[mi];
+-  if(!d || !d.date) return matchNoIn(mi);
+-  const p = d.date.split('-');
+-  return `<b>${+p[1]}/${+p[2]}</b><i>${d.no?'第'+d.no:''}</i>`;
++  const m = ST.matches[mi];
++  if(!m || !m.d) return matchNoIn(mi);
++  return `<b>${mdOf(m.d)}</b><i>${m.n?'第'+m.n:''}</i>`;
++}
++function mdOf(date){ const p=String(date).split('-'); return `${+p[1]}/${+p[2]}`; }
++/* 日付と第N試合から、対戦表の試合を引く */
++function matchByDay(date, no){
++  ensureMatches();
++  const i = ST.matches.findIndex(m=>m.d===date && m.n===no);
++  return i<0 ? null : {m:ST.matches[i], i};
+ }
+ /* 勝者を決める（もう一度押すと取り消し） */
+ function pickWinner(mi, side){
+@@ -1402,6 +1436,12 @@ function renderBracket(){
+   const done = ST.matches.filter(m=>m.w!=null).length;
+   const set  = ST.matches.filter(m=>m.a!=null&&m.b!=null).length;
+   document.getElementById('br-sub').textContent = `${done} / ${TOTAL_GAMES} 試合 終了`;
++  renderBracketTree();
++  if(_brMode==='tree' && btTree()){        // 図を出しているときは一覧を畳む
++    host.innerHTML = (IS_ADMIN && !VIEWING_SHARE)
++      ? `<div class="muted" style="margin-top:10px">勝敗を手で直すときは「☰ 一覧」に切り替えてください。</div>` : '';
++    return;
++  }
+   /* 「自分」を選んでいれば、各校に自分がつけた点を出す */
+   const myP = myPlayer();
+   const myPicks = myP && Array.isArray(myP.picks) ? myP.picks : null;
+@@ -1447,6 +1487,103 @@ function renderBracket(){
+       <button class="btn dan" onclick="resetBracket()">対戦表を空にする</button>
+     </div>` : (set===0 ? `<div class="muted" style="margin-top:10px">組み合わせはまだ入っていません（抽選は8/1 17時）。</div>` : ''));
+ }
++
++/* ============================================================
++   トーナメント表（枝分かれ図）
++   抽選で決まった1〜3回戦の枝は data/bracket.json（甲子園球場の公式表を書き写したもの）。
++   準々決勝から先は勝った学校がくじを引くので、枝は引けない。
++   ============================================================ */
++let _brMode = localStorage.getItem('pb_koshien_brmode') || 'tree';
++function setBrMode(m){ _brMode = m; localStorage.setItem('pb_koshien_brmode', m); renderBracket(); }
++
++/* 抽選表から木を組み立てる。各節に「何行ぶんか（rows）」と
++   「枝を出す位置（center・行単位）」を持たせる。シードは1行ぶん。 */
++function btTree(){
++  if(!BRACKET || !Array.isArray(BRACKET.games)) return null;
++  const byKey = {};
++  BRACKET.games.forEach(g=> byKey[g.date+'#'+g.no] = g);
++  let row = 0;
++  const node = side => {
++    if(side.t!=null){ row++; return {kind:'t', name:side.t, idx:findTeam(side.t), start:row, rows:1, center:0.5}; }
++    const g = byKey[side.w];
++    return g ? mk(g) : (row++, {kind:'t', name:'未定', idx:-1, start:row, rows:1, center:0.5});
++  };
++  const mk = g => {
++    const a = node(g.a), b = node(g.b);
++    return {kind:'m', g, a, b, start:a.start, rows:a.rows+b.rows,
++            center:(a.center + a.rows + b.center)/2};
++  };
++  const roots = BRACKET.games.filter(g=>g.r===3).map(mk);
++  return (row===49) ? roots : null;        // 49行にならなければ表が壊れている
++}
++
++function renderBracketTree(){
++  const host = document.getElementById('br-tree');
++  const modes = document.getElementById('br-modes');
++  if(!host || !modes) return;
++  const roots = btTree();
++  if(!roots){ modes.innerHTML=''; host.innerHTML=''; return; }
++
++  modes.innerHTML = [['tree','🗂 枝分かれ図'],['list','☰ 一覧']]
++    .map(([k,l])=>`<button class="chip ${_brMode===k?'on':''}" onclick="setBrMode('${k}')">${l}</button>`).join('');
++  if(_brMode!=='tree'){ host.innerHTML=''; return; }
++
++  const myP = myPlayer();
++  const myPicks = myP && Array.isArray(myP.picks) ? myP.picks : null;
++  const cells = [];
++
++  /* 学校（左端の列） */
++  const team = n => {
++    const i = n.idx, t = i>=0 ? TEAMS[i] : null;
++    const w = i>=0 && ST.out[i];
++    const won = i>=0 && (ST.wins[i]||0)>0;
++    const pv = (myPicks && i>=0) ? (myPicks[i]||0) : 0;
++    cells.push(`<div class="bt-t ${w?'lose':(won?'win':'')}" style="grid-row:${n.start}">
++      <span class="nm">${t?esc(t.name):'未定'}</span>${t?`<em>${esc(t.pref)}</em>`:''}
++      ${pv?`<i style="${heatStyle(pv)}" title="あなたがつけた点">${pv}</i>`:''}</div>`);
++  };
++
++  /* 試合（縦線で子どうしを結び、勝者を線の上に書く） */
++  const match = (n, col) => {
++    const found = matchByDay(n.g.date, n.g.no);
++    const m = found && found.m;
++    const wIdx = m ? m.w : null;
++    const sc = BR_SCORE[n.g.date+'#'+n.g.no];
++    const pct = v => (v / n.rows * 100).toFixed(3) + '%';
++    const top = n.a.center, bot = n.a.rows + n.b.center;
++    // シード校（1回戦がない）は列がひとつ空くので、その手前まで線を伸ばす
++    const stub = (child, at) => {
++      const ext = (child.kind==='t' && col>2) ? col-2 : 0;
++      const st = ext ? `left:calc(${-ext} * var(--btc));width:calc(${ext} * var(--btc) + 9px);` : '';
++      return `<i class="bt-s" style="${st}top:${at}"></i>`;
++    };
++    const label = wIdx!=null
++      ? `<b>${esc(TEAMS[wIdx].name)}</b>${sc && sc.hs!=null && sc.as!=null
++            ? `<u>${Math.max(sc.hs,sc.as)}-${Math.min(sc.hs,sc.as)}</u>` : ''}`
++      : `${mdOf(n.g.date)} 第${n.g.no}`;
++    cells.push(`<div class="bt-m ${wIdx!=null?'done':''}" style="grid-column:${col};grid-row:${n.start}/span ${n.rows}">
++      ${stub(n.a, pct(top))}${stub(n.b, pct(bot))}
++      <i class="bt-v" style="top:${pct(top)};height:${pct(bot-top)}"></i>
++      <i class="bt-h" style="top:${pct(n.center)}"></i>
++      <span class="bt-lb" style="top:${pct(n.center)}">${label}</span>
++    </div>`);
++  };
++
++  const walk = (n, col) => {
++    if(n.kind==='t'){ team(n); return; }
++    walk(n.a, col-1); walk(n.b, col-1);
++    match(n, col);
++  };
++  roots.forEach(r=> walk(r, 4));           // 3回戦=4列目 / 2回戦=3 / 1回戦=2 / 学校=1
++
++  const legend = myPicks
++    ? `<div class="bt-leg">校名の右の数字は <b>${esc(ME)}</b> さんがつけた点。<b>1つ勝つたびにその点が入ります。</b></div>`
++    : ((ST.players||[]).length ? `<div class="bt-leg">「順位」タブで自分の名前を選ぶと、校名の横に<b>自分がつけた点</b>が出ます。</div>` : '');
++  host.innerHTML = legend +
++    `<div class="bt-wrap"><div class="bt">${cells.join('')}</div></div>` +
++    `<div class="bt-leg">上が1塁側。${esc(BRACKET.note||'')}</div>`;
++}
++
+ function resetBracket(){
+   if(!confirm('対戦表を空にします。入力した勝敗も消えますか？\n※学校の勝利数・敗退はそのまま残ります')) return;
+   ST.matches = initMatches(); save(); render(); toast('対戦表を空にしました');
+@@ -1468,9 +1605,19 @@ async function fetchJson(path){
+   return await r2.json();
+ }
+ let AUTO = { state:'idle', at:0, msg:'', unmatched:[], data:null };
+-/* 対戦表の各行が「何月何日の第何試合か」。取り込みのたびに作り直す */
+-let BR_DAY = {};
+-
++/* 抽選で決まった1〜3回戦の枝分かれ（data/bracket.json）。取れなければ一覧だけ出す */
++let BRACKET = null;
++/* 日付#第N試合 → {hs,as}。枝分かれ図にスコアを出すため */
++let BR_SCORE = {};
++
++/* 抽選表を読む。1回きり（抽選は8/1に済んでいて、もう変わらない）。
++   取れなくても致命的ではない ── そのときは今までどおり一覧だけ出す。 */
++async function fetchBracket(){
++  try{
++    const d = await fetchJson('data/bracket.json');
++    if(d && Array.isArray(d.games) && Array.isArray(d.order) && d.order.length===49){ BRACKET = d; render(); }
++  }catch(e){ /* 一覧で困らないので黙って諦める */ }
++}
+ function autoEnabled(){ return localStorage.getItem('pb_koshien_auto') !== 'off'; }
+ function setAuto(on){ localStorage.setItem('pb_koshien_auto', on?'on':'off'); if(on) fetchGames(true); else render(); }
+ 
+@@ -1490,7 +1637,6 @@ function mapGames(games){
+    8/5第1 → 8/6第1 → 8/7第1 …→ 8/7第2 … と日付がばらばらになる */
+ function buildFromGames(list){
+   const ms = initMatches();
+-  BR_DAY = {};
+   ROUNDS.forEach((rd,ri)=>{
+     const base = ms.findIndex(m=>m.r===ri);
+     list.filter(g=>g.round===rd.l)
+@@ -1501,7 +1647,7 @@ function buildFromGames(list){
+       m.a = (g.a===undefined?null:g.a); m.b = (g.b===undefined?null:g.b);
+       m.w = (g.w===undefined?null:g.w);
+       if(m.w!=null && m.w!==m.a && m.w!==m.b) m.w = null;   // 念のため
+-      BR_DAY[base+k] = {date:g.date, no:g.no};              // 対戦表に日付を出すため
++      m.d = g.date; m.n = g.no;                            // いつの第何試合か（表示と枝分かれ図に使う）
+     });
+   });
+   const wins=new Array(N).fill(0), out=new Array(N).fill(false);
+@@ -1515,6 +1661,8 @@ async function fetchGames(silent){
+     const d = await fetchJson(GAMES_URL);
+     if(!d || !Array.isArray(d.games)) throw new Error('形式が違います');
+     AUTO.data = d;
++    BR_SCORE = {};
++    d.games.forEach(g=> BR_SCORE[g.date+'#'+Number((g.no.match(/\d+/)||[0])[0])] = {hs:g.homeScore, as:g.awayScore});
+     const {list, unmatched} = mapGames(d.games);
+     AUTO.unmatched = unmatched;
+     if(unmatched.length){
+@@ -2538,7 +2686,7 @@ function updateDemoBar(){
+ 
+   // 試合結果の自動取り込み：起動直後・10分ごと・画面に戻ってきた時
+   if(!IS_DEMO && !VIEWING_SHARE){
+-    setTimeout(()=>{ fetchPool(true); fetchGames(true); }, 600);
++    setTimeout(()=>{ fetchBracket(); fetchPool(true); fetchGames(true); }, 600);
+     setInterval(()=>{ if(!document.hidden){ fetchPool(true); fetchGames(true); } }, 3*60*1000);
+     setTimeout(checkForUpdate, 4000);
+     setInterval(()=>{ if(!document.hidden) checkForUpdate(); }, 20*60*1000);
+-- 
+2.43.0
+
+
+From 57281d2e02cbe3860050b9cddd16f9647afc4782 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Thu, 6 Aug 2026 12:43:55 +0000
+Subject: [PATCH 5/5] =?UTF-8?q?HTML=E6=8E=A1=E5=8F=96=E3=83=AF=E3=83=BC?=
+ =?UTF-8?q?=E3=82=AF=E3=83=95=E3=83=AD=E3=83=BC=E3=82=92=E5=89=8A=E9=99=A4?=
+ =?UTF-8?q?=EF=BC=88=E3=82=82=E3=81=86=E8=A6=81=E3=82=89=E3=81=AA=E3=81=84?=
+ =?UTF-8?q?=EF=BC=89?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+枝分かれ図のデータは阪神甲子園球場の公式表から取れたので、
+スポーツナビのHTMLを採取する必要がなくなった。
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_0163xHuKSczKbDLqvr2UrvXY
+---
+ .github/workflows/dump-bracket.yml | 46 ------------------------------
+ 1 file changed, 46 deletions(-)
+ delete mode 100644 .github/workflows/dump-bracket.yml
+
+diff --git a/.github/workflows/dump-bracket.yml b/.github/workflows/dump-bracket.yml
+deleted file mode 100644
+index c41a884..0000000
+--- a/.github/workflows/dump-bracket.yml
++++ /dev/null
+@@ -1,46 +0,0 @@
+-# トーナメント表ページのHTMLを取ってきて、そのままファイルに置く（手動実行のみ）。
+-#
+-# なぜ要るか：スポーツナビのトーナメント表は日程ページと作りが違い、
+-# 中身がそのままでは読めない。パーサを書くには実物のHTMLを一度見るしかない。
+-# 実行環境からYahooに届くのはこのボットだけなので、ここで取って枝に置く。
+-#
+-# 使い方：Actions →「トーナメント表HTMLの採取」→ Run workflow
+-#         → claude/bracket-dump ブランチに data/_bracket_raw.html ができる
+-# パーサができたらこのワークフローとHTMLは消す。
+-name: トーナメント表HTMLの採取
+-
+-on:
+-  workflow_dispatch:
+-    inputs:
+-      url:
+-        description: '取ってくるURL'
+-        required: false
+-        default: 'https://baseball.yahoo.co.jp/hsb_summer/tournament/detail'
+-
+-permissions:
+-  contents: write
+-
+-jobs:
+-  dump:
+-    runs-on: ubuntu-latest
+-    steps:
+-      - uses: actions/checkout@v4
+-      - name: fetch
+-        env:
+-          URL: ${{ inputs.url }}
+-        run: |
+-          mkdir -p data
+-          curl -sS --fail --compressed \
+-            -A 'Mozilla/5.0 (compatible; pb-koshien/1.0; personal tally bot)' \
+-            -H 'Accept-Language: ja' \
+-            "$URL" -o data/_bracket_raw.html
+-          echo "$(wc -c < data/_bracket_raw.html) バイト取得"
+-          echo "試合リンクの数: $(grep -o '/hsb_summer/game/[0-9]*/' data/_bracket_raw.html | sort -u | wc -l)"
+-      - name: commit
+-        run: |
+-          git config user.name  "koshien-bot"
+-          git config user.email "koshien-bot@users.noreply.github.com"
+-          git checkout -B claude/bracket-dump
+-          git add -f data/_bracket_raw.html
+-          git commit -m "dump: トーナメント表ページのHTML"
+-          git push -f origin claude/bracket-dump
+-- 
+2.43.0
+
